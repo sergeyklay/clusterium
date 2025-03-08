@@ -2,9 +2,85 @@
 
 A toolkit for clustering, analyzing, and benchmarking question-answer datasets using state-of-the-art embedding models and clustering algorithms.
 
-## Overview
+## Introduction
 
-QADST is designed to help data engineers, LLM specialists, and researchers organize large question-answer datasets into semantically meaningful clusters. The toolkit provides a comprehensive pipeline for processing QA pairs, including deduplication, filtering, clustering, and quality assessment.
+QADST was developed to solve a specific challenge in Retrieval-Augmented Generation (RAG) systems: creating high-quality, diverse, and representative question-answer datasets for evaluation. When building RAG systems, practitioners often struggle with generating reliable benchmark datasets that adequately cover the knowledge domain and provide meaningful evaluation metrics.
+
+This toolkit addresses the following key challenges:
+
+- **Dataset Quality Assessment**: Determining whether a generated QA dataset is "good enough" as a benchmark
+- **Redundancy Elimination**: Identifying and removing semantically similar questions that don't add evaluation value
+- **Domain Coverage Analysis**: Ensuring the dataset represents all important aspects of source documents
+- **Engineering vs. End-User Focus**: Separating technical questions from those that actual users would ask
+
+### Example Use Case
+
+**Input**: A raw collection of QA pairs generated from domain-specific documents in CSV format as follows:
+
+```csv
+question,answer
+How do I configure the API endpoint?,The API endpoint can be configured in the settings.json file under the "endpoints" section.
+What's the process for setting up API endpoints?,To set up an API endpoint, navigate to settings.json and modify the "endpoints" section.
+How do users reset their passwords?,Users can reset passwords by clicking "Forgot Password" on the login screen.
+What's the best way to implement the authentication service?,The authentication service should be implemented using OAuth2 with JWT tokens and proper encryption.
+...
+```
+
+**Processing Steps**:
+
+1. **Deduplication**: The first two questions are semantically similar (93% similarity) - the first is kept as the representative.
+2. **Filtering**: The fourth question is identified as engineering-focused and filtered out from the end-user dataset.
+3. **Clustering**: The remaining questions are grouped by semantic similarity.
+
+**Output**: Organized clusters in JSON format:
+
+```json
+{
+  "clusters": [
+    {
+      "id": 1,
+      "representative": [
+        {
+          "question": "How do I configure the API endpoint?",
+          "answer": "The API endpoint can be configured in the settings.json file under the \"endpoints\" section."
+        }
+      ],
+      "source": [
+        {
+          "question": "How do I configure the API endpoint?",
+          "answer": "The API endpoint can be configured in the settings.json file under the \"endpoints\" section."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "representative": [
+        {
+          "question": "How do users reset their passwords?",
+          "answer": "Users can reset passwords by clicking \"Forgot Password\" on the login screen."
+        }
+      ],
+      "source": [
+        {
+          "question": "How do users reset their passwords?",
+          "answer": "Users can reset passwords by clicking \"Forgot Password\" on the login screen."
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Additional Outputs**:
+- `qa_cleaned.csv`: CSV file containing deduplicated and filtered QA pairs
+- `engineering_questions.csv`: CSV file containing questions identified as engineering-focused
+- `cluster_quality_report.csv`: Detailed metrics on cluster quality and coherence (when running `qadst benchmark`)
+
+This transformation enables RAG system developers to:
+1. Evaluate against a diverse, non-redundant set of questions (deduplication)
+2. Focus on questions that end-users would actually ask (filtering)
+3. Organize questions into meaningful semantic groups (clustering)
+4. Quantitatively measure dataset quality before using it for evaluation
 
 ## Key Features
 
