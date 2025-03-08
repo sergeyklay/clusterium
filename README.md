@@ -2,6 +2,15 @@
 
 A toolkit for clustering, analyzing, and benchmarking question-answer datasets using state-of-the-art embedding models and clustering algorithms.
 
+## Key Features
+
+- **Semantic Clustering**: Group semantically similar questions using density-based clustering (HDBSCAN)
+- **Intelligent Filtering**: Separate engineering-focused questions from end-user questions using LLM classification
+- **Deduplication**: Remove semantically duplicate questions based on embedding similarity
+- **Cluster Quality Assessment**: Evaluate clustering results using standard metrics and semantic coherence
+- **Topic Labeling**: Generate descriptive topic labels for clusters using LLMs or TF-IDF/NMF
+- **Comprehensive Reporting**: Generate detailed reports on cluster quality and composition
+
 ## Introduction
 
 QADST was developed to solve a specific challenge in Retrieval-Augmented Generation (RAG) systems: creating high-quality, diverse, and representative question-answer datasets for evaluation. When building RAG systems, practitioners often struggle with generating reliable benchmark datasets that adequately cover the knowledge domain and provide meaningful evaluation metrics.
@@ -15,24 +24,27 @@ This toolkit addresses the following key challenges:
 
 ### Example Use Case
 
-**Input**: A raw collection of QA pairs generated from domain-specific documents in CSV format as follows:
+#### Input
+
+Let's assume we've collected company documentation from various sources into a really big RAG system. We then generated an initial dataset based on these documents to use as a benchmark for future evaluations, all compiled into a single CSV file as follows:
 
 ```csv
 question,answer
 How do I configure the API endpoint?,The API endpoint can be configured in the settings.json file under the "endpoints" section.
 What's the process for setting up API endpoints?,To set up an API endpoint, navigate to settings.json and modify the "endpoints" section.
 How do users reset their passwords?,Users can reset passwords by clicking "Forgot Password" on the login screen.
-What's the best way to implement the authentication service?,The authentication service should be implemented using OAuth2 with JWT tokens and proper encryption.
-...
+What's the expected latency for our API when deployed in the EU region with the new load balancer configuration?,The expected latency should be under 100ms for 99% of requests when using the recommended instance types and proper connection pooling.
 ```
 
-**Processing Steps**:
+#### Processing Steps
 
-1. **Deduplication**: The first two questions are semantically similar (93% similarity) - the first is kept as the representative.
-2. **Filtering**: The fourth question is identified as engineering-focused and filtered out from the end-user dataset.
+1. **Deduplication**: The first two questions are semantically similar (93% similarity) - both are kept in the same cluster with the first as the representative.
+2. **Filtering**: The fourth question is identified as engineering-focused (discussing infrastructure details and performance metrics) and filtered out from the end-user dataset.
 3. **Clustering**: The remaining questions are grouped by semantic similarity.
 
-**Output**: Organized clusters in JSON format:
+#### Output
+
+Organized clusters in JSON format:
 
 ```json
 {
@@ -49,6 +61,10 @@ What's the best way to implement the authentication service?,The authentication 
         {
           "question": "How do I configure the API endpoint?",
           "answer": "The API endpoint can be configured in the settings.json file under the \"endpoints\" section."
+        },
+        {
+          "question": "What's the process for setting up API endpoints?",
+          "answer": "To set up an API endpoint, navigate to settings.json and modify the \"endpoints\" section."
         }
       ]
     },
@@ -71,9 +87,10 @@ What's the best way to implement the authentication service?,The authentication 
 }
 ```
 
-**Additional Outputs**:
+#### Additional Outputs
+
 - `qa_cleaned.csv`: CSV file containing deduplicated and filtered QA pairs
-- `engineering_questions.csv`: CSV file containing questions identified as engineering-focused
+- `engineering_questions.csv`: CSV file containing questions identified as engineering-focused (including the latency question)
 - `cluster_quality_report.csv`: Detailed metrics on cluster quality and coherence (when running `qadst benchmark`)
 
 This transformation enables RAG system developers to:
@@ -81,15 +98,6 @@ This transformation enables RAG system developers to:
 2. Focus on questions that end-users would actually ask (filtering)
 3. Organize questions into meaningful semantic groups (clustering)
 4. Quantitatively measure dataset quality before using it for evaluation
-
-## Key Features
-
-- **Semantic Clustering**: Group semantically similar questions using density-based clustering (HDBSCAN)
-- **Intelligent Filtering**: Separate engineering-focused questions from end-user questions using LLM classification
-- **Deduplication**: Remove semantically duplicate questions based on embedding similarity
-- **Cluster Quality Assessment**: Evaluate clustering results using standard metrics and semantic coherence
-- **Topic Labeling**: Generate descriptive topic labels for clusters using LLMs or TF-IDF/NMF
-- **Comprehensive Reporting**: Generate detailed reports on cluster quality and composition
 
 ## Technical Details
 
