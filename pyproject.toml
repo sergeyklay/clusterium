@@ -1,0 +1,45 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "qadst"
+description = "QA Dataset Toolkit for clustering and benchmarking"
+version = "1.0.0"
+license = "GPL-3.0-or-later"
+readme = "README.md"
+requires-python = ">=3.10, <4"
+authors = [{ name = "Serghei Iakovlev", email = "gnu@serghei.pl" }]
+dynamic = [ "dependencies" ]
+
+[tool.poetry.dependencies]
+hdbscan = "^0.8.4"
+langchain = "^0.3.19"
+langchain-openai = "^0.3.6"
+numpy = "^2.2.3"
+pandas = "^2.2.3"
+python-dotenv = "^1.0.1"
+scikit-learn = "^1.6.1"
+click= "^8.1.8"
+
+[tool.poetry]
+requires-poetry = ">=2.0"
+packages = [
+    { include = "qadst" }
+]
+
+[tool.poetry.scripts]
+qadst = "qadst.cli:main"
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+debugpy = "^1.8.12"
+isort = {version = "^6.0.0", extras = ["colors"]}
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.isort]
+profile = "black"
+py_version = 312
