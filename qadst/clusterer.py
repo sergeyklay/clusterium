@@ -11,6 +11,24 @@ logger = logging.getLogger(__name__)
 
 
 class HDBSCANQAClusterer(BaseClusterer):
+    """Question-answer clustering implementation using HDBSCAN algorithm.
+
+    This class implements a density-based clustering approach using HDBSCAN
+    (Hierarchical Density-Based Spatial Clustering of Applications with Noise),
+    which automatically determines the optimal number of clusters and identifies
+    noise points. The implementation includes additional processing for noise points
+    and large clusters.
+
+    HDBSCAN is particularly effective for datasets with varying cluster densities
+    and non-spherical cluster shapes. It can identify outliers as noise points.
+
+    References:
+        - Campello, R.J.G.B., Moulavi, D., Sander, J. (2013) Density-Based Clustering
+          Based on Hierarchical Density Estimates
+        - McInnes, L., Healy, J., Astels, S. (2017) HDBSCAN: Hierarchical density
+          based clustering
+    """
+
     def __init__(
         self,
         embedding_model_name: str,
@@ -22,9 +40,8 @@ class HDBSCANQAClusterer(BaseClusterer):
 
         Args:
             embedding_model_name: Name of the embedding model to use
+            llm_model_name: Optional name of the LLM model for filtering and labeling
             output_dir: Directory to save output files
-            llm_model_name: Optional name of the LLM model to use for filtering
-               and labeling
             filter_enabled: Whether to enable filtering of engineering questions
         """
         super().__init__(
@@ -46,35 +63,45 @@ class HDBSCANQAClusterer(BaseClusterer):
         return self._perform_hdbscan_clustering(qa_pairs)
 
     def cluster_method(self) -> str:
-        """Return the name of the clustering method."""
+        """Return the name of the clustering method.
+
+        Returns:
+            String identifier for the HDBSCAN clustering method
+        """
         return "hdbscan"
 
     def _calculate_min_cluster_size(self, total_questions: int) -> int:
         """Calculate the minimum cluster size based on the total number of questions.
 
+        Adaptively determines appropriate minimum cluster size based on dataset size:
+        - Small datasets: smaller clusters (higher granularity)
+        - Medium datasets: moderate clusters
+        - Large datasets: larger clusters (lower granularity)
+
         Args:
-            total_questions: Total number of questions
+            total_questions: Total number of questions in the dataset
 
         Returns:
-            Minimum cluster size
+            Minimum cluster size for HDBSCAN
         """
-        # For small datasets, we want smaller clusters
         if total_questions < 50:
             return max(3, total_questions // 15)
-        # For medium datasets, we want larger clusters
         elif total_questions < 200:
             return max(5, total_questions // 20)
-        # For large datasets, we want even larger clusters
         else:
             return max(8, total_questions // 25)
 
     def _perform_hdbscan_clustering(
         self, qa_pairs: List[Tuple[str, str]]
     ) -> Dict[str, Any]:
-        """Perform clustering using HDBSCAN.
+        """Perform clustering using HDBSCAN algorithm.
 
-        This method performs clustering using HDBSCAN, which automatically
-        determines the optimal number of clusters.
+        This method:
+        1. Computes embeddings for all questions
+        2. Applies HDBSCAN clustering with adaptive parameters
+        3. Processes noise points separately using K-means
+        4. Handles large clusters by splitting them
+        5. Formats the results into the required structure
 
         Args:
             qa_pairs: List of (question, answer) tuples
@@ -97,37 +124,29 @@ class HDBSCANQAClusterer(BaseClusterer):
             f"(min_cluster_size={min_cluster_size})"
         )
 
-        # Initialize HDBSCAN with appropriate parameters
         hdbscan = HDBSCAN(
             min_cluster_size=min_cluster_size,
             min_samples=None,  # Use default (same as min_cluster_size)
             metric="euclidean",
-            # Excess of Mass - usually gives better results
-            cluster_selection_method="eom",
-            # Small epsilon to merge very similar clusters
-            cluster_selection_epsilon=0.1,
+            cluster_selection_method="eom",  # Excess of Mass - better results
+            cluster_selection_epsilon=0.1,  # Small epsilon to merge similar clusters
             alpha=1.0,
             algorithm="best",
             leaf_size=40,
         )
 
-        # Fit and predict clusters
         cluster_labels = hdbscan.fit_predict(embeddings_array)
 
-        # Count number of actual clusters (excluding noise points labeled as -1)
         num_clusters = len(set(cluster_labels)) - (1 if -1 in cluster_labels else 0)
         logger.info(
             f"HDBSCAN found {num_clusters} clusters and "
             f"{np.sum(cluster_labels == -1)} noise points"
         )
 
-        # Organize data into clusters
         clusters = {}
         for i, label in enumerate(cluster_labels):
-            # Convert label to string for consistency with the rest of the code
             label_key = str(int(label))
 
-            # Skip noise points (label -1) or create a special noise cluster if needed
             if label == -1:
                 if "-1" not in clusters:
                     clusters["-1"] = {"questions": [], "qa_pairs": []}
@@ -145,7 +164,7 @@ class HDBSCANQAClusterer(BaseClusterer):
                 {"question": qa_pairs[i][0], "answer": qa_pairs[i][1]}
             )
 
-        # If we have too many noise points, try to cluster them separately
+        # Process noise points if there are enough of them
         if "-1" in clusters and len(clusters["-1"]["questions"]) > min_cluster_size * 2:
             noise_qa_pairs = [
                 (q["question"], q["answer"]) for q in clusters["-1"]["qa_pairs"]
@@ -154,10 +173,8 @@ class HDBSCANQAClusterer(BaseClusterer):
                 noise_qa_pairs, min_cluster_size
             )
 
-            # Remove the original noise cluster
             del clusters["-1"]
 
-            # Add the new noise subclusters with unique IDs
             if clusters:
                 max_cluster_id = max([int(k) for k in clusters.keys()])
             else:
@@ -167,18 +184,22 @@ class HDBSCANQAClusterer(BaseClusterer):
                 new_id = str(max_cluster_id + i + 1)
                 clusters[new_id] = subcluster
 
-        # Handle any remaining large clusters
         final_clusters = self._handle_large_clusters(clusters, total_questions)
         return self._format_clusters(final_clusters)
 
     def _cluster_noise_points(
         self, noise_qa_pairs: List[Tuple[str, str]], min_cluster_size: int
     ) -> Dict[str, Dict]:
-        """Attempt to cluster noise points using K-means with a small number of clusters.
+        """Cluster noise points using K-means to recover potentially useful groups.
+
+        HDBSCAN identifies outliers as noise points (label -1). This method attempts
+        to find meaningful subgroups within these noise points using K-means clustering,
+        which can help recover useful information from points that don't fit the
+        density-based clustering criteria.
 
         Args:
             noise_qa_pairs: List of (question, answer) tuples for noise points
-            min_cluster_size: Minimum cluster size to use
+            min_cluster_size: Minimum cluster size to use for determining K
 
         Returns:
             Dict of subclusters for noise points
@@ -218,14 +239,18 @@ class HDBSCANQAClusterer(BaseClusterer):
     def _handle_large_clusters(
         self, clusters: Dict[str, Dict], total_questions: int
     ) -> Dict[str, Dict]:
-        """Split large clusters into smaller subclusters.
+        """Split large clusters into smaller subclusters for better granularity.
+
+        Very large clusters may contain distinct subgroups that HDBSCAN merged due to
+        density connectivity. This method applies K-means to large clusters to split
+        them into more manageable and potentially more coherent subclusters.
 
         Args:
             clusters: Initial clustering result
-            total_questions: Total number of questions
+            total_questions: Total number of questions in the dataset
 
         Returns:
-            Dict with refined clustering
+            Dict with refined clustering after splitting large clusters
         """
         large_cluster_threshold = max(30, total_questions // 5)
         final_clusters = {}
@@ -273,13 +298,16 @@ class HDBSCANQAClusterer(BaseClusterer):
         return final_clusters
 
     def _format_clusters(self, clusters: Dict[str, Dict]) -> Dict[str, List]:
-        """Format clusters in the requested JSON structure.
+        """Format clusters into the standardized output structure.
+
+        Converts the internal cluster representation to the required JSON structure
+        with cluster IDs, representative questions, and source questions.
 
         Args:
-            clusters: Dictionary of clusters
+            clusters: Dictionary of clusters with questions and QA pairs
 
         Returns:
-            Dict with clusters in the requested format
+            Dict with clusters in the standardized format
         """
         formatted_clusters = []
 

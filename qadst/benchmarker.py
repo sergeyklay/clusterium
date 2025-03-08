@@ -20,7 +20,23 @@ logger = logging.getLogger(__name__)
 
 
 class ClusterBenchmarker:
-    """Class for benchmarking the quality of clustering results."""
+    """Evaluates and analyzes the quality of clustering results.
+
+    This class provides methods to assess clustering quality using various metrics,
+    generate topic labels for clusters, and create comprehensive reports. It supports
+    both statistical evaluation metrics and semantic coherence measures.
+
+    The benchmarker can use:
+    1. Standard clustering metrics (silhouette, Davies-Bouldin, Calinski-Harabasz)
+    2. Semantic coherence based on embedding similarity
+    3. LLM-based topic labeling for interpretability
+    4. TF-IDF/NMF-based topic extraction as a fallback
+
+    Attributes:
+        embeddings_model: Model for generating embeddings
+        llm: Language model for topic labeling
+        output_dir: Directory to save output files
+    """
 
     def __init__(
         self,
@@ -33,8 +49,8 @@ class ClusterBenchmarker:
         Args:
             embedding_model_name: Name of the embedding model to use
             llm_model_name: Name of the LLM model to use for topic labeling
+            output_dir: Directory to save output files
         """
-        # Initialize embedding model if name is provided
         self.embeddings_model = None
         if embedding_model_name:
             try:
@@ -43,7 +59,6 @@ class ClusterBenchmarker:
             except Exception as e:
                 logger.warning(f"Failed to initialize embeddings model: {e}")
 
-        # Initialize LLM if model name is provided
         self.llm = None
         if llm_model_name:
             try:
@@ -78,8 +93,7 @@ class ClusterBenchmarker:
         qa_pairs = []
         with open(csv_path, "r") as f:
             reader = csv.reader(f)
-            # Skip header
-            next(reader)
+            next(reader)  # Skip header
             for row in reader:
                 if len(row) >= 2:
                     qa_pairs.append((row[0], row[1]))
@@ -94,7 +108,7 @@ class ClusterBenchmarker:
             qa_pairs: List of (question, answer) tuples
 
         Returns:
-            Array of embeddings
+            Array of embeddings for the questions
         """
         if self.embeddings_model is None:
             raise ValueError("Embeddings model not provided")
@@ -107,6 +121,9 @@ class ClusterBenchmarker:
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Prepare data for cluster quality evaluation.
 
+        Maps cluster assignments to the original questions and creates arrays
+        of embeddings and corresponding cluster labels for metric calculation.
+
         Args:
             clusters: Dict containing clustering results
             embeddings: Array of embeddings
@@ -114,12 +131,10 @@ class ClusterBenchmarker:
         Returns:
             Tuple of (embeddings_array, labels_array)
         """
-        # Create a mapping from question to index
         question_to_idx = {}
         for i, (q, _) in enumerate(self.qa_pairs):
             question_to_idx[q] = i
 
-        # Extract labels for each question
         labels = np.full(len(self.qa_pairs), -1)  # Default to noise
 
         for cluster_idx, cluster in enumerate(clusters["clusters"]):
@@ -133,7 +148,20 @@ class ClusterBenchmarker:
     def calculate_metrics(
         self, embeddings: np.ndarray, labels: np.ndarray
     ) -> Dict[str, float]:
-        """Calculate cluster quality metrics.
+        """Calculate standard cluster quality metrics.
+
+        Computes three widely used clustering evaluation metrics:
+        1. Davies-Bouldin Index: Lower values indicate better clustering
+        2. Calinski-Harabasz Index: Higher values indicate better clustering
+        3. Silhouette Score: Higher values (-1 to 1) indicate better clustering
+
+        Also calculates the noise ratio (proportion of points not assigned to clusters).
+
+        References:
+            - Davies, D.L., Bouldin, D.W. (1979). A Cluster Separation Measure
+            - Calinski, T., Harabasz, J. (1974). A dendrite method for cluster analysis
+            - Rousseeuw, P.J. (1987). Silhouettes: a graphical aid to the
+              interpretation and validation of cluster analysis
 
         Args:
             embeddings: Array of embeddings
@@ -142,34 +170,27 @@ class ClusterBenchmarker:
         Returns:
             Dict containing metrics
         """
-        # Filter out noise points (label -1)
         non_noise_mask = labels != -1
         non_noise_embeddings = embeddings[non_noise_mask]
         non_noise_labels = labels[non_noise_mask]
 
         metrics = {}
-
-        # Calculate noise ratio
         metrics["noise_ratio"] = 1.0 - (np.sum(non_noise_mask) / len(labels))
 
-        # Skip other metrics if there's only one cluster or all points are noise
         if len(np.unique(non_noise_labels)) <= 1 or len(non_noise_embeddings) == 0:
             metrics["davies_bouldin_score"] = float("nan")
             metrics["calinski_harabasz_score"] = float("nan")
             metrics["silhouette_score"] = float("nan")
             return metrics
 
-        # Calculate Davies-Bouldin Index (lower is better)
         metrics["davies_bouldin_score"] = davies_bouldin_score(
             non_noise_embeddings, non_noise_labels
         )
 
-        # Calculate Calinski-Harabasz Index (higher is better)
         metrics["calinski_harabasz_score"] = calinski_harabasz_score(
             non_noise_embeddings, non_noise_labels
         )
 
-        # Calculate Silhouette Score (higher is better)
         metrics["silhouette_score"] = silhouette_score(
             non_noise_embeddings, non_noise_labels
         )
@@ -177,60 +198,70 @@ class ClusterBenchmarker:
         return metrics
 
     def calculate_cluster_coherence(self, cluster_questions: List[str]) -> float:
-        """Calculate coherence score for a cluster based on cosine similarity.
+        """Calculate semantic coherence score for a cluster.
+
+        Measures how semantically similar the questions within a cluster are to each
+        other by computing the average pairwise cosine similarity between their
+        embeddings. Higher values indicate more coherent clusters.
 
         Args:
             cluster_questions: List of questions in the cluster
 
         Returns:
-            Coherence score (average pairwise similarity)
+            Coherence score (average pairwise similarity) between 0 and 1
         """
+        if self.embeddings_model is None:
+            raise ValueError("Embeddings model not provided")
+
         if len(cluster_questions) <= 1:
             return 1.0  # Perfect coherence for single-item clusters
 
-        # Get embeddings for questions
         embeddings = np.array(self.embeddings_model.embed_documents(cluster_questions))
 
-        # Calculate pairwise cosine similarities
         similarities = []
         for i in range(len(embeddings)):
             for j in range(i + 1, len(embeddings)):
                 similarity = self._cosine_similarity(embeddings[i], embeddings[j])
                 similarities.append(similarity)
 
-        # Return average similarity
-        return np.mean(similarities)
+        return float(np.mean(similarities))
 
     def _cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         """Calculate cosine similarity between two vectors.
+
+        The cosine similarity measures the cosine of the angle between two vectors,
+        providing a similarity score between -1 and 1, where 1 means identical,
+        0 means orthogonal, and -1 means opposite.
 
         Args:
             vec1: First vector
             vec2: Second vector
 
         Returns:
-            Cosine similarity
+            Cosine similarity value between -1 and 1
         """
         return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
     def _generate_llm_topic_label(self, questions: List[str]) -> str:
-        """Generate a topic label using an LLM.
+        """Generate a descriptive topic label using an LLM.
+
+        Uses a language model to analyze a set of questions and generate a concise,
+        specific topic label that captures the common theme. The prompt is designed
+        to produce distinctive, non-generic labels.
 
         Args:
             questions: List of questions to generate a topic label for
 
         Returns:
-            Topic label
+            Topic label as a string
         """
         if not self.llm:
             return "No LLM Available"
 
-        # Format the questions as a numbered list
         formatted_questions = "\n".join(
             [f"{i+1}. {q}" for i, q in enumerate(questions)]
         )
 
-        # Create a prompt template with more specific instructions
         prompt_template = PromptTemplate(
             input_variables=["questions"],
             template="""
@@ -264,30 +295,23 @@ class ClusterBenchmarker:
             """,
         )
 
-        # Create a runnable sequence
-        if self.llm:
-            chain = prompt_template | self.llm
+        chain = prompt_template | self.llm
 
-            # Generate the topic label
-            try:
-                response = chain.invoke({"questions": formatted_questions})
+        try:
+            response = chain.invoke({"questions": formatted_questions})
 
-                # Clean up the response
-                if hasattr(response, "content"):
-                    # For ChatOpenAI which returns a message with content
-                    topic_label = response.content.strip().strip('"').strip("'")
-                else:
-                    # For other LLMs that return a string directly
-                    topic_label = str(response).strip().strip('"').strip("'")
+            if hasattr(response, "content"):
+                topic_label = str(response.content).strip().strip('"').strip("'")
+            else:
+                topic_label = str(response).strip().strip('"').strip("'")
 
-                # Limit to 50 characters
-                if len(topic_label) > 50:
-                    topic_label = topic_label[:47] + "..."
+            if len(topic_label) > 50:
+                topic_label = topic_label[:47] + "..."
 
-                return topic_label
-            except Exception as e:
-                logger.warning(f"Error generating topic label: {e}")
-                return "LLM Error"
+            return topic_label
+        except Exception as e:
+            logger.warning(f"Error generating topic label: {e}")
+            return "LLM Error"
         else:
             return "No LLM Available"
 
@@ -299,16 +323,20 @@ class ClusterBenchmarker:
         use_llm: bool = True,
         max_questions_per_cluster: int = 10,
     ) -> Dict[int, str]:
-        """Extract topic labels for each cluster.
+        """Extract descriptive topic labels for each cluster.
+
+        Uses either LLM-based labeling (preferred) or TF-IDF/NMF-based keyword
+        extraction (fallback) to generate meaningful labels for each cluster.
+
+        The LLM approach produces more natural, interpretable labels, while the
+        TF-IDF/NMF approach extracts statistically significant keywords.
 
         Args:
             clusters: Dict containing clustering results
             n_topics: Number of topics to extract per cluster (for TF-IDF/NMF method)
             n_top_words: Number of top words to include in the label
-                (for TF-IDF/NMF method)
             use_llm: Whether to use an LLM for generating topic labels
-            max_questions_per_cluster: Maximum number of questions to use for
-                LLM-based labeling
+            max_questions_per_cluster: Maximum number of questions to use for labeling
 
         Returns:
             Dict mapping cluster IDs to topic labels
@@ -319,7 +347,7 @@ class ClusterBenchmarker:
             logger.warning("LLM not provided, falling back to TF-IDF/NMF method")
             use_llm = False
 
-        # First pass: collect all questions for context
+        # Collect all questions for context
         all_cluster_questions = {}
         for cluster in clusters["clusters"]:
             cluster_id = cluster["id"]
@@ -329,7 +357,7 @@ class ClusterBenchmarker:
                     :max_questions_per_cluster
                 ]
 
-        # Second pass: generate labels with knowledge of other clusters
+        # Generate labels with knowledge of other clusters
         for cluster in clusters["clusters"]:
             cluster_id = cluster["id"]
             questions = all_cluster_questions.get(cluster_id, [])
@@ -340,18 +368,15 @@ class ClusterBenchmarker:
 
             if use_llm:
                 try:
-                    # Use LLM to generate a topic label
                     topic_labels[cluster_id] = self._generate_llm_topic_label(questions)
                     continue
                 except Exception as e:
-                    logger.warning(
-                        f"Error generating LLM topic label for cluster {cluster_id}: {e}"
-                    )
-                    # Fall back to TF-IDF/NMF method
+                    msg = f"Error generating LLM topic label for cluster {cluster_id}: {e}"
+                    logger.warning(msg)
 
             # TF-IDF/NMF method (fallback)
             try:
-                # Use TF-IDF to extract important words
+                # Extract important words using TF-IDF
                 vectorizer = TfidfVectorizer(
                     max_features=100, stop_words="english", ngram_range=(1, 2)
                 )
@@ -359,12 +384,12 @@ class ClusterBenchmarker:
                 tfidf_matrix = vectorizer.fit_transform(questions)
                 feature_names = vectorizer.get_feature_names_out()
 
-                # If we have enough documents, use NMF to extract topics
+                # For clusters with enough documents, use NMF to extract topics
                 if len(questions) >= 3:
+                    # Non-negative Matrix Factorization for topic modeling
                     nmf_model = NMF(
                         n_components=min(n_topics, len(questions)), random_state=42
                     )
-                    # Fit the model but don't need to store features
                     nmf_model.fit_transform(tfidf_matrix)
 
                     # Get the top words for the first topic
@@ -376,8 +401,13 @@ class ClusterBenchmarker:
 
                     topic_labels[cluster_id] = " ".join(top_words).title()
                 else:
-                    # For small clusters, just use the top TF-IDF terms
-                    tfidf_sum = np.asarray(tfidf_matrix.sum(axis=0)).flatten()
+                    # For small clusters, use the top TF-IDF terms directly
+                    # Use scipy's built-in sum method for sparse matrices
+                    import scipy.sparse as sp
+
+                    tfidf_sum = sp.spmatrix.sum(tfidf_matrix, axis=0)
+                    # Convert to regular array for further processing
+                    tfidf_sum = np.asarray(tfidf_sum).flatten()
                     top_indices = tfidf_sum.argsort()[::-1][:n_top_words]
                     top_words = [str(feature_names[i]) for i in top_indices]
 
@@ -395,6 +425,9 @@ class ClusterBenchmarker:
     def _ensure_unique_labels(self, topic_labels: Dict[int, str]) -> None:
         """Ensure all topic labels are unique by adding suffixes if needed.
 
+        Adds numeric suffixes to duplicate labels to ensure each cluster has a
+        unique identifier.
+
         Args:
             topic_labels: Dict mapping cluster IDs to topic labels
         """
@@ -402,7 +435,6 @@ class ClusterBenchmarker:
 
         for cluster_id, label in sorted(topic_labels.items()):
             if label in seen_labels:
-                # Add a suffix to make it unique
                 count = seen_labels[label] + 1
                 seen_labels[label] = count
                 topic_labels[cluster_id] = f"{label} ({count})"
@@ -416,6 +448,14 @@ class ClusterBenchmarker:
         use_llm_for_topics: bool = True,
     ) -> pd.DataFrame:
         """Generate a comprehensive cluster quality report.
+
+        Creates a detailed report with:
+        1. Cluster sizes and IDs
+        2. Topic labels for each cluster
+        3. Coherence scores for each cluster
+        4. Global clustering quality metrics
+
+        The report is saved as a CSV file and returned as a DataFrame.
 
         Args:
             clusters_json_path: Path to the JSON file containing clustering results

@@ -38,7 +38,7 @@ def common_options(func):
         "--output-dir",
         type=click.Path(exists=True, file_okay=False, dir_okay=True),
         default=str(OUTPUT_DIR),
-        help="Directory to save output files",
+        help="Directory to save output files (default: ./output)",
     )(func)
     func = click.option(
         "--llm-model",

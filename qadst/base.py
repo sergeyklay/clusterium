@@ -14,6 +14,20 @@ logger = logging.getLogger(__name__)
 
 
 class BaseClusterer(ABC):
+    """Abstract base class for question-answer clustering algorithms.
+
+    This class provides common functionality for clustering question-answer pairs,
+    including deduplication, filtering, and processing datasets. Subclasses must
+    implement the clustering algorithm-specific methods.
+
+    Attributes:
+        output_dir: Directory to save output files
+        embedding_model_name: Name of the embedding model
+        embeddings_model: Initialized embedding model instance
+        filter_enabled: Whether filtering is enabled
+        filter_cache: Cache for filter results to avoid redundant LLM calls
+        llm: Language model for filtering and topic labeling
+    """
 
     def __init__(
         self,
@@ -27,15 +41,14 @@ class BaseClusterer(ABC):
         Args:
             embedding_model_name: Name of the embedding model to use
             output_dir: Directory to save output files
-            llm_model_name: Optional name of the LLM model to use for filtering
-               and labeling
+            llm_model_name: Optional name of the LLM model for filtering and labeling
             filter_enabled: Whether to enable filtering of engineering questions
         """
         self.output_dir = output_dir
         self.embedding_model_name = embedding_model_name
         self.embeddings_model = OpenAIEmbeddings(model=embedding_model_name)
         self.filter_enabled = filter_enabled
-        self.filter_cache = {}  # Cache for filter results to avoid redundant LLM calls
+        self.filter_cache = {}
 
         # Initialize LLM if model name is provided
         self.llm = None
@@ -79,32 +92,37 @@ class BaseClusterer(ABC):
 
         return qa_pairs
 
-    def calculate_cosine_similarity(self, vec1, vec2):
+    def calculate_cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         """Calculate cosine similarity between two vectors.
+
+        The cosine similarity measures the cosine of the angle between two vectors,
+        providing a similarity score between -1 and 1, where 1 means identical,
+        0 means orthogonal, and -1 means opposite.
 
         Args:
             vec1: First vector
             vec2: Second vector
 
         Returns:
-            float: Cosine similarity score between 0 and 1
+            Cosine similarity value between -1 and 1
         """
-        vec1 = np.array(vec1)
-        vec2 = np.array(vec2)
-
-        dot_product = np.dot(vec1, vec2)
-        norm_vec1 = np.linalg.norm(vec1)
-        norm_vec2 = np.linalg.norm(vec2)
-
-        if norm_vec1 == 0 or norm_vec2 == 0:
-            return 0
-
-        return dot_product / (norm_vec1 * norm_vec2)
+        # Convert to numpy arrays if they aren't already
+        vec1_np = np.array(vec1)
+        vec2_np = np.array(vec2)
+        return np.dot(vec1_np, vec2_np) / (
+            np.linalg.norm(vec1_np) * np.linalg.norm(vec2_np)
+        )
 
     def deduplicate_questions(
         self, qa_pairs: List[Tuple[str, str]]
     ) -> List[Tuple[str, str]]:
         """Remove semantically duplicate questions using embedding similarity.
+
+        This method identifies and removes semantically similar questions by:
+        1. Computing embeddings for all questions
+        2. Calculating pairwise cosine similarities
+        3. Grouping questions that exceed the similarity threshold
+        4. Keeping one representative from each group
 
         Args:
             qa_pairs: List of (question, answer) tuples
@@ -152,11 +170,7 @@ class BaseClusterer(ABC):
         deduplicated_pairs = []
 
         for canonical_idx, group in duplicate_groups.items():
-            if len(group) == 1:
-                deduplicated_pairs.append(qa_pairs[canonical_idx])
-            else:
-                # Take the first pair as representative
-                deduplicated_pairs.append(qa_pairs[canonical_idx])
+            deduplicated_pairs.append(qa_pairs[canonical_idx])
 
         logger.info(
             f"Found {duplicate_count} duplicates out of {total_questions} questions"
@@ -172,19 +186,21 @@ class BaseClusterer(ABC):
     ) -> List[Tuple[str, str]]:
         """Filter out questions intended for engineering teams rather than end clients.
 
+        Uses an LLM to classify questions as either engineering-focused or client-focused.
+        Processes questions in batches for efficiency and maintains a cache to avoid
+        redundant LLM calls.
+
         Args:
             qa_pairs: List of (question, answer) tuples
-            batch_size: Number of questions to process in each batch for efficiency
+            batch_size: Number of questions to process in each batch
             use_llm: Whether to use an LLM for filtering
             cache_file: Optional path to a cache file to persist filter results
 
         Returns:
-            List of filtered (question, answer) tuples
+            List of filtered (question, answer) tuples for end clients
         """
         if not use_llm or not self.llm:
-            logger.warning(
-                "LLM not provided or filtering disabled, skipping engineering filter"
-            )
+            logger.warning("LLM not provided or filtering disabled, skipping filter")
             return qa_pairs
 
         # Load cache from file if provided
@@ -203,7 +219,6 @@ class BaseClusterer(ABC):
         # First pass: check cache and collect questions that need processing
         for q, a in qa_pairs:
             if q in self.filter_cache:
-                # Use cached result
                 if not self.filter_cache[
                     q
                 ]:  # False means it's not an engineering question
@@ -217,7 +232,6 @@ class BaseClusterer(ABC):
             logger.info("All questions found in cache, no LLM calls needed")
             return filtered_pairs
 
-        # Process questions in batches for efficiency
         logger.info(
             f"Processing {len(questions_to_process)} uncached questions in batches"
         )
@@ -234,7 +248,6 @@ class BaseClusterer(ABC):
             batch_results = self._classify_questions_batch([q for q, _ in batch])
 
             for (q, a), is_engineering in zip(batch, batch_results):
-                # Update cache
                 self.filter_cache[q] = is_engineering
 
                 if not is_engineering:
@@ -246,8 +259,9 @@ class BaseClusterer(ABC):
             elapsed = time.time() - start_time
             rate = total_processed / elapsed if elapsed > 0 else 0
             logger.info(
-                f"Processed {total_processed}/{len(questions_to_process)} questions, "
-                f"found {len(engineering_pairs)} engineering questions"
+                f"Processed {total_processed}/{len(questions_to_process)} questions "
+                f"({rate:.2f} q/s), found {len(engineering_pairs)} engineering"
+                f" questions"
             )
 
             # Small delay to avoid rate limiting
@@ -267,7 +281,7 @@ class BaseClusterer(ABC):
             f"({len(engineering_pairs)/len(qa_pairs)*100:.1f}%)"
         )
 
-        # Optionally save engineering questions to a separate file for review
+        # Save engineering questions to a separate file for review
         engineering_file = os.path.join(self.output_dir, "engineering_questions.csv")
         with open(engineering_file, "w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
@@ -281,6 +295,10 @@ class BaseClusterer(ABC):
     def _classify_questions_batch(self, questions: List[str]) -> List[bool]:
         """Classify a batch of questions as engineering-focused or client-focused.
 
+        Uses an LLM to determine if each question is intended for engineering teams
+        or end clients. Returns a list of boolean values where True indicates
+        an engineering-focused question.
+
         Args:
             questions: List of questions to classify
 
@@ -290,12 +308,10 @@ class BaseClusterer(ABC):
         if not self.llm:
             return [False] * len(questions)
 
-        # Format the questions as a numbered list
         formatted_questions = "\n".join(
             [f"{i+1}. {q}" for i, q in enumerate(questions)]
         )
 
-        # Create a prompt template
         prompt_template = PromptTemplate(
             input_variables=["questions"],
             template="""
@@ -333,22 +349,17 @@ class BaseClusterer(ABC):
             """,
         )
 
-        # Create a runnable sequence
         chain = prompt_template | self.llm
 
         try:
-            # Generate the classification
             response = chain.invoke({"questions": formatted_questions})
 
-            # Parse the response
+            content = ""
             if hasattr(response, "content"):
-                # For ChatOpenAI which returns a message with content
                 content = str(response.content).strip()
             else:
-                # For other LLMs that return a string directly
                 content = str(response).strip()
 
-            # Extract the JSON array
             import re
 
             json_match = re.search(r"\[.*\]", content)
@@ -356,12 +367,10 @@ class BaseClusterer(ABC):
                 json_str = json_match.group(0)
                 try:
                     results = json.loads(json_str)
-                    # Ensure we have the right number of results
                     if len(results) != len(questions):
                         logger.warning(
                             f"Expected {len(questions)} results, got {len(results)}"
                         )
-                        # Pad or truncate as needed
                         if len(results) < len(questions):
                             results.extend([False] * (len(questions) - len(results)))
                         else:
@@ -370,7 +379,6 @@ class BaseClusterer(ABC):
                 except json.JSONDecodeError:
                     logger.warning(f"Failed to parse JSON from response: {json_str}")
 
-            # Fallback: assume all questions are for clients
             logger.warning("Could not extract valid classification from LLM response")
             return [False] * len(questions)
 
@@ -382,6 +390,9 @@ class BaseClusterer(ABC):
     def cluster_questions(self, qa_pairs: List[Tuple[str, str]]) -> Dict[str, Any]:
         """Cluster questions based on semantic similarity.
 
+        This abstract method must be implemented by subclasses to provide
+        algorithm-specific clustering functionality.
+
         Args:
             qa_pairs: List of (question, answer) tuples
 
@@ -392,11 +403,25 @@ class BaseClusterer(ABC):
 
     @abstractmethod
     def cluster_method(self) -> str:
-        """Return the name of the clustering method."""
+        """Return the name of the clustering method.
+
+        This abstract method must be implemented by subclasses to provide
+        the name of the clustering algorithm used.
+
+        Returns:
+            String name of the clustering method
+        """
         pass
 
     def process_dataset(self, csv_path: str) -> Dict[str, Any]:
-        """Process a CSV file containing QA pairs.
+        """Process a CSV file containing QA pairs through the full pipeline.
+
+        This method orchestrates the complete processing pipeline:
+        1. Load QA pairs from CSV
+        2. Deduplicate questions
+        3. Filter out engineering questions (if enabled)
+        4. Cluster the questions
+        5. Save results to JSON and CSV files
 
         Args:
             csv_path: Path to the CSV file containing question-answer pairs
@@ -404,6 +429,8 @@ class BaseClusterer(ABC):
         Returns:
             Dict containing clustering results and paths to output files
         """
+        base_filename = os.path.splitext(os.path.basename(csv_path))[0]
+
         logger.info(f"Loading QA pairs from {csv_path}")
         qa_pairs = self.load_qa_pairs(csv_path)
         logger.info(f"Loaded {len(qa_pairs)} QA pairs")
@@ -414,10 +441,11 @@ class BaseClusterer(ABC):
 
         filtered_pairs = deduplicated_pairs
 
-        # Filter out engineering questions if enabled
         if self.filter_enabled:
             logger.info("Filtering out engineering-focused questions")
-            cache_file = os.path.join(self.output_dir, "filter_cache.json")
+            cache_file = os.path.join(
+                self.output_dir, f"{base_filename}_filter_cache.json"
+            )
             filtered_pairs = self.filter_questions(
                 deduplicated_pairs,
                 batch_size=20,
@@ -431,12 +459,16 @@ class BaseClusterer(ABC):
         logger.info(f"Clustering questions using {self.cluster_method()}")
         clustering_results = self.cluster_questions(filtered_pairs)
 
-        json_output_path = os.path.join(self.output_dir, "qa_clusters.json")
+        json_output_path = os.path.join(
+            self.output_dir, f"{base_filename}_{self.cluster_method()}_clusters.json"
+        )
         with open(json_output_path, "w", encoding="utf-8") as f:
             json.dump(clustering_results, f, indent=2)
         logger.info(f"Saved clustering results to {json_output_path}")
 
-        csv_output_path = os.path.join(self.output_dir, "qa_cleaned.csv")
+        csv_output_path = os.path.join(
+            self.output_dir, f"{base_filename}_{self.cluster_method()}_cleaned.csv"
+        )
         with open(csv_output_path, "w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["question", "answer"])
