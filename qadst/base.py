@@ -49,17 +49,17 @@ class BaseClusterer(ABC):
         self.embeddings_model = OpenAIEmbeddings(model=embedding_model_name)
         self.filter_enabled = filter_enabled
         self.filter_cache = {}
+        self.embedding_cache = {}
 
-        # Initialize LLM if model name is provided
         self.llm = None
-        if llm_model_name and filter_enabled:
+        if llm_model_name:
             try:
                 self.llm = ChatOpenAI(model=llm_model_name, temperature=0.0)
                 logger.info(f"Initialized LLM with model: {llm_model_name}")
             except Exception as e:
                 logger.warning(f"Failed to initialize LLM: {e}")
 
-        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(self.output_dir, exist_ok=True)
 
     def load_qa_pairs(self, csv_path: str) -> List[Tuple[str, str]]:
         """Load question-answer pairs from a CSV file.
@@ -145,6 +145,8 @@ class BaseClusterer(ABC):
         3. Grouping questions that exceed the similarity threshold
         4. Keeping one representative from each group
 
+        Uses embedding caching to avoid recomputing embeddings across runs.
+
         Args:
             qa_pairs: List of (question, answer) tuples
 
@@ -163,11 +165,20 @@ class BaseClusterer(ABC):
             >>> len(deduplicated)
             2
         """
+        import time
+
         if not qa_pairs:
             return []
 
+        start = time.time()
         questions = [q for q, _ in qa_pairs]
-        question_embeddings = self.embeddings_model.embed_documents(questions)
+
+        # Use cached embeddings if available
+        questions_str = "".join(questions)
+        model_name = self.embedding_model_name
+        questions_hash = hash(questions_str)
+        cache_key = f"dedup_{model_name}_{questions_hash}"
+        question_embeddings = self.get_embeddings(questions, cache_key)
 
         similarity_threshold = 0.85
         duplicate_groups = {}
@@ -208,6 +219,8 @@ class BaseClusterer(ABC):
         logger.info(
             f"Found {duplicate_count} duplicates out of {total_questions} questions"
         )
+
+        logger.info(f"Deduplication time: {time.time()-start:.2f}s")
         return deduplicated_pairs
 
     def filter_questions(
@@ -219,9 +232,9 @@ class BaseClusterer(ABC):
     ) -> List[Tuple[str, str]]:
         """Filter out questions intended for engineering teams rather than end clients.
 
-        Uses an LLM to classify questions as either engineering-focused or client-focused.
-        Processes questions in batches for efficiency and maintains a cache to avoid
-        redundant LLM calls.
+        Uses an LLM to classify questions as either engineering-focused or
+        client-focused. Processes questions in batches for efficiency and maintains
+        a cache to avoid redundant LLM calls.
 
         Args:
             qa_pairs: List of (question, answer) tuples
@@ -555,3 +568,70 @@ class BaseClusterer(ABC):
             result["filter_cache_path"] = cache_file
 
         return result
+
+    def get_embeddings(
+        self, questions: List[str], cache_key: Optional[str] = None
+    ) -> List[np.ndarray]:
+        """Get embeddings for a list of questions, using cache when available.
+
+        This method checks if embeddings are already cached (either in memory or
+        on disk) before computing them, which can significantly improve performance
+        across runs.
+
+        Args:
+            questions: List of questions to embed
+            cache_key: Optional key to use for caching (e.g., a hash of the dataset)
+                       If None, a hash of the questions will be used
+
+        Returns:
+            List of numpy arrays containing the embeddings
+        """
+        if not questions:
+            return []
+
+        # Generate a cache key if not provided
+        if cache_key is None:
+            # Create a hash of the questions to use as cache key
+            questions_str = "".join(questions)
+            model_name = self.embedding_model_name
+            questions_hash = hash(questions_str)
+            cache_key = f"{model_name}_{questions_hash}"
+
+        # Check in-memory cache first
+        if cache_key in self.embedding_cache:
+            logger.info(f"Using in-memory cache for embeddings (key: {cache_key})")
+            return self.embedding_cache[cache_key]
+
+        # Check disk cache
+        cache_dir = os.path.join(self.output_dir, "embedding_cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_file = os.path.join(cache_dir, f"{cache_key}.npy")
+
+        if os.path.exists(cache_file):
+            try:
+                logger.info(f"Loading embeddings from cache file: {cache_file}")
+                embeddings_array = np.load(cache_file, allow_pickle=True)
+                embeddings = [np.array(emb) for emb in embeddings_array]
+
+                # Store in memory cache for faster access next time
+                self.embedding_cache[cache_key] = embeddings
+                return embeddings
+            except Exception as e:
+                logger.warning(f"Failed to load embeddings from cache: {e}")
+
+        # Compute embeddings if not in cache
+        logger.info(f"Computing embeddings for {len(questions)} questions")
+        embeddings_list = self.embeddings_model.embed_documents(questions)
+        embeddings = [np.array(emb) for emb in embeddings_list]
+
+        # Save to disk cache
+        try:
+            logger.info(f"Saving embeddings to cache file: {cache_file}")
+            np.save(cache_file, embeddings, allow_pickle=True)
+
+            # Store in memory cache
+            self.embedding_cache[cache_key] = embeddings
+        except Exception as e:
+            logger.warning(f"Failed to save embeddings to cache: {e}")
+
+        return embeddings

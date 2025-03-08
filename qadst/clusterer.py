@@ -127,7 +127,12 @@ class HDBSCANQAClusterer(BaseClusterer):
             return {"clusters": []}
 
         questions = [q for q, _ in qa_pairs]
-        question_embeddings = self.embeddings_model.embed_documents(questions)
+
+        # Use cached embeddings if available
+        cache_key = f"cluster_{self.embedding_model_name}_{hash(''.join(questions))}"
+        question_embeddings = self.get_embeddings(questions, cache_key)
+
+        # Convert to numpy array for HDBSCAN
         embeddings_array = np.array(question_embeddings)
 
         total_questions = len(questions)

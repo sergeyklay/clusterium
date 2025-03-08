@@ -1,6 +1,7 @@
 import csv
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -68,6 +69,8 @@ class ClusterBenchmarker:
                 logger.warning(f"Failed to initialize LLM: {e}")
 
         self.output_dir = output_dir
+
+        os.makedirs(self.output_dir, exist_ok=True)
 
     def load_clusters(self, json_path: str) -> Dict[str, Any]:
         """Load clusters from a JSON file.

@@ -224,7 +224,7 @@ The benchmarking process produces:
    ```
 3. **Run benchmarking** to evaluate cluster quality
    ```bash
-   qadst benchmark --clusters output/qa_hdbscan_clusters.json --qa-pairs data/qa_pairs.csv
+   qadst benchmark --clusters output/qa_hdbscan_clusters.json --qa-pairs data/qa_pairs.csv --use-llm
    ```
 4. **Analyze the results** in the output directory
 
@@ -237,6 +237,17 @@ The HDBSCAN algorithm automatically adapts to your dataset size, but you can cus
 - Minimum cluster size is calculated based on dataset size
 - Cluster selection method uses Excess of Mass (EOM)
 - Small epsilon (0.1) is used to merge very similar clusters
+
+### Embedding Caching
+
+The toolkit automatically caches embeddings to avoid recomputing them across runs, which improves performance for repeated operations on the same dataset:
+
+- Embeddings are cached in the `output_dir/embedding_cache` directory
+- Each cache file is named based on the embedding model and content hash
+- Both deduplication and clustering operations benefit from the cache
+- The cache is automatically invalidated when the dataset changes
+
+This means that the first run might take longer as embeddings are computed and cached, but subsequent runs will be much faster as they reuse the cached embeddings.
 
 ### Using Different Embedding Models
 

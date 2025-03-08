@@ -75,8 +75,13 @@ def cli():
     help="Filter out engineering-focused questions",
 )
 def cluster_command(output_dir, llm_model, embedding_model, input, filter):
-    """Cluster QA pairs using HDBSCAN."""
+    """Cluster QA pairs using HDBSCAN algorithm."""
     logger.info("Starting QA dataset clustering process")
+    if not input:
+        raise click.UsageError("Input CSV file is required")
+
+    # Handle Ctrl+C gracefully
+    signal.signal(signal.SIGINT, lambda sig, frame: exit(0))
 
     # Check if OpenAI API key is set
     if filter and not os.getenv("OPENAI_API_KEY"):
@@ -86,7 +91,7 @@ def cluster_command(output_dir, llm_model, embedding_model, input, filter):
     clusterer = HDBSCANQAClusterer(
         embedding_model_name=embedding_model,
         llm_model_name=llm_model if filter else None,
-        output_dir=str(output_dir),
+        output_dir=output_dir,
         filter_enabled=filter,
     )
 
@@ -126,19 +131,22 @@ def cluster_command(output_dir, llm_model, embedding_model, input, filter):
 def benchmark_command(
     output_dir, llm_model, embedding_model, clusters, qa_pairs, use_llm
 ):
-    """Benchmark clustering quality."""
-    logger.info("Starting cluster quality benchmarking")
+    """Benchmark clustering results and generate reports."""
+    if not clusters or not qa_pairs:
+        raise click.UsageError("Both clusters and qa-pairs are required")
+
+    # Handle Ctrl+C gracefully
+    signal.signal(signal.SIGINT, lambda sig, frame: exit(0))
 
     # Check if OpenAI API key is set
     if use_llm and not os.getenv("OPENAI_API_KEY"):
         logger.warning("OPENAI_API_KEY not set, disabling LLM topic labeling")
         use_llm = False
 
-    # Initialize benchmarker with model names
     benchmarker = ClusterBenchmarker(
         embedding_model_name=embedding_model,
         llm_model_name=llm_model if use_llm else None,
-        output_dir=str(output_dir),
+        output_dir=output_dir,
     )
 
     # Generate report
