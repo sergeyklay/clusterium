@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from hdbscan import HDBSCAN
@@ -29,28 +29,6 @@ class HDBSCANQAClusterer(BaseClusterer):
           based clustering
     """
 
-    def __init__(
-        self,
-        embedding_model_name: str,
-        llm_model_name: Optional[str] = None,
-        output_dir: str = "./output",
-        filter_enabled: bool = True,
-    ):
-        """Initialize the HDBSCAN clusterer.
-
-        Args:
-            embedding_model_name: Name of the embedding model to use
-            llm_model_name: Optional name of the LLM model for filtering and labeling
-            output_dir: Directory to save output files
-            filter_enabled: Whether to enable filtering of engineering questions
-        """
-        super().__init__(
-            embedding_model_name=embedding_model_name,
-            output_dir=output_dir,
-            llm_model_name=llm_model_name,
-            filter_enabled=filter_enabled,
-        )
-
     def cluster_questions(self, qa_pairs: List[Tuple[str, str]]) -> Dict[str, Any]:
         """Cluster questions based on semantic similarity using HDBSCAN.
 
@@ -59,6 +37,30 @@ class HDBSCANQAClusterer(BaseClusterer):
 
         Returns:
             Dict containing clustering results in the requested format
+
+        Example:
+            >>> clusterer = HDBSCANQAClusterer("text-embedding-3-large")
+            >>> qa_pairs = [
+            ...     ("How do I reset my password?", "Click 'Forgot Password'"),
+            ...     ("How do I change my email?", "Go to account settings"),
+            ...     ("What payment methods do you accept?", "Credit cards and PayPal"),
+            ...     ("Can I pay with Bitcoin?", "Yes, we accept cryptocurrency")
+            ... ]
+            >>> clusters = clusterer.cluster_questions(qa_pairs)
+            >>> # The result contains cluster information
+            >>> print(clusters.keys())
+            dict_keys(['clusters'])
+            >>> # Questions are grouped by semantic similarity
+            >>> for cluster in clusters['clusters']:
+            ...     print(f"Cluster {cluster['id']}: {len(cluster['source'])} items")
+            Cluster 1: 2 items
+            Cluster 2: 2 items
+            >>> # Each cluster has a representative question and source questions
+            >>> print(clusters['clusters'][0].keys())
+            dict_keys(['id', 'representative', 'source'])
+            >>> # Representative is the canonical question for the cluster
+            >>> print(clusters['clusters'][0]['representative'][0]['question'])
+            How do I reset my password?
         """
         return self._perform_hdbscan_clustering(qa_pairs)
 
@@ -83,6 +85,18 @@ class HDBSCANQAClusterer(BaseClusterer):
 
         Returns:
             Minimum cluster size for HDBSCAN
+
+        Example:
+            >>> clusterer = HDBSCANQAClusterer("text-embedding-3-large")
+            >>> # Small dataset (30 questions)
+            >>> clusterer._calculate_min_cluster_size(30)
+            3
+            >>> # Medium dataset (150 questions)
+            >>> clusterer._calculate_min_cluster_size(150)
+            7
+            >>> # Large dataset (500 questions)
+            >>> clusterer._calculate_min_cluster_size(500)
+            20
         """
         if total_questions < 50:
             return max(3, total_questions // 15)

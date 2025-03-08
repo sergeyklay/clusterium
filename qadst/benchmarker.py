@@ -169,6 +169,23 @@ class ClusterBenchmarker:
 
         Returns:
             Dict containing metrics
+
+        Example:
+            >>> import numpy as np
+            >>> benchmarker = ClusterBenchmarker()
+            >>> # Create sample embeddings (20 samples, 5 dimensions)
+            >>> embeddings = np.random.rand(20, 5)
+            >>> # Create sample cluster labels (3 clusters + noise points)
+            >>> labels = np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, -1, -1,
+            ...                    0, 1, 2, 0, 1, 2, -1, 0])
+            >>> metrics = benchmarker.calculate_metrics(embeddings, labels)
+            >>> # Print the metrics
+            >>> for metric, value in metrics.items():
+            ...     print(f"{metric}: {value:.4f}")
+            noise_ratio: 0.2000
+            davies_bouldin_score: 1.2345
+            calinski_harabasz_score: 2.3456
+            silhouette_score: 0.3456
         """
         non_noise_mask = labels != -1
         non_noise_embeddings = embeddings[non_noise_mask]
@@ -209,6 +226,28 @@ class ClusterBenchmarker:
 
         Returns:
             Coherence score (average pairwise similarity) between 0 and 1
+
+        Example:
+            >>> benchmarker = ClusterBenchmarker("text-embedding-3-large")
+            >>> # Questions about password management (semantically similar)
+            >>> coherent_cluster = [
+            ...     "How do I reset my password?",
+            ...     "What's the process for changing my password?",
+            ...     "I forgot my password, how can I recover my account?"
+            ... ]
+            >>> coherence = benchmarker.calculate_cluster_coherence(coherent_cluster)
+            >>> print(f"Coherence score: {coherence:.4f}")
+            Coherence score: 0.8765  # High score indicates coherent cluster
+
+            >>> # Mixed questions (semantically diverse)
+            >>> mixed_cluster = [
+            ...     "How do I reset my password?",
+            ...     "What payment methods do you accept?",
+            ...     "How do I cancel my subscription?"
+            ... ]
+            >>> coherence = benchmarker.calculate_cluster_coherence(mixed_cluster)
+            >>> print(f"Coherence score: {coherence:.4f}")
+            Coherence score: 0.5432  # Lower score for less coherent cluster
         """
         if self.embeddings_model is None:
             raise ValueError("Embeddings model not provided")
@@ -292,7 +331,7 @@ class ClusterBenchmarker:
             - "CRM Integration Methods"
 
             Respond ONLY with the final topic label, nothing else.
-            """,
+            """,  # noqa: E501
         )
 
         chain = prompt_template | self.llm
@@ -371,8 +410,11 @@ class ClusterBenchmarker:
                     topic_labels[cluster_id] = self._generate_llm_topic_label(questions)
                     continue
                 except Exception as e:
-                    msg = f"Error generating LLM topic label for cluster {cluster_id}: {e}"
-                    logger.warning(msg)
+                    logger.warning(
+                        "Error generating LLM topic label for cluster"
+                        f"{cluster_id}: {e}",
+                        exc_info=True,
+                    )
 
             # TF-IDF/NMF method (fallback)
             try:

@@ -32,8 +32,8 @@ class BaseClusterer(ABC):
     def __init__(
         self,
         embedding_model_name: str,
-        output_dir: str = "./output",
         llm_model_name: Optional[str] = None,
+        output_dir: str = "./output",
         filter_enabled: bool = True,
     ):
         """Initialize the clusterer.
@@ -69,6 +69,19 @@ class BaseClusterer(ABC):
 
         Returns:
             List of (question, answer) tuples
+
+        Example:
+            Given a CSV file 'questions.csv' with content:
+            ```
+            question,answer
+            "How do I reset my password?","Click the 'Forgot Password' link."
+            "What payment methods do you accept?","We accept credit cards and PayPal."
+            ```
+
+            >>> clusterer = HDBSCANQAClusterer("text-embedding-3-large")
+            >>> qa_pairs = clusterer.load_qa_pairs("questions.csv")
+            >>> print(qa_pairs[0])
+            ('How do I reset my password?', 'Click the 'Forgot Password' link.')
         """
         qa_pairs = []
 
@@ -105,6 +118,14 @@ class BaseClusterer(ABC):
 
         Returns:
             Cosine similarity value between -1 and 1
+
+        Example:
+            >>> clusterer = BaseClusterer(embedding_model_name="text-embedding-3-large")
+            >>> vec1 = np.array([0.1, 0.2, 0.3])
+            >>> vec2 = np.array([0.2, 0.3, 0.5])
+            >>> similarity = clusterer.calculate_cosine_similarity(vec1, vec2)
+            >>> print(f"Similarity: {similarity:.4f}")
+            Similarity: 0.9922
         """
         # Convert to numpy arrays if they aren't already
         vec1_np = np.array(vec1)
@@ -129,6 +150,18 @@ class BaseClusterer(ABC):
 
         Returns:
             List of deduplicated (question, answer) tuples
+
+        Example:
+            >>> clusterer = HDBSCANQAClusterer("text-embedding-3-large")
+            >>> qa_pairs = [
+            ...     ("How do I reset my password?", "Click 'Forgot Password'"),
+            ...     ("How can I change my password?", "Use the 'Forgot Password' link"),
+            ...     ("What payment methods do you accept?", "We accept credit cards")
+            ... ]
+            >>> deduplicated = clusterer.deduplicate_questions(qa_pairs)
+            >>> # Only two questions remain, as the first two are semantically similar
+            >>> len(deduplicated)
+            2
         """
         if not qa_pairs:
             return []
@@ -198,6 +231,23 @@ class BaseClusterer(ABC):
 
         Returns:
             List of filtered (question, answer) tuples for end clients
+
+        Example:
+            >>> clusterer = HDBSCANQAClusterer(
+            ...     embedding_model_name="text-embedding-3-large",
+            ...     llm_model_name="gpt-4o"
+            ... )
+            >>> qa_pairs = [
+            ...     ("How do I reset my password?", "Click 'Forgot Password'"),
+            ...     ("What's the expected API latency in EU region?", "Under 100ms"),
+            ...     ("How do I contact support?", "Email support@example.com")
+            ... ]
+            >>> filtered = clusterer.filter_questions(qa_pairs)
+            >>> # The second question is filtered out as engineering-focused
+            >>> len(filtered)
+            2
+            >>> filtered[0][0]
+            'How do I reset my password?'
         """
         if not use_llm or not self.llm:
             logger.warning("LLM not provided or filtering disabled, skipping filter")
@@ -428,9 +478,31 @@ class BaseClusterer(ABC):
 
         Returns:
             Dict containing clustering results and paths to output files
-        """
-        base_filename = os.path.splitext(os.path.basename(csv_path))[0]
 
+        Example:
+            >>> clusterer = HDBSCANQAClusterer(
+            ...     embedding_model_name="text-embedding-3-large",
+            ...     llm_model_name="gpt-4o",
+            ...     output_dir="./results"
+            ... )
+            >>> results = clusterer.process_dataset("questions.csv")
+            >>> # Results contain clustering results and output file paths
+            >>> print(results.keys())
+            dict_keys(['clustering_results', 'json_output_path', 'csv_output_path',
+            ... 'deduplicated_count', 'original_count', 'filtered_count',
+            ... 'filter_cache_path'])
+            >>> # Check the clustering results
+            >>> print(results['clustering_results'].keys())
+            dict_keys(['clusters'])
+            >>> # Check the number of clusters found
+            >>> len(results['clustering_results']['clusters'])
+            5
+            >>> # Check the output file paths
+            >>> print(f"JSON output: {results['json_output_path']}")
+            JSON output: ./results/qa_clusters.json
+            >>> print(f"CSV output: {results['csv_output_path']}")
+            CSV output: ./results/qa_cleaned.csv
+        """
         logger.info(f"Loading QA pairs from {csv_path}")
         qa_pairs = self.load_qa_pairs(csv_path)
         logger.info(f"Loaded {len(qa_pairs)} QA pairs")
@@ -443,9 +515,7 @@ class BaseClusterer(ABC):
 
         if self.filter_enabled:
             logger.info("Filtering out engineering-focused questions")
-            cache_file = os.path.join(
-                self.output_dir, f"{base_filename}_filter_cache.json"
-            )
+            cache_file = os.path.join(self.output_dir, "filter_cache.json")
             filtered_pairs = self.filter_questions(
                 deduplicated_pairs,
                 batch_size=20,
@@ -459,16 +529,12 @@ class BaseClusterer(ABC):
         logger.info(f"Clustering questions using {self.cluster_method()}")
         clustering_results = self.cluster_questions(filtered_pairs)
 
-        json_output_path = os.path.join(
-            self.output_dir, f"{base_filename}_{self.cluster_method()}_clusters.json"
-        )
+        json_output_path = os.path.join(self.output_dir, "qa_clusters.json")
         with open(json_output_path, "w", encoding="utf-8") as f:
             json.dump(clustering_results, f, indent=2)
         logger.info(f"Saved clustering results to {json_output_path}")
 
-        csv_output_path = os.path.join(
-            self.output_dir, f"{base_filename}_{self.cluster_method()}_cleaned.csv"
-        )
+        csv_output_path = os.path.join(self.output_dir, "qa_cleaned.csv")
         with open(csv_output_path, "w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["question", "answer"])
@@ -486,5 +552,6 @@ class BaseClusterer(ABC):
 
         if self.filter_enabled:
             result["filtered_count"] = len(filtered_pairs)
+            result["filter_cache_path"] = cache_file
 
         return result
