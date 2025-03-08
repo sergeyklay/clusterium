@@ -1,0 +1,37 @@
+{
+    "python.analysis.typeCheckingMode": "basic",
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+		"isort.args": [
+			"--profile",
+			"black",
+			"--python-version",
+			"auto"
+		],
+		"isort.interpreter": [
+			"${workspaceFolder}/.venv/bin/python"
+		],
+		"black-formatter.args": [
+			"--target-version",
+			"py312",
+			"--line-length",
+			"88"
+		],
+		"editor.codeActionsOnSave": {
+			"source.organizeImports": "explicit"
+		},
+		"isort.check": true,
+		"isort.importStrategy": "fromEnvironment"
+}
