@@ -9,7 +9,6 @@ import csv
 import json
 import logging
 import os
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -22,6 +21,13 @@ from sklearn.metrics import (
     calinski_harabasz_score,
     davies_bouldin_score,
     silhouette_score,
+)
+
+from .reporters import (
+    ConsoleReporter,
+    CSVReporter,
+    ReportData,
+    ReporterRegistry,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,6 +50,7 @@ class ClusterBenchmarker:
         embeddings_model: Model for generating embeddings
         llm: Language model for topic labeling
         output_dir: Directory to save output files
+        reporter_registry: Registry of reporters for output
     """
 
     def __init__(
@@ -76,8 +83,14 @@ class ClusterBenchmarker:
                 logger.warning(f"Failed to initialize LLM: {e}")
 
         self.output_dir = output_dir
-
         os.makedirs(self.output_dir, exist_ok=True)
+
+        # Initialize reporter registry with default reporters
+        self.reporter_registry = ReporterRegistry()
+        self.reporter_registry.register("csv", CSVReporter(output_dir), enabled=True)
+        self.reporter_registry.register(
+            "console", ConsoleReporter(output_dir), enabled=True
+        )
 
     def load_clusters(self, json_path: str) -> Dict[str, Any]:
         """Load clusters from a JSON file.
@@ -586,7 +599,7 @@ class ClusterBenchmarker:
         3. Coherence scores for each cluster
         4. Global clustering quality metrics
 
-        The report is saved as a CSV file and returned as a DataFrame.
+        The report is processed by all enabled reporters (CSV and console by default).
         Additionally, updates the original clusters JSON file with metrics.
 
         Args:
@@ -693,7 +706,7 @@ class ClusterBenchmarker:
             with open(clusters_json_path, "w", encoding="utf-8") as f:
                 json.dump(existing_clusters_data, f, indent=2)
 
-            logger.info(
+            logger.debug(
                 f"Updated existing clusters JSON with metrics: {clusters_json_path}"
             )
         except Exception as e:
@@ -703,7 +716,9 @@ class ClusterBenchmarker:
             # Fallback to creating a new file if there's an error
             with open(clusters_json_path, "w", encoding="utf-8") as f:
                 json.dump(clusters, f, indent=2)
-            logger.info(f"Created new clusters JSON with metrics: {clusters_json_path}")
+            logger.debug(
+                f"Created new clusters JSON with metrics: {clusters_json_path}"
+            )
 
         # Create DataFrame
         report_df = pd.DataFrame(report_data)
@@ -729,9 +744,21 @@ class ClusterBenchmarker:
 
         report_df = pd.concat([report_df, summary_row], ignore_index=True)
 
-        # Save to CSV
-        report_df.to_csv(
-            Path(self.output_dir) / "cluster_quality_report.csv", index=False
+        # Get top clusters by size
+        top_clusters = report_df[report_df["Cluster_ID"] != "SUMMARY"].nlargest(
+            5, "Num_QA_Pairs"
         )
+
+        # Create report data object
+        report_data_obj = ReportData(
+            report_df=report_df,
+            clusters_json_path=clusters_json_path,
+            output_dir=self.output_dir,
+            summary_metrics=global_metrics,
+            top_clusters=top_clusters,
+        )
+
+        # Generate reports using all enabled reporters
+        self.reporter_registry.generate_reports(report_data_obj)
 
         return report_df

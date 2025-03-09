@@ -1,6 +1,6 @@
-# QA Dataset Clustering Toolkit (QADST) - Usage Guide
+# Usage Guide
 
-This document provides detailed usage instructions for the QA Dataset Clustering Toolkit (QADST).
+This document provides detailed usage instructions for the `qadst` package.
 
 ## Usage
 
@@ -356,3 +356,86 @@ If you need to regenerate embeddings (e.g., after updating to a new version of a
 # Remove all embedding cache files
 rm output/embeddings_*.npy
 ```
+
+### Customizing Report Output
+
+The toolkit provides a flexible reporting system that allows you to control how clustering results are presented. By default, two reporters are enabled:
+
+1. **CSV Reporter**: Generates a CSV file with detailed metrics for each cluster
+2. **Console Reporter**: Displays summary information and top clusters in the console
+
+You can customize which reporters are enabled using the `--reporters` option:
+
+```bash
+# Use only the CSV reporter
+qadst benchmark --clusters output/qa_clusters.json --qa-pairs data/qa_pairs.csv --reporters csv
+
+# Use only the console reporter
+qadst benchmark --clusters output/qa_clusters.json --qa-pairs data/qa_pairs.csv --reporters console
+
+# Use both reporters (default)
+qadst benchmark --clusters output/qa_clusters.json --qa-pairs data/qa_pairs.csv --reporters csv,console
+```
+
+#### CSV Reporter Output
+
+The CSV reporter generates a file named `cluster_quality_report.csv` in the output directory with the following columns:
+
+- **Cluster_ID**: Unique identifier for each cluster
+- **Num_QA_Pairs**: Number of question-answer pairs in the cluster
+- **Avg_Similarity**: Average pairwise similarity between questions in the cluster
+- **Coherence_Score**: Semantic coherence score for the cluster (higher is better)
+- **Topic_Label**: Descriptive label for the cluster content
+
+The file also includes a summary row with global metrics.
+
+#### Console Reporter Output
+
+The console reporter displays a formatted table view with:
+
+1. **Summary Section**:
+   - Total number of QA pairs in the dataset
+   - Path to the clusters JSON file
+   - Global metrics (Noise Ratio, Davies-Bouldin Index, Calinski-Harabasz Index, Silhouette Score)
+
+2. **Top Clusters Table**:
+   - Displays the top 5 clusters by size in a formatted table
+   - Columns include Cluster ID, Size, Coherence, and Topic
+   - Topics are truncated if they're too long to fit in the display
+
+Example output:
+```
+--------------------------------------------------------------------------------
+|                           CLUSTER ANALYSIS SUMMARY                           |
+--------------------------------------------------------------------------------
+Total QA pairs: 5175
+Clusters JSON: output/qa_clusters.json
+
+Global Metrics:
+  Noise Ratio: 0.00
+  Davies-Bouldin Index: 3.95
+  Calinski-Harabasz Index: 35.91
+  Silhouette Score: 0.12
+
+--------------------------------------------------------------------------------
+|                            TOP 5 CLUSTERS BY SIZE                            |
+--------------------------------------------------------------------------------
+| Cluster ID | Size         | Coherence    | Topic                             |
+--------------------------------------------------------------------------------
+| 1          | 582          | 0.37         | API Endpoint Behavior             |
+| 2          | 537          | 0.49         | Digital Document Workflows        |
+| 17         | 206          | 0.14         | Customer Trust Insights           |
+| 6          | 168          | 0.43         | API Integration Guidelines        |
+| 41         | 158          | 0.52         | Feature-Specific Integrations     |
+--------------------------------------------------------------------------------
+```
+
+#### Extending the Reporting System
+
+The reporting system is designed to be extensible. Developers can create custom reporters by:
+
+1. Implementing a class that inherits from `BaseReporter`
+2. Implementing the `generate_report` method
+3. Registering the reporter with the `ReporterRegistry`
+
+This allows for additional output formats such as HTML, JSON, or integration with other systems.

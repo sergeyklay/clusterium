@@ -1,6 +1,6 @@
-# Installation Guide for QA Dataset Clustering Toolkit
+# Installation Guide for qadst
 
-This document provides detailed instructions for installing and setting up the QA Dataset Clustering Toolkit (QADST).
+This document provides detailed instructions for installing and setting up the `qadst` package.
 
 ## Requirements
 
