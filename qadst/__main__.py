@@ -1,3 +1,10 @@
+"""Entry point for the QA dataset clustering toolkit.
+
+This module serves as the main entry point when the package is executed directly
+using 'python -m qadst'. It initializes the command-line interface and passes
+control to the main CLI function.
+"""
+
 import sys
 
 from qadst.cli import main

@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""Command-line interface for the QA dataset clustering toolkit.
+
+This module provides a command-line interface for clustering QA datasets,
+benchmarking clustering results, and generating reports. It handles command-line
+arguments, environment configuration, and execution of the appropriate toolkit
+functionality based on user commands.
+"""
 
 import logging
 import os
