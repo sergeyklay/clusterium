@@ -115,8 +115,9 @@ class ConsoleReporter(BaseReporter):
             topic = row["Topic_Label"]
 
             # Truncate topic if too long
-            if len(topic) > col_widths[3] - 3:
-                topic = topic[: col_widths[3] - 6] + "..."
+            max_topic_length = col_widths[3]
+            if len(topic) > max_topic_length:
+                topic = topic[: max_topic_length - 3] + "..."
 
             print(self._format_row([cluster_id, size, coherence, topic], col_widths))
 
