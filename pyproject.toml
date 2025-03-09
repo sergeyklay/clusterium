@@ -33,8 +33,13 @@ scikit-learn = "^1.6.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
-debugpy = "^1.8.12"
-isort = {version = "^6.0.0", extras = ["colors"]}
+debugpy = "^1.8.13"
+flake8 = "^7.1.2"
+isort = {version = "^6.0.1", extras = ["colors"]}
+
+[tool.poetry.group.testing.dependencies]
+coverage = { version = "^7.6.12", extras = ["toml"] }
+pytest = "^8.3.5"
 
 [tool.black]
 line-length = 88
@@ -43,3 +48,46 @@ target-version = ["py312"]
 [tool.isort]
 profile = "black"
 py_version = 312
+
+[tool.coverage.report]
+# Set the number of decimal places in coverage percentage
+precision = 2
+
+# Show lines that were not executed
+show_missing = true
+
+# Skip empty files
+skip_empty = true
+
+[tool.coverage.html]
+# Directory for the HTML format report
+directory = "coverage/html"
+
+[tool.coverage.lcov]
+# Filename for the LCOV format report
+output = "coverage/lcov/coverage.lcov"
+
+[tool.coverage.xml]
+# Filename for the XML format report
+output = "coverage/xml/coverage.xml"
+
+[tool.coverage.run]
+# Enable branch coverage (default: False)
+branch = true
+
+# Run tests in parallel (useful when using CI/CD)
+parallel = true
+
+# Filename for storing coverage data
+data_file = "coverage/.coverage"
+
+# Omit specified files or directories from the report
+omit = [
+    "__init__.py",
+    "*/__pycache__/*",
+    "*/.venv/*",
+    "*/build/*",
+    "*/coverage/*",
+    "*/pytest_cache/*",
+    "*/tests/*",
+]

@@ -501,6 +501,7 @@ class ClusterBenchmarker:
         4. Global clustering quality metrics
 
         The report is saved as a CSV file and returned as a DataFrame.
+        Additionally, updates the original clusters JSON file with metrics.
 
         Args:
             clusters_json_path: Path to the JSON file containing clustering results
@@ -529,12 +530,26 @@ class ClusterBenchmarker:
         # Prepare report data
         report_data = []
 
+        # Update clusters with additional metrics
         for cluster in clusters["clusters"]:
             cluster_id = cluster["id"]
             questions = [qa["question"] for qa in cluster["source"]]
 
             # Calculate cluster-specific metrics
             coherence_score = self.calculate_cluster_coherence(questions)
+
+            # Add metrics to the cluster in the original JSON
+            cluster["source_count"] = len(questions)
+
+            # Handle potential NaN values for JSON serialization
+            if np.isnan(coherence_score):
+                cluster["avg_similarity"] = None
+                cluster["coherence_score"] = None
+            else:
+                cluster["avg_similarity"] = float(coherence_score)
+                cluster["coherence_score"] = float(coherence_score)
+
+            cluster["topic_label"] = topic_labels.get(cluster_id, "Unknown")
 
             report_data.append(
                 {
@@ -545,6 +560,64 @@ class ClusterBenchmarker:
                     "Topic_Label": topic_labels.get(cluster_id, "Unknown"),
                 }
             )
+
+        # Add global metrics to the clusters JSON
+        clusters["metrics"] = {
+            "noise_ratio": float(global_metrics["noise_ratio"]),
+            "davies_bouldin_score": (
+                float(global_metrics.get("davies_bouldin_score", 0))
+                if not np.isnan(global_metrics.get("davies_bouldin_score", np.nan))
+                else None
+            ),
+            "calinski_harabasz_score": (
+                float(global_metrics.get("calinski_harabasz_score", 0))
+                if not np.isnan(global_metrics.get("calinski_harabasz_score", np.nan))
+                else None
+            ),
+            "silhouette_score": (
+                float(global_metrics.get("silhouette_score", 0))
+                if not np.isnan(global_metrics.get("silhouette_score", np.nan))
+                else None
+            ),
+        }
+
+        # Save updated clusters JSON - read the file first to preserve any existing data
+        try:
+            with open(clusters_json_path, "r", encoding="utf-8") as f:
+                existing_clusters_data = json.load(f)
+
+            # Update the existing data with our new metrics
+            # First update the clusters
+            for i, cluster in enumerate(clusters["clusters"]):
+                cluster_id = cluster["id"]
+                # Find the matching cluster in the existing data
+                for existing_cluster in existing_clusters_data["clusters"]:
+                    if existing_cluster["id"] == cluster_id:
+                        # Update with new metrics
+                        existing_cluster["source_count"] = cluster["source_count"]
+                        existing_cluster["avg_similarity"] = cluster["avg_similarity"]
+                        existing_cluster["coherence_score"] = cluster["coherence_score"]
+                        existing_cluster["topic_label"] = cluster["topic_label"]
+                        break
+
+            # Then add the global metrics
+            existing_clusters_data["metrics"] = clusters["metrics"]
+
+            # Write the updated data back to the file
+            with open(clusters_json_path, "w", encoding="utf-8") as f:
+                json.dump(existing_clusters_data, f, indent=2)
+
+            logger.info(
+                f"Updated existing clusters JSON with metrics: {clusters_json_path}"
+            )
+        except Exception as e:
+            logger.warning(
+                f"Error updating existing clusters JSON, creating new file: {e}"
+            )
+            # Fallback to creating a new file if there's an error
+            with open(clusters_json_path, "w", encoding="utf-8") as f:
+                json.dump(clusters, f, indent=2)
+            logger.info(f"Created new clusters JSON with metrics: {clusters_json_path}")
 
         # Create DataFrame
         report_df = pd.DataFrame(report_data)

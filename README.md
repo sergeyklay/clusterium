@@ -1,5 +1,8 @@
 # QA Dataset Clustering Toolkit (QADST)
 
+[![CI](https://github.com/sergeyklay/qa-dataset-clustering/actions/workflows/ci.yml/badge.svg)](https://github.com/sergeyklay/qa-dataset-clustering/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sergeyklay/qa-dataset-clustering/graph/badge.svg?token=T5d9KTXtqP)](https://codecov.io/gh/sergeyklay/qa-dataset-clustering)
+
 A toolkit for clustering, analyzing, and benchmarking question-answer datasets using state-of-the-art embedding models and clustering algorithms.
 
 ## Key Features
@@ -215,6 +218,33 @@ The benchmarking process produces:
 - A CSV report with cluster quality metrics
 - Topic labels for each cluster
 - Coherence scores for each cluster
+- Enhanced existing clusters JSON file with:
+  - Per-cluster metrics (source_count, avg_similarity, coherence_score, topic_label)
+  - Global metrics (noise_ratio, davies_bouldin_score, calinski_harabasz_score, silhouette_score)
+
+Example of enhanced clusters JSON (original file is preserved and enhanced with metrics):
+```json
+{
+  "clusters": [
+    {
+      "id": 1,
+      "representative": [...],
+      "source": [...],
+      "source_count": 15,
+      "avg_similarity": 0.82,
+      "coherence_score": 0.82,
+      "topic_label": "Password Reset Process"
+    },
+    ...
+  ],
+  "metrics": {
+    "noise_ratio": 0.05,
+    "davies_bouldin_score": 0.76,
+    "calinski_harabasz_score": 42.3,
+    "silhouette_score": 0.68
+  }
+}
+```
 
 ## Example Workflow
 
@@ -233,11 +263,13 @@ The benchmarking process produces:
 
 ### Customizing Clustering Parameters
 
-The HDBSCAN algorithm automatically adapts to your dataset size, but you can customize the behavior by modifying the code:
+The HDBSCAN algorithm parameters are carefully tuned based on academic research:
 
-- Minimum cluster size is calculated based on dataset size
-- Cluster selection method uses Excess of Mass (EOM)
-- Small epsilon (0.1) is used to merge very similar clusters
+- **Logarithmic Scaling**: `min_cluster_size` scales logarithmically with dataset size, following research showing that semantic clusters should grow sublinearly with dataset size
+- **Optimal Parameters**: Uses `min_samples=5` and `cluster_selection_epsilon=0.3` based on benchmarks from clustering literature
+- **Excess of Mass**: Uses EOM cluster selection method for better handling of varying density clusters
+
+For example, with a dataset of 3000 questions, the toolkit automatically sets `min_cluster_size=64`, which represents the smallest meaningful semantic group in the data.
 
 ### Embedding Caching
 

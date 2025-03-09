@@ -168,6 +168,10 @@ def benchmark_command(
     summary_row = report_df.iloc[-1]
     logger.info(f"Total QA pairs: {summary_row['Num_QA_Pairs']}")
     logger.info(f"Metrics: {summary_row['Topic_Label']}")
+    logger.info(f"Enhanced clusters JSON with metrics: {clusters}")
+    logger.info(
+        f"CSV report saved to: {os.path.join(output_dir, 'cluster_quality_report.csv')}"
+    )
 
     # Print top 5 clusters by size
     top_clusters = report_df[report_df["Cluster_ID"] != "SUMMARY"].nlargest(

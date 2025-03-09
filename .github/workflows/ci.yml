@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - 'dependabot/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    # The maximum number of minutes to let a workflow run
+    # before GitHub automatically cancels it. Default: 360
+    timeout-minutes: 30
+
+    strategy:
+        # When set to true, GitHub cancels
+        # all in-progress jobs if any matrix job fails.
+        fail-fast: false
+
+        matrix:
+          python:
+            - '3.12'
+          os:
+            - ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 5
+
+      - name: Set up Python ${{ matrix.python }}
+        id: setup-python
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.1.1
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+          virtualenvs-path: .venv
+
+      - name: Validates the content of the pyproject.toml
+        run: poetry check
+
+      - name: Cache dependencies
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-$${{ matrix.python }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-${{ matrix.python }}-
+
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction
+
+      - name: Run unit tests with coverage
+        run: |
+          source $VENV
+
+          coverage erase
+          coverage run -m pytest -v ./qadst ./tests
+
+          coverage combine
+          coverage xml
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5.4.0
+        if: success()
+        with:
+          fail_ci_if_error: false
+          name: codecov-umbrella
+          flags: unittests
+          env_vars: OS,PYTHON
+          files: ./coverage/xml/coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: sergeyklay/qa-dataset-clustering
