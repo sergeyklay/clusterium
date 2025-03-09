@@ -22,7 +22,7 @@ qadst benchmark --clusters output/qa_clusters.json --qa-pairs data/qa_pairs.csv 
 
 ### Options
 
-- `--embedding-model`: Embedding model to use (default: text-embedding-3-large)
+- `--embedding-model`: Embedding model to use (default: text-embedding-3-large). See [Using Different Embedding Models](#using-different-embedding-models) for details.
 - `--llm-model`: LLM model to use for filtering and topic labeling (default: gpt-4o)
 - `--filter/--no-filter`: Enable/disable filtering of engineering questions
 - `--output-dir`: Directory to save output files (default: ./output)
@@ -31,6 +31,14 @@ qadst benchmark --clusters output/qa_clusters.json --qa-pairs data/qa_pairs.csv 
 - `--min-samples`: HDBSCAN min_samples parameter (default: 5)
 - `--cluster-selection-epsilon`: HDBSCAN cluster_selection_epsilon parameter (default: 0.3)
 - `--keep-noise/--cluster-noise`: Keep noise points unclustered or force them into clusters (default: --cluster-noise)
+
+Some options can/should also be configured via environment variables in a `.env` file:
+
+```
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4o
+OPENAI_EMBEDDING_MODEL=text-embedding-3-large
+```
 
 ## Input Format
 
@@ -195,6 +203,7 @@ Possible steps to improve: Adjust HDBSCAN Parameters
    qadst cluster --input data/qa_pairs.csv --keep-noise
    ```
    - The clustering process automatically handles large clusters using recursive HDBSCAN to maintain density-based properties
+   - Embeddings are automatically cached for faster processing in subsequent runs (see [Embedding Caching](#embedding-caching))
 3. **Run benchmarking** to evaluate cluster quality
    ```bash
    qadst benchmark --clusters output/qa_hdbscan_clusters.json --qa-pairs data/qa_pairs.csv --use-llm
@@ -266,3 +275,74 @@ The toolkit employs a sophisticated approach to handle large clusters:
   - Caps at 10 subclusters to avoid excessive fragmentation
 
 This approach ensures that the natural density structure of the data is preserved whenever possible, while still providing effective splitting of large, unwieldy clusters.
+
+### Using Different Embedding Models
+
+The toolkit supports various embedding models through the `--embedding-model` parameter. The choice of embedding model can significantly impact clustering quality and performance.
+
+#### Available Models
+
+By default, the toolkit uses OpenAI's `text-embedding-3-large` model, which provides high-quality embeddings for semantic clustering. The toolkit supports any embedding model available through the OpenAI API, including:
+
+```bash
+# Use OpenAI's text-embedding-3-small model (faster, smaller)
+qadst cluster --input data/qa_pairs.csv --embedding-model text-embedding-3-small
+
+# Use OpenAI's text-embedding-ada-002 model (legacy)
+qadst cluster --input data/qa_pairs.csv --embedding-model text-embedding-ada-002
+```
+
+You can also configure the default embedding model in your `.env` file:
+
+```
+OPENAI_EMBEDDING_MODEL=text-embedding-3-large
+```
+
+#### Model Selection Considerations
+
+- **Quality vs. Speed**: Larger models generally provide better semantic understanding but may be slower and more expensive.
+- **Dimensionality**: Different models produce embeddings with different dimensions, which can affect clustering behavior.
+- **Domain Specificity**: Some models may perform better for specific domains or languages.
+
+For optimal results, consider benchmarking different embedding models on a subset of your data to determine which provides the best clustering for your specific use case.
+
+### Embedding Caching
+
+The toolkit implements an efficient caching system for embeddings to improve performance and reduce API costs when working with large datasets or running multiple experiments.
+
+#### How Caching Works
+
+1. **Memory Cache**: Embeddings are stored in memory during a session to avoid redundant API calls.
+2. **Disk Cache**: Embeddings are also saved to disk in the output directory, allowing reuse across different runs.
+3. **Deterministic Hashing**: A hash of the input questions is used as a cache key, ensuring that the same questions always use cached embeddings.
+4. **Automatic Invalidation**: The cache is automatically invalidated when the dataset changes, ensuring you always get correct results.
+
+#### Cache Files
+
+Cache files are stored in the output directory with names following this pattern:
+```
+embeddings_{model_name}_{hash}.npy
+```
+
+For example:
+```
+embeddings_text-embedding-3-large_a1b2c3d4.npy
+```
+
+#### Benefits of Caching
+
+- **Reduced API Costs**: Minimizes the number of API calls to embedding services.
+- **Faster Execution**: Significantly speeds up repeated runs with the same or overlapping datasets.
+- **Consistent Results**: Ensures the same embeddings are used across different runs for reproducibility.
+- **Performance Optimization**: The first run might take longer as embeddings are computed and cached, but subsequent runs will be much faster as they reuse the cached embeddings.
+
+Both deduplication and clustering operations benefit from the cache, making iterative experimentation with different parameters much more efficient.
+
+#### Clearing the Cache
+
+If you need to regenerate embeddings (e.g., after updating to a new version of an embedding model), simply delete the cache files from your output directory:
+
+```bash
+# Remove all embedding cache files
+rm output/embeddings_*.npy
+```
