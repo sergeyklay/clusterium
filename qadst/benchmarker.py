@@ -1,3 +1,10 @@
+"""Benchmarking and evaluation tools for QA dataset clustering.
+
+This module provides functionality for evaluating the quality of clustering results,
+generating topic labels for clusters, and producing comprehensive reports on cluster
+quality metrics such as coherence, separation, and density.
+"""
+
 import csv
 import json
 import logging
