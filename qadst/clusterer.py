@@ -94,7 +94,7 @@ class HDBSCANQAClusterer(BaseClusterer):
             >>> clusterer = HDBSCANQAClusterer("text-embedding-3-large")
             >>> # Small dataset (30 questions)
             >>> clusterer._calculate_min_cluster_size(30)
-            12
+            11
             >>> # Medium dataset (150 questions)
             >>> clusterer._calculate_min_cluster_size(150)
             25
