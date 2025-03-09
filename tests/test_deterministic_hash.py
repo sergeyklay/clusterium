@@ -4,13 +4,13 @@ import hashlib
 import tempfile
 from unittest.mock import patch
 
-from qadst import MockClusterer
+from qadst import FakeClusterer
 
 
 def test_deterministic_hash_consistency():
     """Test that the hash function produces consistent results."""
     with patch("qadst.base.OpenAIEmbeddings"), patch("qadst.base.ChatOpenAI"):
-        clusterer = MockClusterer(
+        clusterer = FakeClusterer(
             embedding_model_name="test-model",
             output_dir=tempfile.mkdtemp(),
         )
@@ -34,7 +34,7 @@ def test_deterministic_hash_consistency():
 def test_deterministic_hash_order_independence():
     """Test that the hash function is order-independent."""
     with patch("qadst.base.OpenAIEmbeddings"), patch("qadst.base.ChatOpenAI"):
-        clusterer = MockClusterer(
+        clusterer = FakeClusterer(
             embedding_model_name="test-model",
             output_dir=tempfile.mkdtemp(),
         )
@@ -56,7 +56,7 @@ def test_deterministic_hash_order_independence():
 def test_deterministic_hash_different_inputs():
     """Test that the hash function produces different results for different inputs."""
     with patch("qadst.base.OpenAIEmbeddings"), patch("qadst.base.ChatOpenAI"):
-        clusterer = MockClusterer(
+        clusterer = FakeClusterer(
             embedding_model_name="test-model",
             output_dir=tempfile.mkdtemp(),
         )

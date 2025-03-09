@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from qadst import HDBSCANQAClusterer, MockClusterer
+from qadst import FakeClusterer, HDBSCANQAClusterer
 
 
 @pytest.fixture
@@ -20,6 +20,26 @@ def sample_qa_pairs() -> List[Tuple[str, str]]:
         ("What payment methods do you accept?", "We accept credit cards and PayPal."),
         ("Can I pay with Bitcoin?", "Yes, we accept cryptocurrency payments."),
         ("How do I contact support?", "Email us at support@example.com."),
+    ]
+
+
+@pytest.fixture
+def filter_qa_pairs() -> List[Tuple[str, str]]:
+    """Return a sample list of QA pairs for testing filtering."""
+    return [
+        # Client questions
+        ("How do I reset my password?", "Click the 'Forgot Password' link."),
+        ("What payment methods do you accept?", "We accept credit cards and PayPal."),
+        ("How do I contact support?", "Email us at support@example.com."),
+        # Engineering questions
+        (
+            "What's the expected API latency in EU region?",
+            "Under 100ms with proper connection pooling.",
+        ),
+        (
+            "How is the database sharded?",
+            "We use hash-based sharding on the customer_id field.",
+        ),
     ]
 
 
@@ -41,7 +61,7 @@ def mock_embeddings() -> List[np.ndarray]:
 def mock_base_clusterer():
     """Return a mock BaseClusterer for testing."""
     with patch("qadst.base.OpenAIEmbeddings"), patch("qadst.base.ChatOpenAI"):
-        clusterer = MockClusterer(
+        clusterer = FakeClusterer(
             embedding_model_name="test-model",
             output_dir=tempfile.mkdtemp(),
         )
@@ -57,6 +77,62 @@ def mock_base_clusterer():
         ]
 
         yield clusterer
+
+
+@pytest.fixture
+def mock_filter_clusterer():
+    """Return a mock BaseClusterer with LLM for testing filtering."""
+    with (
+        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.base.ChatOpenAI"),
+        patch("qadst.base.PromptTemplate"),
+        patch("qadst.base.os.path.exists", return_value=True),
+    ):
+
+        # Create a temporary output directory
+        output_dir = tempfile.mkdtemp()
+
+        clusterer = FakeClusterer(
+            embedding_model_name="test-model",
+            llm_model_name="test-llm",
+            output_dir=output_dir,
+        )
+
+        # Initialize the filter cache
+        clusterer.filter_cache = {}
+
+        # Mock the LLM to return predetermined classifications
+        clusterer.llm = MagicMock()
+
+        # Create a response object with content attribute
+        mock_response = MagicMock()
+        mock_response.content = "[false, false, false, true, true]"
+        clusterer.llm.invoke.return_value = mock_response
+
+        # Mock the _classify_questions_batch method to return predetermined results
+        # This ensures we have consistent behavior regardless of LLM response parsing
+        original_classify = clusterer._classify_questions_batch
+
+        def mock_classify_batch(questions):
+            # Default classification: first 3 are client questions, last 2 are engineering
+            if len(questions) == 5:
+                return [False, False, False, True, True]
+            elif len(questions) == 3:  # For the cache test
+                return [False, True, True]
+            elif len(questions) == 2:  # For batch processing test (first batch)
+                return [False, False]
+            else:
+                return original_classify(questions)
+
+        clusterer._classify_questions_batch = mock_classify_batch
+
+        yield clusterer
+
+        # Clean up
+        if os.path.exists(output_dir):
+            import shutil
+
+            shutil.rmtree(output_dir)
 
 
 @pytest.fixture

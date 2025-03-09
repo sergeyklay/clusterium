@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Tuple
 from .base import BaseClusterer
 
 
-class MockClusterer(BaseClusterer):
+class FakeClusterer(BaseClusterer):
     """Concrete implementation of BaseClusterer for testing.
 
     This class provides a minimal implementation of the abstract methods
@@ -19,8 +19,8 @@ class MockClusterer(BaseClusterer):
     HDBSCANQAClusterer.
 
     Example:
-        >>> from qadst.testing import MockClusterer
-        >>> clusterer = MockClusterer(embedding_model_name="test-model")
+        >>> from qadst.testing import FakeClusterer
+        >>> clusterer = FakeClusterer(embedding_model_name="test-model")
         >>> clusterer.cluster_method()
         'test'
     """
