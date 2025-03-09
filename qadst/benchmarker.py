@@ -357,6 +357,150 @@ class ClusterBenchmarker:
         else:
             return "No LLM Available"
 
+    def _collect_cluster_questions(
+        self, clusters: Dict[str, Any], max_questions_per_cluster: int
+    ) -> Dict[int, List[str]]:
+        """Collect questions from each cluster for topic labeling.
+
+        Args:
+            clusters: Dict containing clustering results
+            max_questions_per_cluster: Maximum number of questions to use for labeling
+
+        Returns:
+            Dict mapping cluster IDs to lists of questions
+        """
+        all_cluster_questions = {}
+        for cluster in clusters["clusters"]:
+            cluster_id = cluster["id"]
+            questions = [qa["question"] for qa in cluster["source"]]
+            if questions:
+                all_cluster_questions[cluster_id] = questions[
+                    :max_questions_per_cluster
+                ]
+        return all_cluster_questions
+
+    def _generate_tfidf_topic_label(
+        self, questions: List[str], n_topics: int, n_top_words: int
+    ) -> str:
+        """Generate a topic label using TF-IDF/NMF method.
+
+        Args:
+            questions: List of questions in the cluster
+            n_topics: Number of topics to extract
+            n_top_words: Number of top words to include in the label
+
+        Returns:
+            Topic label string
+        """
+        # Extract important words using TF-IDF
+        vectorizer = TfidfVectorizer(
+            max_features=100, stop_words="english", ngram_range=(1, 2)
+        )
+
+        tfidf_matrix = vectorizer.fit_transform(questions)
+        feature_names = vectorizer.get_feature_names_out()
+
+        # For clusters with enough documents, use NMF to extract topics
+        if len(questions) >= 3:
+            return self._extract_nmf_topics(
+                tfidf_matrix, feature_names, n_topics, n_top_words
+            )
+        else:
+            # For small clusters, use the top TF-IDF terms directly
+            return self._extract_tfidf_topics(tfidf_matrix, feature_names, n_top_words)
+
+    def _extract_nmf_topics(
+        self, tfidf_matrix, feature_names, n_topics: int, n_top_words: int
+    ) -> str:
+        """Extract topics using Non-negative Matrix Factorization.
+
+        Args:
+            tfidf_matrix: TF-IDF matrix of documents
+            feature_names: Feature names from vectorizer
+            n_topics: Number of topics to extract
+            n_top_words: Number of top words to include
+
+        Returns:
+            Topic label string
+        """
+        # Non-negative Matrix Factorization for topic modeling
+        nmf_model = NMF(
+            n_components=min(n_topics, tfidf_matrix.shape[0]), random_state=42
+        )
+        nmf_model.fit_transform(tfidf_matrix)
+
+        # Get the top words for the first topic
+        topic_idx = 0
+        top_word_indices = np.argsort(nmf_model.components_[topic_idx])[::-1][
+            :n_top_words
+        ]
+        top_words = [str(feature_names[i]) for i in top_word_indices]
+
+        return " ".join(top_words).title()
+
+    def _extract_tfidf_topics(
+        self, tfidf_matrix, feature_names, n_top_words: int
+    ) -> str:
+        """Extract topics using TF-IDF sum for small clusters.
+
+        Args:
+            tfidf_matrix: TF-IDF matrix of documents
+            feature_names: Feature names from vectorizer
+            n_top_words: Number of top words to include
+
+        Returns:
+            Topic label string
+        """
+        # Sum the TF-IDF values across all documents
+        tfidf_sum = tfidf_matrix.sum(axis=0)
+        # Convert to regular array for further processing
+        tfidf_sum = np.asarray(tfidf_sum).flatten()
+        top_indices = tfidf_sum.argsort()[::-1][:n_top_words]
+        top_words = [str(feature_names[i]) for i in top_indices]
+
+        return " ".join(top_words).title()
+
+    def _get_topic_label_for_cluster(
+        self,
+        cluster_id: int,
+        questions: List[str],
+        use_llm: bool,
+        n_topics: int,
+        n_top_words: int,
+    ) -> str:
+        """Generate a topic label for a single cluster.
+
+        Args:
+            cluster_id: ID of the cluster
+            questions: List of questions in the cluster
+            use_llm: Whether to use LLM for labeling
+            n_topics: Number of topics to extract
+            n_top_words: Number of top words to include
+
+        Returns:
+            Topic label string
+        """
+        if not questions:
+            return "Empty Cluster"
+
+        # Try LLM-based labeling if enabled
+        if use_llm:
+            try:
+                return self._generate_llm_topic_label(questions)
+            except Exception as e:
+                logger.warning(
+                    f"Error generating LLM topic label for cluster {cluster_id}: {e}",
+                    exc_info=True,
+                )
+
+        # Fall back to TF-IDF/NMF method
+        try:
+            return self._generate_tfidf_topic_label(questions, n_topics, n_top_words)
+        except Exception as e:
+            # Fallback to using the first question as the topic
+            logger.warning(f"Error extracting topic for cluster {cluster_id}: {e}")
+            return questions[0][:50] + "..."
+
     def extract_topic_labels(
         self,
         clusters: Dict[str, Any],
@@ -383,84 +527,25 @@ class ClusterBenchmarker:
         Returns:
             Dict mapping cluster IDs to topic labels
         """
-        topic_labels = {}
-
+        # Check if LLM is available
         if use_llm and self.llm is None:
             logger.warning("LLM not provided, falling back to TF-IDF/NMF method")
             use_llm = False
 
-        # Collect all questions for context
-        all_cluster_questions = {}
-        for cluster in clusters["clusters"]:
-            cluster_id = cluster["id"]
-            questions = [qa["question"] for qa in cluster["source"]]
-            if questions:
-                all_cluster_questions[cluster_id] = questions[
-                    :max_questions_per_cluster
-                ]
+        # Collect questions from each cluster
+        all_cluster_questions = self._collect_cluster_questions(
+            clusters, max_questions_per_cluster
+        )
 
-        # Generate labels with knowledge of other clusters
+        # Generate topic labels for each cluster
+        topic_labels = {}
         for cluster in clusters["clusters"]:
             cluster_id = cluster["id"]
             questions = all_cluster_questions.get(cluster_id, [])
 
-            if not questions:
-                topic_labels[cluster_id] = "Empty Cluster"
-                continue
-
-            if use_llm:
-                try:
-                    topic_labels[cluster_id] = self._generate_llm_topic_label(questions)
-                    continue
-                except Exception as e:
-                    logger.warning(
-                        "Error generating LLM topic label for cluster"
-                        f"{cluster_id}: {e}",
-                        exc_info=True,
-                    )
-
-            # TF-IDF/NMF method (fallback)
-            try:
-                # Extract important words using TF-IDF
-                vectorizer = TfidfVectorizer(
-                    max_features=100, stop_words="english", ngram_range=(1, 2)
-                )
-
-                tfidf_matrix = vectorizer.fit_transform(questions)
-                feature_names = vectorizer.get_feature_names_out()
-
-                # For clusters with enough documents, use NMF to extract topics
-                if len(questions) >= 3:
-                    # Non-negative Matrix Factorization for topic modeling
-                    nmf_model = NMF(
-                        n_components=min(n_topics, len(questions)), random_state=42
-                    )
-                    nmf_model.fit_transform(tfidf_matrix)
-
-                    # Get the top words for the first topic
-                    topic_idx = 0
-                    top_word_indices = np.argsort(nmf_model.components_[topic_idx])[
-                        ::-1
-                    ][:n_top_words]
-                    top_words = [str(feature_names[i]) for i in top_word_indices]
-
-                    topic_labels[cluster_id] = " ".join(top_words).title()
-                else:
-                    # For small clusters, use the top TF-IDF terms directly
-                    # Use scipy's built-in sum method for sparse matrices
-                    import scipy.sparse as sp
-
-                    tfidf_sum = sp.spmatrix.sum(tfidf_matrix, axis=0)
-                    # Convert to regular array for further processing
-                    tfidf_sum = np.asarray(tfidf_sum).flatten()
-                    top_indices = tfidf_sum.argsort()[::-1][:n_top_words]
-                    top_words = [str(feature_names[i]) for i in top_indices]
-
-                    topic_labels[cluster_id] = " ".join(top_words).title()
-            except Exception as e:
-                # Fallback to using the first question as the topic
-                logger.warning(f"Error extracting topic for cluster {cluster_id}: {e}")
-                topic_labels[cluster_id] = questions[0][:50] + "..."
+            topic_labels[cluster_id] = self._get_topic_label_for_cluster(
+                cluster_id, questions, use_llm, n_topics, n_top_words
+            )
 
         # Post-process to ensure uniqueness
         self._ensure_unique_labels(topic_labels)

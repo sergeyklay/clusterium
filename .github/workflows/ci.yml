@@ -71,6 +71,13 @@ jobs:
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction
 
+      - name: Run linters
+        run: |
+          source $VENV
+
+          # Run flake8 and show results in CI
+          flake8 ./
+
       - name: Run unit tests with coverage
         run: |
           source $VENV
