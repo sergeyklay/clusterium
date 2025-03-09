@@ -26,97 +26,6 @@ This toolkit addresses the following key challenges:
 - **Domain Coverage Analysis**: Ensuring the dataset represents all important aspects of source documents
 - **Engineering vs. End-User Focus**: Separating technical questions from those that actual users would ask
 
-### Example Use Case
-
-#### Input
-
-Let's assume we've collected company documentation from various sources into a really big RAG system. We then generated an initial dataset based on these documents to use as a benchmark for future evaluations, all compiled into a single CSV file as follows:
-
-```csv
-question,answer
-How do I configure the API endpoint?,The API endpoint can be configured in the settings.json file under the "endpoints" section.
-What's the process for setting up API endpoints?,To set up an API endpoint, navigate to settings.json and modify the "endpoints" section.
-How do users reset their passwords?,Users can reset passwords by clicking "Forgot Password" on the login screen.
-What's the expected latency for our API when deployed in the EU region with the new load balancer configuration?,The expected latency should be under 100ms for 99% of requests when using the recommended instance types and proper connection pooling.
-```
-
-#### Processing Steps
-
-1. **Deduplication**: The first two questions are semantically similar (93% similarity) - both are kept in the same cluster with the first as the representative.
-2. **Filtering**: The fourth question is identified as engineering-focused (discussing infrastructure details and performance metrics) and filtered out from the end-user dataset.
-3. **Clustering**: The remaining questions are grouped by semantic similarity.
-
-#### Output
-
-Organized clusters in JSON format:
-
-```json
-{
-  "clusters": [
-    {
-      "id": 1,
-      "representative": [
-        {
-          "question": "How do I configure the API endpoint?",
-          "answer": "The API endpoint can be configured in the settings.json file under the \"endpoints\" section."
-        }
-      ],
-      "source": [
-        {
-          "question": "How do I configure the API endpoint?",
-          "answer": "The API endpoint can be configured in the settings.json file under the \"endpoints\" section."
-        },
-        {
-          "question": "What's the process for setting up API endpoints?",
-          "answer": "To set up an API endpoint, navigate to settings.json and modify the \"endpoints\" section."
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "representative": [
-        {
-          "question": "How do users reset their passwords?",
-          "answer": "Users can reset passwords by clicking \"Forgot Password\" on the login screen."
-        }
-      ],
-      "source": [
-        {
-          "question": "How do users reset their passwords?",
-          "answer": "Users can reset passwords by clicking \"Forgot Password\" on the login screen."
-        }
-      ]
-    }
-  ]
-}
-```
-
-#### Additional Outputs
-
-- `qa_cleaned.csv`: CSV file containing deduplicated and filtered QA pairs
-- `engineering_questions.csv`: CSV file containing questions identified as engineering-focused (including the latency question)
-- `cluster_quality_report.csv`: Detailed metrics on cluster quality and coherence (when running `qadst benchmark`)
-
-This transformation enables RAG system developers to:
-1. Evaluate against a diverse, non-redundant set of questions (deduplication)
-2. Focus on questions that end-users would actually ask (filtering)
-3. Organize questions into meaningful semantic groups (clustering)
-4. Quantitatively measure dataset quality before using it for evaluation
-
-#### Examples of Dataset Cluesting
-
-Bellow are some examples of dataset clustering and benchmarking results interpretations.
-
-**Example 1:** Pour Quality Clustering
-
-| Metric                    | Threshold   | Current Value                 | Interpretation                                           |
-| ------------------------- | ----------- | ----------------------------- | -------------------------------------------------------- |
-| Davies-Bouldin Index      | <1.0 ideal  | 4.38                          | Poor cluster separation (clusters overlap significantly) |
-| Calinski-Harabasz Score   | >100 good   | 54.66                         | Weak cluster density (clusters are not compact)          |
-| Low Coherence Clusters    | >0.4 target | 13,18,20,25,26,29 (0.14-0.34) | Mixed/irrelevant QA pairs in same cluster                |
-
-Possible steps to improve: Adjust HDBSCAN Parameters
-
 ## Technical Details
 
 ### Algorithms
@@ -165,7 +74,7 @@ cp .env.example .env  # Then edit .env with your API keys
 
 ## Usage
 
-For detailed usage instructions, examples, and advanced configuration options, please see [USAGE.md](USAGE.md).
+For detailed usage instructions, use cases, examples, and advanced configuration options, please see [USAGE.md](USAGE.md).
 
 ## References:
 
