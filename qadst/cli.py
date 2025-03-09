@@ -189,8 +189,14 @@ def cluster_command(
     default=True,
     help="Use LLM for generating topic labels",
 )
+@click.option(
+    "--reporters",
+    type=str,
+    default="csv,console",
+    help="Comma-separated list of reporters to enable (default: csv,console)",
+)
 def benchmark_command(
-    output_dir, llm_model, embedding_model, clusters, qa_pairs, use_llm
+    output_dir, llm_model, embedding_model, clusters, qa_pairs, use_llm, reporters
 ):
     """Benchmark clustering results and generate reports."""
     if not clusters or not qa_pairs:
@@ -210,6 +216,20 @@ def benchmark_command(
         output_dir=output_dir,
     )
 
+    # Configure reporters based on user input
+    enabled_reporters = [r.strip() for r in reporters.split(",") if r.strip()]
+
+    # Disable all reporters first
+    for reporter_name in ["csv", "console"]:
+        benchmarker.reporter_registry.disable(reporter_name)
+
+    # Enable only the requested reporters
+    for reporter_name in enabled_reporters:
+        if reporter_name in ["csv", "console"]:
+            benchmarker.reporter_registry.enable(reporter_name)
+        else:
+            logger.warning(f"Unknown reporter: {reporter_name}")
+
     # Generate report
     logger.info(f"Analyzing clusters from: {clusters}")
     logger.info(f"Using QA pairs from: {qa_pairs}")
@@ -217,32 +237,14 @@ def benchmark_command(
     logger.info(f"LLM topic labeling: {'enabled' if use_llm else 'disabled'}")
     if use_llm:
         logger.info(f"Using LLM model: {llm_model}")
+    logger.info(f"Enabled reporters: {', '.join(enabled_reporters)}")
 
-    report_df = benchmarker.generate_cluster_report(
+    # Generate the report - the reporters will handle the output
+    benchmarker.generate_cluster_report(
         clusters_json_path=clusters,
         qa_csv_path=qa_pairs,
         use_llm_for_topics=use_llm,
     )
-
-    # Print summary
-    summary_row = report_df.iloc[-1]
-    logger.info(f"Total QA pairs: {summary_row['Num_QA_Pairs']}")
-    logger.info(f"Metrics: {summary_row['Topic_Label']}")
-    logger.info(f"Enhanced clusters JSON with metrics: {clusters}")
-    logger.info(
-        f"CSV report saved to: {os.path.join(output_dir, 'cluster_quality_report.csv')}"
-    )
-
-    # Print top 5 clusters by size
-    top_clusters = report_df[report_df["Cluster_ID"] != "SUMMARY"].nlargest(
-        5, "Num_QA_Pairs"
-    )
-    logger.info("Top 5 clusters by size:")
-    for _, row in top_clusters.iterrows():
-        logger.info(
-            f"Cluster {row['Cluster_ID']}: {row['Num_QA_Pairs']} QA pairs, "
-            f"Coherence: {row['Coherence_Score']:.2f}, Topic: {row['Topic_Label']}"
-        )
 
 
 def main():
