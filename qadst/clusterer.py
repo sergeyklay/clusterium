@@ -21,12 +21,6 @@ class HDBSCANQAClusterer(BaseClusterer):
 
     HDBSCAN is particularly effective for datasets with varying cluster densities
     and non-spherical cluster shapes. It can identify outliers as noise points.
-
-    References:
-        - Campello, R.J.G.B., Moulavi, D., Sander, J. (2013) Density-Based Clustering
-          Based on Hierarchical Density Estimates
-        - McInnes, L., Healy, J., Astels, S. (2017) HDBSCAN: Hierarchical density
-          based clustering
     """
 
     def cluster_questions(self, qa_pairs: List[Tuple[str, str]]) -> Dict[str, Any]:
