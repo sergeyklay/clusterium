@@ -556,12 +556,12 @@ class BaseClusterer(ABC):
 
         # Get the number of clusters
         num_clusters = len(clustering_results.get("clusters", []))
-        logger.info(f"Found {num_clusters} clusters")
+        logger.debug(f"Found {num_clusters} clusters")
 
         json_output_path = os.path.join(self.output_dir, "qa_clusters.json")
         with open(json_output_path, "w", encoding="utf-8") as f:
             json.dump(clustering_results, f, indent=2)
-        logger.info(f"Saved clustering results to {json_output_path}")
+        logger.debug(f"Saved clustering results to {json_output_path}")
 
         csv_output_path = os.path.join(self.output_dir, "qa_cleaned.csv")
         with open(csv_output_path, "w", encoding="utf-8", newline="") as f:
@@ -569,7 +569,7 @@ class BaseClusterer(ABC):
             writer.writerow(["question", "answer"])
             for question, answer in filtered_pairs:
                 writer.writerow([question, answer])
-        logger.info(f"Saved cleaned QA pairs to {csv_output_path}")
+        logger.debug(f"Saved cleaned QA pairs to {csv_output_path}")
 
         result = {
             "clustering_results": clustering_results,
