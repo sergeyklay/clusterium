@@ -231,6 +231,97 @@ class BaseClusterer(ABC):
         logger.info(f"Deduplication time: {time.time()-start:.2f}s")
         return deduplicated_pairs
 
+    def _load_filter_cache(self, cache_file):
+        """Load filter cache from file if it exists."""
+        if cache_file and os.path.exists(cache_file):
+            try:
+                with open(cache_file, "r") as f:
+                    self.filter_cache = json.load(f)
+                logger.info(f"Loaded {len(self.filter_cache)} cached filter results")
+                return True
+            except Exception as e:
+                logger.warning(f"Error loading filter cache: {e}")
+        return False
+
+    def _save_filter_cache(self, cache_file):
+        """Save filter cache to file."""
+        if cache_file:
+            try:
+                with open(cache_file, "w") as f:
+                    json.dump(self.filter_cache, f)
+                logger.info(f"Saved {len(self.filter_cache)} filter results to cache")
+                return True
+            except Exception as e:
+                logger.warning(f"Error saving filter cache: {e}")
+        return False
+
+    def _process_cached_questions(self, qa_pairs):
+        """Process questions using the cache."""
+        filtered_pairs = []
+        engineering_pairs = []
+        questions_to_process = []
+
+        for q, a in qa_pairs:
+            if q in self.filter_cache:
+                if not self.filter_cache[
+                    q
+                ]:  # False means it's not an engineering question
+                    filtered_pairs.append((q, a))
+                else:
+                    engineering_pairs.append((q, a))
+            else:
+                questions_to_process.append((q, a))
+
+        return filtered_pairs, engineering_pairs, questions_to_process
+
+    def _process_questions_in_batches(self, questions_to_process, batch_size):
+        """Process questions in batches using LLM classification."""
+        filtered_pairs = []
+        engineering_pairs = []
+
+        batches = [
+            questions_to_process[i : i + batch_size]
+            for i in range(0, len(questions_to_process), batch_size)
+        ]
+
+        total_processed = 0
+        start_time = time.time()
+
+        for batch in batches:
+            batch_results = self._classify_questions_batch([q for q, _ in batch])
+
+            for (q, a), is_engineering in zip(batch, batch_results):
+                self.filter_cache[q] = is_engineering
+
+                if not is_engineering:
+                    filtered_pairs.append((q, a))
+                else:
+                    engineering_pairs.append((q, a))
+
+            total_processed += len(batch)
+            elapsed = time.time() - start_time
+            rate = total_processed / elapsed if elapsed > 0 else 0
+            logger.info(
+                f"Processed {total_processed}/{len(questions_to_process)} questions "
+                f"({rate:.2f} q/s), found {len(engineering_pairs)} engineering"
+                f" questions"
+            )
+
+            # Small delay to avoid rate limiting
+            time.sleep(0.1)
+
+        return filtered_pairs, engineering_pairs
+
+    def _save_engineering_questions(self, engineering_pairs):
+        """Save engineering questions to a CSV file."""
+        engineering_file = os.path.join(self.output_dir, "engineering_questions.csv")
+        with open(engineering_file, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["question", "answer"])
+            for q, a in engineering_pairs:
+                writer.writerow([q, a])
+        logger.info(f"Saved engineering questions to {engineering_file}")
+
     def filter_questions(
         self,
         qa_pairs: List[Tuple[str, str]],
@@ -275,91 +366,37 @@ class BaseClusterer(ABC):
             return qa_pairs
 
         # Load cache from file if provided
-        if cache_file and os.path.exists(cache_file):
-            try:
-                with open(cache_file, "r") as f:
-                    self.filter_cache = json.load(f)
-                logger.info(f"Loaded {len(self.filter_cache)} cached filter results")
-            except Exception as e:
-                logger.warning(f"Error loading filter cache: {e}")
+        self._load_filter_cache(cache_file)
 
-        filtered_pairs = []
-        engineering_pairs = []
-        questions_to_process = []
-
-        # First pass: check cache and collect questions that need processing
-        for q, a in qa_pairs:
-            if q in self.filter_cache:
-                if not self.filter_cache[
-                    q
-                ]:  # False means it's not an engineering question
-                    filtered_pairs.append((q, a))
-                else:
-                    engineering_pairs.append((q, a))
-            else:
-                questions_to_process.append((q, a))
+        # Process questions using cache
+        filtered_pairs, engineering_pairs, questions_to_process = (
+            self._process_cached_questions(qa_pairs)
+        )
 
         if not questions_to_process:
             logger.info("All questions found in cache, no LLM calls needed")
-            return filtered_pairs
-
-        logger.info(
-            f"Processing {len(questions_to_process)} uncached questions in batches"
-        )
-
-        batches = [
-            questions_to_process[i : i + batch_size]
-            for i in range(0, len(questions_to_process), batch_size)
-        ]
-
-        total_processed = 0
-        start_time = time.time()
-
-        for batch in batches:
-            batch_results = self._classify_questions_batch([q for q, _ in batch])
-
-            for (q, a), is_engineering in zip(batch, batch_results):
-                self.filter_cache[q] = is_engineering
-
-                if not is_engineering:
-                    filtered_pairs.append((q, a))
-                else:
-                    engineering_pairs.append((q, a))
-
-            total_processed += len(batch)
-            elapsed = time.time() - start_time
-            rate = total_processed / elapsed if elapsed > 0 else 0
+        else:
+            # Process uncached questions in batches
             logger.info(
-                f"Processed {total_processed}/{len(questions_to_process)} questions "
-                f"({rate:.2f} q/s), found {len(engineering_pairs)} engineering"
-                f" questions"
+                f"Processing {len(questions_to_process)} uncached questions in batches"
             )
+            new_filtered, new_engineering = self._process_questions_in_batches(
+                questions_to_process, batch_size
+            )
+            filtered_pairs.extend(new_filtered)
+            engineering_pairs.extend(new_engineering)
 
-            # Small delay to avoid rate limiting
-            time.sleep(0.1)
+            # Save cache to file if provided
+            self._save_filter_cache(cache_file)
 
-        # Save cache to file if provided
-        if cache_file:
-            try:
-                with open(cache_file, "w") as f:
-                    json.dump(self.filter_cache, f)
-                logger.info(f"Saved {len(self.filter_cache)} filter results to cache")
-            except Exception as e:
-                logger.warning(f"Error saving filter cache: {e}")
-
+        # Log filtering results
         logger.info(
             f"Filtered out {len(engineering_pairs)} engineering questions "
             f"({len(engineering_pairs)/len(qa_pairs)*100:.1f}%)"
         )
 
-        # Save engineering questions to a separate file for review
-        engineering_file = os.path.join(self.output_dir, "engineering_questions.csv")
-        with open(engineering_file, "w", encoding="utf-8", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["question", "answer"])
-            for q, a in engineering_pairs:
-                writer.writerow([q, a])
-        logger.info(f"Saved engineering questions to {engineering_file}")
+        # Save engineering questions to a separate file
+        self._save_engineering_questions(engineering_pairs)
 
         return filtered_pairs
 
