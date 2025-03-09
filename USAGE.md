@@ -30,6 +30,7 @@ qadst benchmark --clusters output/qa_clusters.json --qa-pairs data/qa_pairs.csv 
 - `--min-cluster-size`: Minimum size of clusters (if not provided, calculated automatically)
 - `--min-samples`: HDBSCAN min_samples parameter (default: 5)
 - `--cluster-selection-epsilon`: HDBSCAN cluster_selection_epsilon parameter (default: 0.3)
+- `--cluster-selection-method`: HDBSCAN cluster selection method (default: eom, alternative: leaf)
 - `--keep-noise/--cluster-noise`: Keep noise points unclustered or force them into clusters (default: --cluster-noise)
 
 Some options can/should also be configured via environment variables in a `.env` file:
@@ -201,6 +202,9 @@ Possible steps to improve: Adjust HDBSCAN Parameters
 
    # Or preserve noise points for better cluster quality
    qadst cluster --input data/qa_pairs.csv --keep-noise
+
+   # Or use leaf cluster selection method for more fine-grained clusters
+   qadst cluster --input data/qa_pairs.csv --cluster-selection-method leaf
    ```
    - The clustering process automatically handles large clusters using recursive HDBSCAN to maintain density-based properties
    - Embeddings are automatically cached for faster processing in subsequent runs (see [Embedding Caching](#embedding-caching))
@@ -219,6 +223,9 @@ The HDBSCAN algorithm parameters are carefully tuned based on academic research:
 - **Logarithmic Scaling**: `min_cluster_size` scales logarithmically with dataset size, following research showing that semantic clusters should grow sublinearly with dataset size
 - **Optimal Parameters**: Uses `min_samples=5` and `cluster_selection_epsilon=0.3` based on benchmarks from clustering literature
 - **Excess of Mass**: Uses EOM cluster selection method for better handling of varying density clusters
+- **Cluster Selection Method**: Controls how HDBSCAN selects clusters from the hierarchy:
+  - `eom` (default): Excess of Mass - selects clusters based on the stability of clusters, often resulting in varying cluster sizes
+  - `leaf`: Selects leaf nodes from the cluster hierarchy, which can result in more fine-grained clusters
 
 For example, with a dataset of 3000 questions, the toolkit automatically sets `min_cluster_size=64`, which represents the smallest meaningful semantic group in the data.
 
@@ -227,6 +234,9 @@ You can override these default parameters using command-line options:
 ```bash
 # Example: Set custom HDBSCAN parameters
 qadst cluster --input data/qa_pairs.csv --min-cluster-size 50 --min-samples 3 --cluster-selection-epsilon 0.2
+
+# Example: Use leaf cluster selection method for more fine-grained clusters
+qadst cluster --input data/qa_pairs.csv --cluster-selection-method leaf
 ```
 
 This allows you to fine-tune the clustering process for your specific dataset characteristics.

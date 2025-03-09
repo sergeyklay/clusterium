@@ -146,17 +146,21 @@ class HDBSCANQAClusterer(BaseClusterer):
         # Use provided cluster_selection_epsilon or default to 0.3
         cluster_selection_epsilon = self.cluster_selection_epsilon or 0.3
 
+        cluster_selection_method = self.cluster_selection_method or "eom"
+
         logger.info(
             f"Clustering {total_questions} questions with HDBSCAN"
             f"(min_cluster_size={min_cluster_size}, "
             f"min_samples={min_samples}, "
-            f"cluster_selection_epsilon={cluster_selection_epsilon})"
+            f"cluster_selection_epsilon={cluster_selection_epsilon}, "
+            f"cluster_selection_method={cluster_selection_method})"
         )
 
         hdbscan = HDBSCAN(
             min_cluster_size=min_cluster_size,
             min_samples=min_samples,
             cluster_selection_epsilon=cluster_selection_epsilon,
+            cluster_selection_method=cluster_selection_method,
         )
 
         cluster_labels = hdbscan.fit_predict(embeddings_array)
@@ -333,12 +337,15 @@ class HDBSCANQAClusterer(BaseClusterer):
         cluster_size = len(questions)
         min_cluster_size, epsilon = self._get_recursive_hdbscan_params(cluster_size)
 
+        cluster_selection_method = self.cluster_selection_method or "eom"
+
         # Apply HDBSCAN with stricter parameters
+        # Use the same cluster selection method as the main clustering
         hdbscan = HDBSCAN(
             min_cluster_size=min_cluster_size,
             min_samples=3,  # Slightly lower than default to allow smaller clusters
             cluster_selection_epsilon=epsilon,
-            cluster_selection_method="eom",  # Excess of Mass for better small clusters
+            cluster_selection_method=cluster_selection_method,
         )
 
         subcluster_labels = hdbscan.fit_predict(embeddings_array)

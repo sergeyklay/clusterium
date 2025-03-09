@@ -1,7 +1,7 @@
-"""Unit tests for the HDBSCANQAClusterer class."""
+"""Tests for the HDBSCAN-based QA dataset clustering implementation."""
 
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import numpy as np
 import pytest
@@ -434,6 +434,43 @@ def test_custom_hdbscan_parameters():
             min_cluster_size=50,
             min_samples=3,
             cluster_selection_epsilon=0.2,
+            cluster_selection_method="eom",  # Default value
+        )
+
+
+def test_cluster_selection_method_parameter():
+    """Test that the cluster_selection_method parameter is used correctly."""
+    with (
+        patch("qadst.clusterer.HDBSCAN") as mock_hdbscan_class,
+        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.base.ChatOpenAI"),
+    ):
+        # Create clusterer with custom cluster_selection_method
+        clusterer = HDBSCANQAClusterer(
+            embedding_model_name="test-model",
+            output_dir=tempfile.mkdtemp(),
+            cluster_selection_method="leaf",
+        )
+
+        # Mock the get_embeddings method
+        clusterer.get_embeddings = MagicMock(return_value=[[0.1, 0.2, 0.3]])
+
+        # Create a mock for HDBSCAN
+        mock_hdbscan_instance = MagicMock()
+        mock_hdbscan_instance.fit_predict.return_value = np.array([0])
+        mock_hdbscan_class.return_value = mock_hdbscan_instance
+
+        # Call the method that uses HDBSCAN
+        clusterer._perform_hdbscan_clustering([("test question", "test answer")])
+
+        # Check that HDBSCAN was called with the correct parameters
+        # min_cluster_size will be calculated automatically
+        # min_samples and cluster_selection_epsilon will use defaults
+        mock_hdbscan_class.assert_called_once_with(
+            min_cluster_size=ANY,  # Calculated automatically
+            min_samples=5,  # Default value
+            cluster_selection_epsilon=0.3,  # Default value
+            cluster_selection_method="leaf",  # Custom value
         )
 
 
