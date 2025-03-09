@@ -114,7 +114,8 @@ def mock_filter_clusterer():
         original_classify = clusterer._classify_questions_batch
 
         def mock_classify_batch(questions):
-            # Default classification: first 3 are client questions, last 2 are engineering
+            # Default classification: first 3 are client questions,
+            # last 2 are engineering
             if len(questions) == 5:
                 return [False, False, False, True, True]
             elif len(questions) == 3:  # For the cache test
