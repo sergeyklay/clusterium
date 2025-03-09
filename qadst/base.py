@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import json
 import logging
 import os
@@ -134,6 +135,15 @@ class BaseClusterer(ABC):
             np.linalg.norm(vec1_np) * np.linalg.norm(vec2_np)
         )
 
+    def _calculate_deterministic_hash(self, items: List[str]) -> str:
+        """Calculate a stable hash for an items list."""
+        # Sort to make order-independent (if needed)
+        sorted_items = sorted(items)
+        combined = "".join(sorted_items).encode("utf-8")
+
+        # SHA-256 produces 64-character hex digest
+        return hashlib.sha256(combined).hexdigest()
+
     def deduplicate_questions(
         self, qa_pairs: List[Tuple[str, str]]
     ) -> List[Tuple[str, str]]:
@@ -174,10 +184,8 @@ class BaseClusterer(ABC):
         questions = [q for q, _ in qa_pairs]
 
         # Use cached embeddings if available
-        questions_str = "".join(questions)
-        model_name = self.embedding_model_name
-        questions_hash = hash(questions_str)
-        cache_key = f"dedup_{model_name}_{questions_hash}"
+        questions_hash = self._calculate_deterministic_hash(questions)
+        cache_key = f"dedup_{self.embedding_model_name}_{questions_hash}"
         question_embeddings = self.get_embeddings(questions, cache_key)
 
         similarity_threshold = 0.85
@@ -581,7 +589,7 @@ class BaseClusterer(ABC):
         Args:
             questions: List of questions to embed
             cache_key: Optional key to use for caching (e.g., a hash of the dataset)
-                       If None, a hash of the questions will be used
+                       If None, caching will not be used.
 
         Returns:
             List of numpy arrays containing the embeddings
@@ -589,13 +597,14 @@ class BaseClusterer(ABC):
         if not questions:
             return []
 
-        # Generate a cache key if not provided
+        def embed_questions(items: List[str]) -> List[np.ndarray]:
+            """Embed questions using the embedding model."""
+            embeddings_list = self.embeddings_model.embed_documents(items)
+            embeddings = [np.array(emb) for emb in embeddings_list]
+            return embeddings
+
         if cache_key is None:
-            # Create a hash of the questions to use as cache key
-            questions_str = "".join(questions)
-            model_name = self.embedding_model_name
-            questions_hash = hash(questions_str)
-            cache_key = f"{model_name}_{questions_hash}"
+            return embed_questions(questions)
 
         # Check in-memory cache first
         if cache_key in self.embedding_cache:
@@ -621,8 +630,7 @@ class BaseClusterer(ABC):
 
         # Compute embeddings if not in cache
         logger.info(f"Computing embeddings for {len(questions)} questions")
-        embeddings_list = self.embeddings_model.embed_documents(questions)
-        embeddings = [np.array(emb) for emb in embeddings_list]
+        embeddings = embed_questions(questions)
 
         # Save to disk cache
         try:
