@@ -8,7 +8,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from qadst import MockClusterer
+from qadst import FakeClusterer
 
 
 def test_calculate_cosine_similarity(mock_base_clusterer):
@@ -56,7 +56,7 @@ def test_calculate_deterministic_hash(mock_base_clusterer):
 def test_load_qa_pairs(temp_csv_file):
     """Test the load_qa_pairs method."""
     with patch("qadst.base.OpenAIEmbeddings"), patch("qadst.base.ChatOpenAI"):
-        clusterer = MockClusterer(
+        clusterer = FakeClusterer(
             embedding_model_name="test-model",
             output_dir=tempfile.mkdtemp(),
         )
