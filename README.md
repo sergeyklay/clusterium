@@ -8,6 +8,7 @@ A toolkit for clustering, analyzing, and benchmarking question-answer datasets u
 ## Key Features
 
 - **Semantic Clustering**: Group semantically similar questions using density-based clustering (HDBSCAN)
+- **Recursive Cluster Refinement**: Maintain density-based properties when splitting large clusters using recursive HDBSCAN
 - **Intelligent Filtering**: Separate engineering-focused questions from end-user questions using LLM classification
 - **Deduplication**: Remove semantically duplicate questions based on embedding similarity
 - **Cluster Quality Assessment**: Evaluate clustering results using standard metrics and semantic coherence
@@ -102,6 +103,20 @@ This transformation enables RAG system developers to:
 3. Organize questions into meaningful semantic groups (clustering)
 4. Quantitatively measure dataset quality before using it for evaluation
 
+#### Examples of Dataset Cluesting
+
+Bellow are some examples of dataset clustering and benchmarking results interpretations.
+
+**Example 1:** Pour Quality Clustering
+
+| Metric                    | Threshold   | My Value                      | Interpretation                                           |
+|---------------------------|---------------------------------------------|----------------------------------------------------------|
+| Davies-Bouldin Index      | <1.0 ideal  | 4.38                          | Poor cluster separation (clusters overlap significantly) |
+| Calinski-Harabasz Score   | >100 good   | 54.66                         | Weak cluster density (clusters are not compact)          |
+| Low Coherence Clusters    | >0.4 target | 13,18,20,25,26,29 (0.14-0.34) | Mixed/irrelevant QA pairs in same cluster                |
+
+Possible steps to improve: Adjust HDBSCAN Parameters
+
 ## Technical Details
 
 ### Algorithms
@@ -118,7 +133,7 @@ The toolkit implements the Hierarchical Density-Based Spatial Clustering of Appl
 #### Post-Processing Techniques
 
 - **Noise Point Recovery**: K-means clustering is applied to noise points to recover potentially useful groups
-- **Large Cluster Splitting**: K-means is used to split overly large clusters into more coherent subclusters
+- **Large Cluster Handling**: Recursive HDBSCAN with stricter parameters is applied to large clusters to maintain density-based clustering properties, with K-means as a fallback only when necessary
 - **LLM-based Filtering**: Uses language models to classify questions as engineering-focused or client-focused
 
 #### Evaluation Metrics
@@ -249,6 +264,7 @@ Example of enhanced clusters JSON (original file is preserved and enhanced with 
    ```bash
    qadst cluster --input data/qa_pairs.csv
    ```
+   - The clustering process automatically handles large clusters using recursive HDBSCAN to maintain density-based properties
 3. **Run benchmarking** to evaluate cluster quality
    ```bash
    qadst benchmark --clusters output/qa_hdbscan_clusters.json --qa-pairs data/qa_pairs.csv --use-llm
@@ -266,6 +282,23 @@ The HDBSCAN algorithm parameters are carefully tuned based on academic research:
 - **Excess of Mass**: Uses EOM cluster selection method for better handling of varying density clusters
 
 For example, with a dataset of 3000 questions, the toolkit automatically sets `min_cluster_size=64`, which represents the smallest meaningful semantic group in the data.
+
+### Large Cluster Handling
+
+The toolkit employs a sophisticated approach to handle large clusters:
+
+- **Recursive HDBSCAN**: Large clusters (exceeding 20% of total questions or 50 questions, whichever is larger) are processed using a recursive application of HDBSCAN with stricter parameters:
+  - More aggressive scaling for `min_cluster_size` using `int(np.log(cluster_size) ** 1.5)`
+  - Tighter `cluster_selection_epsilon` (0.2 instead of the default 0.3)
+  - Slightly lower `min_samples` (3) to allow for smaller but still meaningful subclusters
+  - Maintains the density-based nature of the original clustering
+
+- **Adaptive Fallback**: If recursive HDBSCAN cannot effectively split a large cluster (produces 1 or fewer subclusters), the system falls back to K-means:
+  - Number of subclusters is determined adaptively based on cluster size
+  - Aims for approximately 30 questions per subcluster
+  - Caps at 10 subclusters to avoid excessive fragmentation
+
+This approach ensures that the natural density structure of the data is preserved whenever possible, while still providing effective splitting of large, unwieldy clusters.
 
 ### Embedding Caching
 
