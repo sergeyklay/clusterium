@@ -89,7 +89,34 @@ def cli():
     default=True,
     help="Filter out engineering-focused questions",
 )
-def cluster_command(output_dir, llm_model, embedding_model, input, filter):
+@click.option(
+    "--min-cluster-size",
+    type=int,
+    default=None,
+    help="Minimum size of clusters (if not provided, calculated automatically)",
+)
+@click.option(
+    "--min-samples",
+    type=int,
+    default=None,
+    help="HDBSCAN min_samples parameter (default: 5)",
+)
+@click.option(
+    "--cluster-selection-epsilon",
+    type=float,
+    default=None,
+    help="HDBSCAN cluster_selection_epsilon parameter (default: 0.3)",
+)
+def cluster_command(
+    output_dir,
+    llm_model,
+    embedding_model,
+    input,
+    filter,
+    min_cluster_size,
+    min_samples,
+    cluster_selection_epsilon,
+):
     """Cluster QA pairs using HDBSCAN algorithm."""
     logger.info("Starting QA dataset clustering process")
     if not input:
@@ -108,6 +135,9 @@ def cluster_command(output_dir, llm_model, embedding_model, input, filter):
         llm_model_name=llm_model if filter else None,
         output_dir=output_dir,
         filter_enabled=filter,
+        min_cluster_size=min_cluster_size,
+        min_samples=min_samples,
+        cluster_selection_epsilon=cluster_selection_epsilon,
     )
 
     logger.info(f"Processing dataset from {input}")
@@ -123,8 +153,8 @@ def cluster_command(output_dir, llm_model, embedding_model, input, filter):
     if "filtered_count" in result:
         logger.info(f"After filtering: {result['filtered_count']}")
     logger.info(f"Number of clusters: {result['num_clusters']}")
-    logger.info(f"Clusters JSON saved to: {result['json_output_path']}")
-    logger.info(f"Cleaned CSV saved to: {result['csv_output_path']}")
+    logger.debug(f"Clusters JSON saved to: {result['json_output_path']}")
+    logger.debug(f"Cleaned CSV saved to: {result['csv_output_path']}")
 
 
 @cli.command("benchmark")

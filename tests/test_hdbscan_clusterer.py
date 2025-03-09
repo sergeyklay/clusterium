@@ -399,3 +399,38 @@ def test_handle_large_clusters(
         "2.1": subclusters["2.1"],
     }
     assert result == expected_result
+
+
+def test_custom_hdbscan_parameters():
+    """Test that custom HDBSCAN parameters are used correctly."""
+    with (
+        patch("qadst.clusterer.HDBSCAN") as mock_hdbscan_class,
+        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.base.ChatOpenAI"),
+    ):
+        # Create clusterer with custom parameters
+        clusterer = HDBSCANQAClusterer(
+            embedding_model_name="test-model",
+            output_dir=tempfile.mkdtemp(),
+            min_cluster_size=50,
+            min_samples=3,
+            cluster_selection_epsilon=0.2,
+        )
+
+        # Mock the get_embeddings method
+        clusterer.get_embeddings = MagicMock(return_value=[[0.1, 0.2, 0.3]])
+
+        # Create a mock for HDBSCAN
+        mock_hdbscan_instance = MagicMock()
+        mock_hdbscan_instance.fit_predict.return_value = np.array([0])
+        mock_hdbscan_class.return_value = mock_hdbscan_instance
+
+        # Call the method that uses HDBSCAN
+        clusterer._perform_hdbscan_clustering([("test question", "test answer")])
+
+        # Check that HDBSCAN was called with the correct parameters
+        mock_hdbscan_class.assert_called_once_with(
+            min_cluster_size=50,
+            min_samples=3,
+            cluster_selection_epsilon=0.2,
+        )
