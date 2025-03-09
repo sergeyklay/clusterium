@@ -71,6 +71,16 @@ jobs:
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction
 
+      - name: Format code
+        run: |
+          source $VENV
+
+          isort --profile black --python-version auto ./
+          black . ./qadst ./tests
+
+      - name: Show improperly formatted files
+        run: git diff --color=always --exit-code
+
       - name: Run linters
         run: |
           source $VENV
