@@ -67,10 +67,20 @@ jobs:
 
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root -vvv
+        run: poetry install --no-interaction
 
       - name: Run unit tests with coverage
         run: |
           source $VENV
+
           coverage erase
           coverage run -m pytest -v ./qadst ./tests
+
+          coverage combine
+          coverage xml
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: sergeyklay/qa-dataset-clustering
