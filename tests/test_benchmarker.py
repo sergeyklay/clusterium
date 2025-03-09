@@ -1,5 +1,6 @@
 """Tests for the benchmarker module."""
 
+import json
 import os
 import tempfile
 from unittest.mock import MagicMock, patch
@@ -109,3 +110,97 @@ class TestClusterBenchmarker:
             "Failed to initialize embeddings model: Embedding model error"
         )
         mock_logger.warning.assert_any_call("Failed to initialize LLM: LLM error")
+
+    @patch("qadst.benchmarker.OpenAIEmbeddings")
+    @patch("qadst.benchmarker.ChatOpenAI")
+    def test_load_clusters_valid_json(self, mock_chat_openai, mock_embeddings):
+        """Test loading clusters from a valid JSON file."""
+        # Create test data
+        test_clusters = {
+            "clusters": [
+                {
+                    "id": 1,
+                    "representative": [{"question": "Test Q1", "answer": "Test A1"}],
+                    "source": [
+                        {"question": "Test Q1", "answer": "Test A1"},
+                        {"question": "Test Q2", "answer": "Test A2"},
+                    ],
+                },
+                {
+                    "id": 2,
+                    "representative": [{"question": "Test Q3", "answer": "Test A3"}],
+                    "source": [{"question": "Test Q3", "answer": "Test A3"}],
+                },
+            ]
+        }
+
+        # Create a temporary file with test data
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as f:
+            json.dump(test_clusters, f)
+            temp_file_name = f.name
+
+        try:
+            # Create benchmarker
+            benchmarker = ClusterBenchmarker()
+
+            # Load clusters
+            loaded_clusters = benchmarker.load_clusters(temp_file_name)
+
+            # Verify the loaded data
+            assert loaded_clusters == test_clusters
+            assert len(loaded_clusters["clusters"]) == 2
+            assert loaded_clusters["clusters"][0]["id"] == 1
+            assert loaded_clusters["clusters"][1]["id"] == 2
+            assert len(loaded_clusters["clusters"][0]["source"]) == 2
+            assert len(loaded_clusters["clusters"][1]["source"]) == 1
+
+        finally:
+            # Clean up
+            if os.path.exists(temp_file_name):
+                os.unlink(temp_file_name)
+
+    @patch("qadst.benchmarker.OpenAIEmbeddings")
+    @patch("qadst.benchmarker.ChatOpenAI")
+    def test_load_clusters_invalid_json(self, mock_chat_openai, mock_embeddings):
+        """Test loading clusters from an invalid JSON file."""
+        # Create a temporary file with invalid JSON
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as f:
+            f.write("This is not valid JSON")
+            temp_file_name = f.name
+
+        try:
+            # Create benchmarker
+            benchmarker = ClusterBenchmarker()
+
+            # Attempt to load clusters from invalid JSON
+            with patch("qadst.benchmarker.json.load") as mock_json_load:
+                mock_json_load.side_effect = json.JSONDecodeError("Test error", "", 0)
+
+                # Should raise JSONDecodeError
+                try:
+                    benchmarker.load_clusters(temp_file_name)
+                    assert False, "Expected JSONDecodeError was not raised"
+                except json.JSONDecodeError:
+                    pass  # Test passed
+
+        finally:
+            # Clean up
+            if os.path.exists(temp_file_name):
+                os.unlink(temp_file_name)
+
+    @patch("qadst.benchmarker.OpenAIEmbeddings")
+    @patch("qadst.benchmarker.ChatOpenAI")
+    def test_load_clusters_file_not_found(self, mock_chat_openai, mock_embeddings):
+        """Test loading clusters from a non-existent file."""
+        # Create benchmarker
+        benchmarker = ClusterBenchmarker()
+
+        # Attempt to load clusters from non-existent file
+        non_existent_file = "/path/to/non/existent/file.json"
+
+        # Should raise FileNotFoundError
+        try:
+            benchmarker.load_clusters(non_existent_file)
+            assert False, "Expected FileNotFoundError was not raised"
+        except FileNotFoundError:
+            pass  # Test passed
