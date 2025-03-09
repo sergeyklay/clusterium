@@ -76,10 +76,21 @@ jobs:
           source $VENV
 
           coverage erase
-          coverage run -m pytest -v ./qadst ./tests
+          coverage run -m pytest -v --junitxml=junit.xml -o junit_family=legacy ./qadst ./tests
 
           coverage combine
           coverage xml
+
+      - name: Upload test results to Codecov
+        uses: codecov/test-results-action@v1
+        if: always()
+        with:
+          fail_ci_if_error: false
+          name: codecov-umbrella
+          flags: unittests
+          env_vars: OS,PYTHON
+          files: ./coverage/xml/coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5.4.0
@@ -91,4 +102,3 @@ jobs:
           env_vars: OS,PYTHON
           files: ./coverage/xml/coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: sergeyklay/qa-dataset-clustering
