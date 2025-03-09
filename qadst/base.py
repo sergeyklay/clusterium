@@ -39,6 +39,9 @@ class BaseClusterer(ABC):
         llm_model_name: Optional[str] = None,
         output_dir: str = "./output",
         filter_enabled: bool = True,
+        min_cluster_size: Optional[int] = None,
+        min_samples: Optional[int] = None,
+        cluster_selection_epsilon: Optional[float] = None,
     ):
         """Initialize the clusterer.
 
@@ -47,12 +50,18 @@ class BaseClusterer(ABC):
             llm_model_name: Optional name of the LLM to use for filtering and labeling
             output_dir: Directory to save output files
             filter_enabled: Whether to filter out engineering-focused questions
+            min_cluster_size: Minimum size of clusters (if None, auto-calculated)
+            min_samples: HDBSCAN min_samples parameter (default: 5)
+            cluster_selection_epsilon: HDBSCAN epsilon parameter (default: 0.3)
         """
         self.embedding_model_name = embedding_model_name
         self.llm_model_name = llm_model_name
         self.output_dir = output_dir
         self.filter_enabled = filter_enabled
         self.embedding_cache = {}
+        self.min_cluster_size = min_cluster_size
+        self.min_samples = min_samples
+        self.cluster_selection_epsilon = cluster_selection_epsilon
 
         # Create output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
@@ -207,6 +216,7 @@ class BaseClusterer(ABC):
         processed_count = 0
         duplicate_count = 0
 
+        logger.info("Starting duplicate detection")
         for i in range(len(questions)):
             processed_count += 1
             if i in duplicate_indices:
@@ -226,7 +236,7 @@ class BaseClusterer(ABC):
                     duplicate_indices.add(j)
                     duplicate_groups[i].append(j)
                     duplicate_count += 1
-                    logger.info(
+                    logger.debug(
                         f"[{processed_count}/{total_questions}] Found duplicate: "
                         f"'{questions[j]}' similar to '{questions[i]}'"
                     )
@@ -302,7 +312,7 @@ class BaseClusterer(ABC):
             writer.writerow(["question", "answer"])
             for q, a in filtered_pairs:
                 writer.writerow([q, a])
-        logger.info(f"Saved engineering questions to {engineering_file}")
+        logger.debug(f"Saved filtered questions to {engineering_file}")
 
         return kept_pairs
 
@@ -477,7 +487,7 @@ class BaseClusterer(ABC):
 
         if os.path.exists(cache_file):
             try:
-                logger.info(f"Loading embeddings from cache file: {cache_file}")
+                logger.debug(f"Loading embeddings from cache file: {cache_file}")
                 embeddings_array = np.load(cache_file, allow_pickle=True)
                 embeddings = [np.array(emb) for emb in embeddings_array]
 

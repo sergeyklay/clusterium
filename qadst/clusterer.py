@@ -111,14 +111,7 @@ class HDBSCANQAClusterer(BaseClusterer):
     def _perform_hdbscan_clustering(
         self, qa_pairs: List[Tuple[str, str]]
     ) -> Dict[str, Any]:
-        """Perform clustering using HDBSCAN algorithm.
-
-        This method:
-        1. Computes embeddings for all questions
-        2. Applies HDBSCAN clustering with adaptive parameters
-        3. Processes noise points separately using K-means
-        4. Handles large clusters by splitting them
-        5. Formats the results into the required structure
+        """Perform HDBSCAN clustering on the given QA pairs.
 
         Args:
             qa_pairs: List of (question, answer) tuples
@@ -140,18 +133,30 @@ class HDBSCANQAClusterer(BaseClusterer):
         embeddings_array = np.array(question_embeddings)
 
         total_questions = len(questions)
-        min_cluster_size = self._calculate_min_cluster_size(total_questions)
+
+        # Use provided min_cluster_size or calculate it
+        if self.min_cluster_size:
+            min_cluster_size = self.min_cluster_size
+        else:
+            min_cluster_size = self._calculate_min_cluster_size(total_questions)
+
+        # Use provided min_samples or default to 5
+        min_samples = self.min_samples or 5
+
+        # Use provided cluster_selection_epsilon or default to 0.3
+        cluster_selection_epsilon = self.cluster_selection_epsilon or 0.3
 
         logger.info(
             f"Clustering {total_questions} questions with HDBSCAN"
             f"(min_cluster_size={min_cluster_size}, "
-            f"min_samples=5, cluster_selection_epsilon=0.3)"
+            f"min_samples={min_samples}, "
+            f"cluster_selection_epsilon={cluster_selection_epsilon})"
         )
 
         hdbscan = HDBSCAN(
             min_cluster_size=min_cluster_size,
-            min_samples=5,
-            cluster_selection_epsilon=0.3,
+            min_samples=min_samples,
+            cluster_selection_epsilon=cluster_selection_epsilon,
         )
 
         cluster_labels = hdbscan.fit_predict(embeddings_array)
