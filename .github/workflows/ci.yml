@@ -2,8 +2,8 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches-ignore:
+      - 'dependabot/**'
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -12,7 +12,7 @@ env:
 
 jobs:
   test:
-    name: Test
+    name: Python ${{ matrix.python }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
 
     # The maximum number of minutes to let a workflow run
@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 5
 
       - name: Set up Python ${{ matrix.python }}
         id: setup-python
@@ -80,7 +82,13 @@ jobs:
           coverage xml
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v5.4.0
+        if: success()
         with:
+          fail_ci_if_error: false
+          name: codecov-umbrella
+          flags: unittests
+          env_vars: OS,PYTHON
+          files: ./coverage/xml/coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: sergeyklay/qa-dataset-clustering
