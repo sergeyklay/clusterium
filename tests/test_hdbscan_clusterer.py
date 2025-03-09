@@ -4,6 +4,7 @@ import tempfile
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import pytest
 
 from qadst.clusterer import HDBSCANQAClusterer
 
@@ -434,3 +435,275 @@ def test_custom_hdbscan_parameters():
             min_samples=3,
             cluster_selection_epsilon=0.2,
         )
+
+
+def test_keep_noise_parameter():
+    """Test that the keep_noise parameter preserves noise points."""
+    with (
+        patch("qadst.clusterer.HDBSCAN"),
+        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.base.ChatOpenAI"),
+    ):
+        # Create a clusterer with keep_noise=True
+        clusterer = HDBSCANQAClusterer(
+            embedding_model_name="test-model",
+            output_dir=tempfile.mkdtemp(),
+            keep_noise=True,
+        )
+
+        # Mock the get_embeddings method
+        clusterer.get_embeddings = MagicMock(
+            return_value=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]
+        )
+
+        # Create a mock for HDBSCAN
+        mock_hdbscan_instance = MagicMock()
+        # Set up the mock to return one regular cluster and one noise point
+        mock_hdbscan_instance.fit_predict.return_value = np.array([0, 0, -1])
+
+        # Replace the HDBSCAN class with a mock
+        with patch("qadst.clusterer.HDBSCAN", return_value=mock_hdbscan_instance):
+            # Call the clustering method with test data
+            qa_pairs = [
+                ("question1", "answer1"),
+                ("question2", "answer2"),
+                ("question3", "answer3"),
+            ]
+            result = clusterer._perform_hdbscan_clustering(qa_pairs)
+
+            # Verify that the result contains both a regular cluster and a noise cluster
+            assert len(result["clusters"]) == 2
+
+            # Find the noise cluster (id should be 0)
+            noise_cluster = None
+            regular_cluster = None
+            for cluster in result["clusters"]:
+                if cluster.get("is_noise", False):
+                    noise_cluster = cluster
+                else:
+                    regular_cluster = cluster
+
+            # Verify the noise cluster exists and has the correct structure
+            assert noise_cluster is not None
+            assert noise_cluster["id"] == 0
+            assert len(noise_cluster["representative"]) == 0
+            assert len(noise_cluster["source"]) == 1
+            assert noise_cluster["source"][0]["question"] == "question3"
+
+            # Verify the regular cluster
+            assert regular_cluster is not None
+            assert regular_cluster["id"] == 1
+            assert len(regular_cluster["source"]) == 2
+            assert regular_cluster["source"][0]["question"] == "question1"
+            assert regular_cluster["source"][1]["question"] == "question2"
+
+
+def test_cluster_noise_points():
+    """Test that the _cluster_noise_points method is called when keep_noise is False."""
+    with (
+        patch("qadst.clusterer.HDBSCAN"),
+        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.base.ChatOpenAI"),
+    ):
+        # Create a clusterer with keep_noise=False
+        clusterer = HDBSCANQAClusterer(
+            embedding_model_name="test-model",
+            output_dir=tempfile.mkdtemp(),
+            keep_noise=False,
+        )
+
+        # Test the _cluster_noise_points method directly
+        noise_qa_pairs = [
+            ("question1", "answer1"),
+            ("question2", "answer2"),
+        ]
+
+        # Mock the embeddings_model.embed_documents method
+        clusterer.embeddings_model = MagicMock()
+        clusterer.embeddings_model.embed_documents.return_value = [
+            [0.1, 0.2, 0.3],
+            [0.4, 0.5, 0.6],
+        ]
+
+        # Mock KMeans
+        with patch("qadst.clusterer.KMeans") as mock_kmeans_class:
+            mock_kmeans_instance = MagicMock()
+            mock_kmeans_instance.fit_predict.return_value = np.array([0, 1])
+            mock_kmeans_class.return_value = mock_kmeans_instance
+
+            # Call the method
+            result = clusterer._cluster_noise_points(noise_qa_pairs, 1)
+
+            # Verify KMeans was called
+            mock_kmeans_class.assert_called_once()
+
+            # Verify the result structure
+            assert len(result) == 2
+            assert "0" in result
+            assert "1" in result
+            assert result["0"]["questions"] == ["question1"]
+            assert result["1"]["questions"] == ["question2"]
+
+
+@pytest.mark.parametrize(
+    "fn, input_str, expected_result",
+    [
+        # Valid conversions
+        (int, "123", 123),
+        (int, "-123", -123),
+        (int, "0", 0),
+        (float, "123.45", 123.45),
+        (float, "-123.45", -123.45),
+        (float, "0.0", 0.0),
+        (float, ".5", 0.5),
+        (float, "1e6", 1000000.0),
+        (float, "-1e6", -1000000.0),
+        (complex, "1+2j", 1 + 2j),
+        (complex, "-1-2j", -1 - 2j),
+        # Invalid conversions
+        (int, "123.45", None),
+        (int, "abc", None),
+        (int, "", None),
+        (int, "1e6", None),
+        (float, "abc", None),
+        (float, "", None),
+        (float, "1+2j", None),
+        (complex, "abc", None),
+        (complex, "", None),
+    ],
+)
+def test_if_ok(fn, input_str, expected_result):
+    """Test the _if_ok method with various inputs."""
+    with (
+        patch("qadst.clusterer.HDBSCAN"),
+        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.base.ChatOpenAI"),
+    ):
+        clusterer = HDBSCANQAClusterer(
+            embedding_model_name="test-model",
+            output_dir=tempfile.mkdtemp(),
+        )
+
+        result = clusterer._if_ok(fn, input_str)
+
+        if expected_result is None:
+            assert result is None
+        else:
+            assert result == expected_result
+
+
+@pytest.mark.parametrize(
+    "input_str, expected_result",
+    [
+        # Valid numeric strings
+        ("123", True),
+        ("-123", True),
+        ("0", True),
+        ("123.45", True),
+        ("-123.45", True),
+        ("0.0", True),
+        (".5", True),
+        ("1e6", True),
+        ("-1e6", True),
+        ("1+2j", True),
+        ("-1-2j", True),
+        ("inf", True),
+        ("-inf", True),
+        ("nan", True),
+        # Invalid numeric strings
+        ("abc", False),
+        ("", False),
+        ("123abc", False),
+        ("abc123", False),
+        ("12.34.56", False),
+        ("12,345", False),
+        ("$123", False),
+        ("None", False),
+        ("True", False),
+        ("False", False),
+    ],
+)
+def test_is_numeric(input_str, expected_result):
+    """Test the _is_numeric method with various inputs."""
+    with (
+        patch("qadst.clusterer.HDBSCAN"),
+        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.base.ChatOpenAI"),
+    ):
+        clusterer = HDBSCANQAClusterer(
+            embedding_model_name="test-model",
+            output_dir=tempfile.mkdtemp(),
+        )
+
+        result = clusterer._is_numeric(input_str)
+        assert result is expected_result
+
+
+@pytest.mark.parametrize(
+    "cluster_id, expected_result, expected_range",
+    [
+        # Regular cluster IDs
+        ("0", 1, None),
+        ("1", 2, None),
+        ("2", 3, None),
+        ("10", 11, None),
+        ("100", 101, None),
+        ("-1", 0, None),
+        ("-2", -1, None),
+        # Subcluster IDs with numeric components
+        ("0.0", 1, None),
+        ("0.1", 2, None),
+        ("1.0", 1001, None),
+        ("1.1", 1002, None),
+        ("1.2", 1003, None),
+        ("2.0", 2001, None),
+        ("10.5", 10006, None),
+        ("-1.0", -999, None),
+        ("-1.1", -998, None),
+        # Subcluster IDs with non-numeric components
+        ("a.0", None, (1000, 11000)),
+        ("0.a", None, (1000, 11000)),
+        ("a.b", None, (1000, 11000)),
+        # Non-numeric IDs
+        ("a", None, (1, 1001)),
+        ("abc", None, (1, 1001)),
+        ("", None, (1, 1001)),
+        ("None", None, (1, 1001)),
+        ("True", None, (1, 1001)),
+        ("False", None, (1, 1001)),
+        # Edge cases
+        ("1.0.0", None, (1000, 11000)),
+        ("1,000", None, (1, 1001)),
+        ("1e6", 1000001, None),
+        ("1.0e6", None, (1000, 11000)),
+    ],
+)
+def test_convert_cluster_id_to_numeric(cluster_id, expected_result, expected_range):
+    """Test the _convert_cluster_id_to_numeric method with various inputs."""
+    with (
+        patch("qadst.clusterer.HDBSCAN"),
+        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.base.ChatOpenAI"),
+    ):
+        clusterer = HDBSCANQAClusterer(
+            embedding_model_name="test-model",
+            output_dir=tempfile.mkdtemp(),
+        )
+
+        result = clusterer._convert_cluster_id_to_numeric(cluster_id)
+
+        # Always ensure we get an integer
+        assert isinstance(result, int)
+
+        if expected_result is not None:
+            # For cases where we expect a specific value
+            assert result == expected_result
+        elif expected_range is not None:
+            # For cases where we expect a value in a range
+            min_val, max_val = expected_range
+            assert min_val <= result < max_val
+        else:
+            # Should never happen with our test cases
+            assert (
+                False
+            ), "Test case must specify either expected_result or expected_range"

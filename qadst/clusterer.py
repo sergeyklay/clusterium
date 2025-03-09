@@ -188,8 +188,12 @@ class HDBSCANQAClusterer(BaseClusterer):
                 {"question": qa_pairs[i][0], "answer": qa_pairs[i][1]}
             )
 
-        # Process noise points if there are enough of them
-        if "-1" in clusters and len(clusters["-1"]["questions"]) > min_cluster_size * 2:
+        # Process noise points if there are enough of them and keep_noise is False
+        if (
+            "-1" in clusters
+            and len(clusters["-1"]["questions"]) > min_cluster_size * 2
+            and not self.keep_noise
+        ):
             noise_qa_pairs = [
                 (q["question"], q["answer"]) for q in clusters["-1"]["qa_pairs"]
             ]
@@ -438,6 +442,16 @@ class HDBSCANQAClusterer(BaseClusterer):
 
         # Process each large cluster
         for cluster_id, cluster_data in large_clusters.items():
+            # Skip the noise cluster if keep_noise is True
+            # Check if it's "-1" or can be converted to -1
+            is_noise_cluster = cluster_id == "-1" or (
+                self._is_numeric(cluster_id) and self._if_ok(int, cluster_id) == -1
+            )
+
+            if is_noise_cluster and self.keep_noise:
+                logger.info("Skipping noise cluster splitting as keep_noise=True")
+                continue
+
             logger.info(
                 f"Splitting large cluster {cluster_id} with "
                 f"{len(cluster_data['questions'])} questions"
@@ -447,12 +461,12 @@ class HDBSCANQAClusterer(BaseClusterer):
             questions = cluster_data["questions"]
             qa_pairs = cluster_data["qa_pairs"]
 
-            # Get embeddings for the questions in this cluster
-            embeddings = self.get_embeddings(questions)
-            embeddings_array = np.array(embeddings)
+            # Get embeddings for the questions
+            question_embeddings = self.get_embeddings(questions)
+            embeddings_array = np.array(question_embeddings)
 
             # Apply recursive clustering
-            subcluster_labels, _ = self._apply_recursive_clustering(
+            subcluster_labels, num_subclusters = self._apply_recursive_clustering(
                 questions, embeddings_array, cluster_id
             )
 
@@ -470,6 +484,85 @@ class HDBSCANQAClusterer(BaseClusterer):
 
         return clusters
 
+    def _if_ok(self, fn, string):
+        """Try to apply a function to a string, return None if it fails.
+
+        Args:
+            fn: Function to apply
+            string: String to apply the function to
+
+        Returns:
+            Result of fn(string) or None if an exception occurs
+        """
+        try:
+            return fn(string)
+        except Exception:
+            return None
+
+    def _is_numeric(self, string):
+        """Check if a string can be converted to a numeric type.
+
+        Args:
+            string: String to check
+
+        Returns:
+            True if the string can be converted to int, float, or complex
+        """
+        # Special case for empty strings
+        if not string:
+            return False
+
+        # Try to convert to numeric types
+        return (
+            self._if_ok(int, string) is not None
+            or self._if_ok(float, string) is not None
+            or self._if_ok(complex, string) is not None
+        )
+
+    def _convert_cluster_id_to_numeric(self, cluster_id: str) -> int:
+        """Convert a cluster ID string to a numeric ID.
+
+        Args:
+            cluster_id: String cluster ID, which may include dots for subclusters
+
+        Returns:
+            Numeric ID for the cluster
+        """
+        # If it's a subcluster ID (contains a dot), use a different approach
+        if "." in cluster_id:
+            # For subclusters, use a consistent ID scheme
+            # Extract the base cluster ID and subcluster number
+            try:
+                base_id, sub_id = cluster_id.split(".", 1)  # Split on first dot only
+
+                # Convert base_id to int if possible
+                base_int = self._if_ok(int, base_id)
+                if base_int is not None:
+                    # Convert sub_id to int if possible
+                    sub_float = self._if_ok(float, sub_id)
+                    if sub_float is not None:
+                        return base_int * 1000 + int(sub_float) + 1
+
+                # If conversion fails, use a hash-based approach
+                return abs(hash(cluster_id)) % 10000 + 1000
+            except Exception:
+                # Fallback for any unexpected format
+                return abs(hash(cluster_id)) % 10000 + 1000
+        else:
+            # Handle scientific notation specially (only if no dots)
+            if "e" in cluster_id.lower() and self._is_numeric(cluster_id):
+                # For scientific notation like "1e6", convert to float first
+                float_val = float(cluster_id)
+                return int(float_val) + 1
+
+            # For regular clusters, use the standard approach
+            base_int = self._if_ok(int, cluster_id)
+            if base_int is not None:
+                return base_int + 1  # Make IDs 1-based
+            else:
+                # If conversion fails, use a hash-based approach
+                return abs(hash(cluster_id)) % 1000 + 1
+
     def _format_clusters(self, clusters: Dict[str, Dict]) -> Dict[str, List]:
         """Format clusters into the standardized output structure.
 
@@ -483,9 +576,25 @@ class HDBSCANQAClusterer(BaseClusterer):
             Dict with clusters in the standardized format
         """
         formatted_clusters = []
+        noise_cluster = None
 
         for cluster_id, cluster_data in clusters.items():
             if not cluster_data["qa_pairs"]:
+                continue
+
+            # Handle noise points specially
+            # Check if it's "-1" or can be converted to -1
+            is_noise_cluster = cluster_id == "-1" or (
+                self._is_numeric(cluster_id) and self._if_ok(int, cluster_id) == -1
+            )
+
+            if is_noise_cluster and self.keep_noise:
+                noise_cluster = {
+                    "id": 0,  # Use 0 for noise cluster
+                    "representative": [],  # No representative for noise
+                    "source": cluster_data["qa_pairs"],
+                    "is_noise": True,
+                }
                 continue
 
             representative = [
@@ -497,12 +606,19 @@ class HDBSCANQAClusterer(BaseClusterer):
 
             sources = cluster_data["qa_pairs"]
 
+            # Convert cluster ID to numeric ID
+            numeric_id = self._convert_cluster_id_to_numeric(cluster_id)
+
             formatted_clusters.append(
                 {
-                    "id": int(cluster_id) + 1,  # Make IDs 1-based
+                    "id": numeric_id,
                     "representative": representative,
                     "source": sources,
                 }
             )
+
+        # Add noise cluster at the end if it exists
+        if noise_cluster:
+            formatted_clusters.append(noise_cluster)
 
         return {"clusters": formatted_clusters}
