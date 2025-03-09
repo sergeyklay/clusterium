@@ -1,4 +1,5 @@
 .venv
 .env
 __pycache__
-input.csv
+/input.csv
+/output
