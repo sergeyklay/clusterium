@@ -50,6 +50,10 @@ class HDBSCANQAClusterer(BaseClusterer):
             >>> # The result contains cluster information
             >>> print(clusters.keys())
             dict_keys(['clusters'])
+            >>> # Get the number of clusters
+            >>> num_clusters = len(clusters['clusters'])
+            >>> print(f"Number of clusters: {num_clusters}")
+            Number of clusters: 2
             >>> # Questions are grouped by semantic similarity
             >>> for cluster in clusters['clusters']:
             ...     print(f"Cluster {cluster['id']}: {len(cluster['source'])} items")

@@ -511,12 +511,12 @@ class BaseClusterer(ABC):
             >>> print(results.keys())
             dict_keys(['clustering_results', 'json_output_path', 'csv_output_path',
             ... 'deduplicated_count', 'original_count', 'filtered_count',
-            ... 'filter_cache_path'])
+            ... 'filter_cache_path', 'num_clusters'])
             >>> # Check the clustering results
             >>> print(results['clustering_results'].keys())
             dict_keys(['clusters'])
             >>> # Check the number of clusters found
-            >>> len(results['clustering_results']['clusters'])
+            >>> print(results['num_clusters'])
             5
             >>> # Check the output file paths
             >>> print(f"JSON output: {results['json_output_path']}")
@@ -524,9 +524,11 @@ class BaseClusterer(ABC):
             >>> print(f"CSV output: {results['csv_output_path']}")
             CSV output: ./results/qa_cleaned.csv
         """
+        start = time.time()
+
         logger.info(f"Loading QA pairs from {csv_path}")
         qa_pairs = self.load_qa_pairs(csv_path)
-        logger.info(f"Loaded {len(qa_pairs)} QA pairs")
+        logger.info(f"Loaded {len(qa_pairs)} QA pairs in {time.time()-start:.2f}s")
 
         logger.info("Deduplicating questions")
         deduplicated_pairs = self.deduplicate_questions(qa_pairs)
@@ -537,18 +539,24 @@ class BaseClusterer(ABC):
         if self.filter_enabled:
             logger.info("Filtering out engineering-focused questions")
             cache_file = os.path.join(self.output_dir, "filter_cache.json")
+            filter_start = time.time()
             filtered_pairs = self.filter_questions(
                 deduplicated_pairs,
                 batch_size=20,
                 use_llm=self.llm is not None,
                 cache_file=cache_file,
             )
+            logger.info(f"Filtering time: {time.time()-filter_start:.2f}s")
             logger.info(f"Retained {len(filtered_pairs)} client-focused QA pairs")
         else:
             logger.info("Filtering is disabled, skipping")
 
         logger.info(f"Clustering questions using {self.cluster_method()}")
         clustering_results = self.cluster_questions(filtered_pairs)
+
+        # Get the number of clusters
+        num_clusters = len(clustering_results.get("clusters", []))
+        logger.info(f"Found {num_clusters} clusters")
 
         json_output_path = os.path.join(self.output_dir, "qa_clusters.json")
         with open(json_output_path, "w", encoding="utf-8") as f:
@@ -569,12 +577,14 @@ class BaseClusterer(ABC):
             "csv_output_path": csv_output_path,
             "deduplicated_count": len(deduplicated_pairs),
             "original_count": len(qa_pairs),
+            "num_clusters": num_clusters,
         }
 
         if self.filter_enabled:
             result["filtered_count"] = len(filtered_pairs)
             result["filter_cache_path"] = cache_file
 
+        logger.info(f"Processing time: {time.time()-start:.2f}s")
         return result
 
     def get_embeddings(

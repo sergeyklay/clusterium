@@ -207,6 +207,7 @@ The clustering process produces:
 - A JSON file containing the clustering results
 - A cleaned CSV file with deduplicated and filtered QA pairs
 - A CSV file with engineering-focused questions (if filtering is enabled)
+- Statistics including the number of clusters, original count, and deduplicated count
 
 ### Benchmarking Output
 

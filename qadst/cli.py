@@ -107,6 +107,7 @@ def cluster_command(output_dir, llm_model, embedding_model, input, filter):
     logger.info(f"Deduplicated QA pairs: {result['deduplicated_count']}")
     if "filtered_count" in result:
         logger.info(f"After filtering: {result['filtered_count']}")
+    logger.info(f"Number of clusters: {result['num_clusters']}")
     logger.info(f"Clusters JSON saved to: {result['json_output_path']}")
     logger.info(f"Cleaned CSV saved to: {result['csv_output_path']}")
 
