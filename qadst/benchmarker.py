@@ -298,7 +298,9 @@ class ClusterBenchmarker:
         """
         return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
-    def _generate_llm_topic_label(self, questions: List[str]) -> str:
+    def _generate_llm_topic_label(
+        self, questions: List[str], previous_topics: Optional[List[str]] = None
+    ) -> str:
         """Generate a descriptive topic label using an LLM.
 
         Uses a language model to analyze a set of questions and generate a concise,
@@ -307,6 +309,7 @@ class ClusterBenchmarker:
 
         Args:
             questions: List of questions to generate a topic label for
+            previous_topics: List of previously generated topic labels to avoid overlap
 
         Returns:
             Topic label as a string
@@ -318,8 +321,16 @@ class ClusterBenchmarker:
             [f"{i+1}. {q}" for i, q in enumerate(questions)]
         )
 
+        previous_topics_text = ""
+        if previous_topics and len(previous_topics) > 0:
+            previous_topics_text = (
+                "\n\nPreviously generated topics (AVOID SEMANTIC OVERLAP WITH THESE):\n"
+            )
+            topics_formatted = [f"- {topic}" for topic in previous_topics]
+            previous_topics_text += "\n".join(topics_formatted)
+
         prompt_template = PromptTemplate(
-            input_variables=["questions"],
+            input_variables=["questions", "previous_topics"],
             template="""
             You are an expert taxonomist specializing in creating precise, distinctive category labels.
 
@@ -330,15 +341,16 @@ class ClusterBenchmarker:
             Your task is to create a HIGHLY SPECIFIC topic label (2-4 words) that:
             1. Precisely captures what makes these questions UNIQUE compared to other topics
             2. Uses concrete, specific terminology rather than generic terms
-            3. Avoids using the product name "SignNow" in the label
+            3. Avoids using the product name in the label
             4. Focuses on the distinctive FUNCTION or CONCEPT these questions address
             5. Is concise and memorable
+            6. Is SEMANTICALLY DISTINCT from any previously generated topics
 
             BAD EXAMPLES (too generic):
             - "Document Management"
             - "User Features"
             - "Account Settings"
-            - "SignNow Features"
+            - "Acme Features"
 
             GOOD EXAMPLES (specific and distinctive):
             - "Offline Deployment Options"
@@ -346,6 +358,7 @@ class ClusterBenchmarker:
             - "Template Reusability"
             - "Audit Trail Functionality"
             - "CRM Integration Methods"
+            {previous_topics}
 
             Respond ONLY with the final topic label, nothing else.
             """,  # noqa: E501
@@ -354,7 +367,12 @@ class ClusterBenchmarker:
         chain = prompt_template | self.llm
 
         try:
-            response = chain.invoke({"questions": formatted_questions})
+            response = chain.invoke(
+                {
+                    "questions": formatted_questions,
+                    "previous_topics": previous_topics_text,
+                }
+            )
 
             if hasattr(response, "content"):
                 topic_label = str(response.content).strip().strip('"').strip("'")
@@ -481,6 +499,7 @@ class ClusterBenchmarker:
         use_llm: bool,
         n_topics: int,
         n_top_words: int,
+        previous_topics: Optional[List[str]] = None,
     ) -> str:
         """Generate a topic label for a single cluster.
 
@@ -490,6 +509,7 @@ class ClusterBenchmarker:
             use_llm: Whether to use LLM for labeling
             n_topics: Number of topics to extract
             n_top_words: Number of top words to include
+            previous_topics: List of previously generated topic labels
 
         Returns:
             Topic label string
@@ -500,7 +520,7 @@ class ClusterBenchmarker:
         # Try LLM-based labeling if enabled
         if use_llm:
             try:
-                return self._generate_llm_topic_label(questions)
+                return self._generate_llm_topic_label(questions, previous_topics)
             except Exception as e:
                 logger.warning(
                     f"Error generating LLM topic label for cluster {cluster_id}: {e}",
@@ -551,15 +571,27 @@ class ClusterBenchmarker:
             clusters, max_questions_per_cluster
         )
 
-        # Generate topic labels for each cluster
+        # Sort clusters by size (descending) to process larger clusters first
+        sorted_clusters = sorted(
+            [(c["id"], len(c["source"])) for c in clusters["clusters"]],
+            key=lambda x: x[1],
+            reverse=True,
+        )
+
+        # Generate topic labels for each cluster, keeping track of
+        # previously generated topics
         topic_labels = {}
-        for cluster in clusters["clusters"]:
-            cluster_id = cluster["id"]
+        previous_topics = []
+
+        for cluster_id, _ in sorted_clusters:
             questions = all_cluster_questions.get(cluster_id, [])
 
-            topic_labels[cluster_id] = self._get_topic_label_for_cluster(
-                cluster_id, questions, use_llm, n_topics, n_top_words
+            topic_label = self._get_topic_label_for_cluster(
+                cluster_id, questions, use_llm, n_topics, n_top_words, previous_topics
             )
+
+            topic_labels[cluster_id] = topic_label
+            previous_topics.append(topic_label)
 
         # Post-process to ensure uniqueness
         self._ensure_unique_labels(topic_labels)
@@ -576,14 +608,33 @@ class ClusterBenchmarker:
             topic_labels: Dict mapping cluster IDs to topic labels
         """
         seen_labels = {}
+        seen_stems = {}  # Track semantic stems to detect similar topics
 
         for cluster_id, label in sorted(topic_labels.items()):
+            # Check for exact duplicates
             if label in seen_labels:
                 count = seen_labels[label] + 1
                 seen_labels[label] = count
                 topic_labels[cluster_id] = f"{label} ({count})"
             else:
                 seen_labels[label] = 1
+
+                # Check for semantic similarity with existing labels
+                # This is a simple approach - just checking if one label
+                # contains another
+                for existing_label in seen_stems:
+                    # If there's significant overlap between labels
+                    overlap_condition = (
+                        existing_label in label or label in existing_label
+                    )
+                    min_length_condition = len(label) > 5 and len(existing_label) > 5
+
+                    if overlap_condition and min_length_condition:
+                        # Add the cluster ID as a suffix to disambiguate
+                        topic_labels[cluster_id] = f"{label} (C{cluster_id})"
+                        break
+
+                seen_stems[label] = cluster_id
 
     def generate_cluster_report(
         self,
