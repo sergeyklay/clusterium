@@ -109,8 +109,8 @@ Bellow are some examples of dataset clustering and benchmarking results interpre
 
 **Example 1:** Pour Quality Clustering
 
-| Metric                    | Threshold   | My Value                      | Interpretation                                           |
-|---------------------------|---------------------------------------------|----------------------------------------------------------|
+| Metric                    | Threshold   | Current Value                 | Interpretation                                           |
+| ------------------------- | ----------- | ----------------------------- | -------------------------------------------------------- |
 | Davies-Bouldin Index      | <1.0 ideal  | 4.38                          | Poor cluster separation (clusters overlap significantly) |
 | Calinski-Harabasz Score   | >100 good   | 54.66                         | Weak cluster density (clusters are not compact)          |
 | Low Coherence Clusters    | >0.4 target | 13,18,20,25,26,29 (0.14-0.34) | Mixed/irrelevant QA pairs in same cluster                |
