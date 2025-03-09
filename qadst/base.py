@@ -506,7 +506,7 @@ class BaseClusterer(ABC):
 
         # Save to disk cache
         try:
-            logger.info(f"Saving embeddings to cache file: {cache_file}")
+            logger.debug(f"Saving embeddings to cache file: {cache_file}")
             np.save(cache_file, embeddings, allow_pickle=True)
 
             # Store in memory cache

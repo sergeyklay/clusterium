@@ -39,17 +39,4 @@ After installation, you can verify that everything is working correctly by runni
 python -m pytest
 ```
 
-## Using Different Embedding Models
-
-The toolkit supports any embedding model available through the OpenAI API. You can specify a different model using the `--embedding-model` option when running commands.
-
-## Embedding Caching
-
-The toolkit automatically caches embeddings to avoid recomputing them across runs, which improves performance for repeated operations on the same dataset:
-
-- Embeddings are cached in the `output_dir/embedding_cache` directory
-- Each cache file is named based on the embedding model and content hash
-- Both deduplication and clustering operations benefit from the cache
-- The cache is automatically invalidated when the dataset changes
-
-This means that the first run might take longer as embeddings are computed and cached, but subsequent runs will be much faster as they reuse the cached embeddings.
+For detailed usage instructions, examples, and advanced configuration options, please see [USAGE.md](USAGE.md).
