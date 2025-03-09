@@ -1,11 +1,10 @@
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 [project]
 name = "qadst"
 description = "QA Dataset Toolkit for clustering and benchmarking"
-version = "0.1.0"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/sergeyklay/qadst"
@@ -13,18 +12,18 @@ homepage = "https://github.com/sergeyklay/qadst"
 documentation = "https://github.com/sergeyklay/qadst"
 requires-python = ">=3.10, <4"
 authors = [{ name = "Serghei Iakovlev", email = "oss@serghei.pl" }]
-dynamic = [ "dependencies" ]
+dynamic = ["dependencies", "version"]
 include = [
     { path = "tests", format = "sdist" },
     "LICENSE",
+    "INSTALL.md",
     "README.md",
 ]
 
 [tool.poetry]
 requires-poetry = ">=2.0"
-packages = [
-    { include = "qadst" }
-]
+packages = [{ include = "qadst" }]
+version = "0.0.0"
 
 [tool.poetry.urls]
 "Bug Tracker" = "https://github.com/sergeyklay/qadst/issues"
@@ -33,7 +32,7 @@ packages = [
 qadst = "qadst.cli:main"
 
 [tool.poetry.dependencies]
-click= "^8.1.8"
+click = "^8.1.8"
 hdbscan = "^0.8.4"
 langchain = "^0.3.19"
 langchain-openai = "^0.3.6"
@@ -46,12 +45,21 @@ scikit-learn = "^1.6.1"
 black = "^25.1.0"
 debugpy = "^1.8.13"
 flake8 = "^7.1.2"
-isort = {version = "^6.0.1", extras = ["colors"]}
+isort = { version = "^6.0.1", extras = ["colors"] }
 pre-commit = "^4.1.0"
 
 [tool.poetry.group.testing.dependencies]
 coverage = { version = "^7.6.12", extras = ["toml"] }
 pytest = "^8.3.5"
+
+[tool.poetry.requires-plugins]
+poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "semver"
+metadata = true
 
 [tool.black]
 line-length = 88
@@ -96,9 +104,10 @@ data_file = "coverage/.coverage"
 # Omit specified files or directories from the report
 omit = [
     "*/__pycache__/*",
+    "*/.poetry/*",
+    "*/.pytest_cache/*",
     "*/.venv/*",
-    "*/build/*",
     "*/coverage/*",
-    "*/pytest_cache/*",
+    "*/dist/*",
     "*/tests/*",
 ]

@@ -17,10 +17,10 @@ show-source = True
 # List of files and directories to exclude from linting
 exclude =
     __pycache__,
+    .poetry,
     .pytest_cache,
     .venv,
-    build,
-    domain/data_collectors/prompts.py
+    dist,
 
 extend-ignore = E203,E701,E402
 

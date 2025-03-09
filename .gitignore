@@ -2,6 +2,8 @@
 .env
 __pycache__
 junit.xml
+/.pytest_cache
+/coverage
+/dist
 /input.csv
 /output
-/coverage
