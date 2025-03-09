@@ -215,6 +215,33 @@ The benchmarking process produces:
 - A CSV report with cluster quality metrics
 - Topic labels for each cluster
 - Coherence scores for each cluster
+- Enhanced existing clusters JSON file with:
+  - Per-cluster metrics (source_count, avg_similarity, coherence_score, topic_label)
+  - Global metrics (noise_ratio, davies_bouldin_score, calinski_harabasz_score, silhouette_score)
+
+Example of enhanced clusters JSON (original file is preserved and enhanced with metrics):
+```json
+{
+  "clusters": [
+    {
+      "id": 1,
+      "representative": [...],
+      "source": [...],
+      "source_count": 15,
+      "avg_similarity": 0.82,
+      "coherence_score": 0.82,
+      "topic_label": "Password Reset Process"
+    },
+    ...
+  ],
+  "metrics": {
+    "noise_ratio": 0.05,
+    "davies_bouldin_score": 0.76,
+    "calinski_harabasz_score": 42.3,
+    "silhouette_score": 0.68
+  }
+}
+```
 
 ## Example Workflow
 
