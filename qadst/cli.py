@@ -15,7 +15,7 @@ from pathlib import Path
 import click
 from dotenv import load_dotenv
 
-from qadst import ClusterBenchmarker, HDBSCANQAClusterer
+from qadst import ClusterBenchmarker, HDBSCANQAClusterer, __copyright__, __version__
 
 # Set up logging
 logging.basicConfig(
@@ -64,6 +64,14 @@ def common_options(func):
 
 
 @click.group()
+@click.version_option(
+    version=__version__,
+    prog_name="qadst",
+    message=f"""%(prog)s %(version)s
+{__copyright__}
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.""",
+)
 def cli():
     """QA Dataset Toolkit for clustering and benchmarking."""
     pass
