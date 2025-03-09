@@ -115,10 +115,6 @@ The toolkit implements the Hierarchical Density-Based Spatial Clustering of Appl
 - Handles clusters of varying densities and shapes
 - Adapts to dataset size with configurable minimum cluster size
 
-References:
-- Campello, R.J.G.B., Moulavi, D., Sander, J. (2013) Density-Based Clustering Based on Hierarchical Density Estimates
-- McInnes, L., Healy, J., Astels, S. (2017) HDBSCAN: Hierarchical density based clustering
-
 #### Post-Processing Techniques
 
 - **Noise Point Recovery**: K-means clustering is applied to noise points to recover potentially useful groups
@@ -286,14 +282,14 @@ This means that the first run might take longer as embeddings are computed and c
 
 The toolkit supports any embedding model available through the OpenAI API. You can specify a different model using the `--embedding-model` option.
 
-## For Researchers
+## References:
 
-The toolkit is designed to facilitate research on QA datasets:
-
-- **Reproducible Results**: Fixed random seeds ensure reproducible clustering
-- **Comprehensive Metrics**: Standard clustering metrics for quantitative evaluation
-- **Semantic Analysis**: Tools for analyzing semantic relationships between questions
-- **Topic Extraction**: Methods for extracting and analyzing cluster topics
+- Moulavi D, Jaskowiak PA, Campello RJGB, Zimek A, Sander J. 2014. Density-based clustering validation. In: Proceedings of the 2014 SIAM International Conference on Data Mining. Philadelphia (PA): Society for Industrial and Applied Mathematics. p. 839–847. [doi:10.1137/1.9781611973440.96](https://doi.org/10.1137/1.9781611973440.96).
+- McInnes L, Healy J. 2017. Accelerated hierarchical density clustering. arXiv:1705.07321 [stat.ML]. [doi:10.48550/arXiv.1705.07321](https://doi.org/10.48550/arXiv.1705.07321).
+- Schubert E, Sander J, Ester M, Kriegel HP, Xu X. 2017. CM Transactions on Database Systems. Volume 42, Issue 3. New York (NY): Association for Computing Machinery. [doi:10.1145/3129336](https://doi.org/10.1145/3129336).
+- Davies DL, Bouldin DW. 1979. A cluster separation measure. IEEE Transactions on Pattern Analysis and Machine Intelligence. 1(2):224–227. [doi:10.1109/TPAMI.1979.4766909](https://doi.org/10.1109/TPAMI.1979.4766909).
+- Caliński T, Harabasz J. 1974. A dendrite method for cluster analysis. Communications in Statistics. 3(1):1–27. [doi:10.1080/03610927408827101](https://doi.org/10.1080/03610927408827101).
+- Rousseeuw PJ. 1987. Silhouettes: A graphical aid to the interpretation and validation of cluster analysis. Journal of Computational and Applied Mathematics. 20:53–65. [doi:10.1016/0377-0427(87)90125-7](https://doi.org/10.1016/0377-0427(87)90125-7).
 
 ## Contributing
 

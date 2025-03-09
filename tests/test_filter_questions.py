@@ -89,8 +89,8 @@ def test_filter_clusterer():
     with (
         patch("qadst.base.OpenAIEmbeddings"),
         patch("qadst.base.ChatOpenAI"),
-        patch("qadst.base.PromptTemplate"),
         patch("builtins.open", create=True),
+        patch("qadst.filters.PromptTemplate"),
     ):
 
         # Create a temporary output directory
@@ -104,6 +104,31 @@ def test_filter_clusterer():
 
         # Mock the LLM
         clusterer.llm = MagicMock()
+
+        # Also mock the product_dev_filter
+        clusterer.product_dev_filter = MagicMock()
+        clusterer.product_dev_filter.process_questions.return_value = (
+            # kept_pairs
+            [
+                ("How do I reset my password?", "Click the 'Forgot Password' link."),
+                (
+                    "What payment methods do you accept?",
+                    "We accept credit cards and PayPal.",
+                ),
+                ("How do I contact support?", "Email us at support@example.com."),
+            ],
+            # filtered_pairs
+            [
+                (
+                    "What's the expected API latency in EU region?",
+                    "Under 100ms with proper connection pooling.",
+                ),
+                (
+                    "How is the database sharded?",
+                    "We use hash-based sharding on the customer_id field.",
+                ),
+            ],
+        )
 
         yield clusterer
 

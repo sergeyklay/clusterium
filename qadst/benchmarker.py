@@ -160,12 +160,6 @@ class ClusterBenchmarker:
 
         Also calculates the noise ratio (proportion of points not assigned to clusters).
 
-        References:
-            - Davies, D.L., Bouldin, D.W. (1979). A Cluster Separation Measure
-            - Calinski, T., Harabasz, J. (1974). A dendrite method for cluster analysis
-            - Rousseeuw, P.J. (1987). Silhouettes: a graphical aid to the
-              interpretation and validation of cluster analysis
-
         Args:
             embeddings: Array of embeddings
             labels: Array of cluster labels

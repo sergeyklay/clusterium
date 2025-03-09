@@ -1,3 +1,5 @@
+"""Base functionality for QA dataset clustering."""
+
 import csv
 import hashlib
 import json
@@ -8,8 +10,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+
+from .filters import ProductDevelopmentFilter
 
 logger = logging.getLogger(__name__)
 
@@ -41,26 +44,35 @@ class BaseClusterer(ABC):
 
         Args:
             embedding_model_name: Name of the embedding model to use
+            llm_model_name: Optional name of the LLM to use for filtering and labeling
             output_dir: Directory to save output files
-            llm_model_name: Optional name of the LLM model for filtering and labeling
-            filter_enabled: Whether to enable filtering of engineering questions
+            filter_enabled: Whether to filter out engineering-focused questions
         """
-        self.output_dir = output_dir
         self.embedding_model_name = embedding_model_name
-        self.embeddings_model = OpenAIEmbeddings(model=embedding_model_name)
+        self.llm_model_name = llm_model_name
+        self.output_dir = output_dir
         self.filter_enabled = filter_enabled
-        self.filter_cache = {}
         self.embedding_cache = {}
 
+        # Create output directory if it doesn't exist
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        # Initialize embedding model
+        self.embeddings_model = OpenAIEmbeddings(
+            model=embedding_model_name,
+            chunk_size=1000,
+        )
+
+        # Initialize LLM if provided
         self.llm = None
         if llm_model_name:
-            try:
-                self.llm = ChatOpenAI(model=llm_model_name, temperature=0.0)
-                logger.info(f"Initialized LLM with model: {llm_model_name}")
-            except Exception as e:
-                logger.warning(f"Failed to initialize LLM: {e}")
+            self.llm = ChatOpenAI(
+                model=llm_model_name,
+                temperature=0,
+            )
 
-        os.makedirs(self.output_dir, exist_ok=True)
+        # Initialize filter
+        self.product_dev_filter = ProductDevelopmentFilter(llm=self.llm)
 
     def load_qa_pairs(self, csv_path: str) -> List[Tuple[str, str]]:
         """Load question-answer pairs from a CSV file.
@@ -231,97 +243,6 @@ class BaseClusterer(ABC):
         logger.info(f"Deduplication time: {time.time()-start:.2f}s")
         return deduplicated_pairs
 
-    def _load_filter_cache(self, cache_file):
-        """Load filter cache from file if it exists."""
-        if cache_file and os.path.exists(cache_file):
-            try:
-                with open(cache_file, "r") as f:
-                    self.filter_cache = json.load(f)
-                logger.info(f"Loaded {len(self.filter_cache)} cached filter results")
-                return True
-            except Exception as e:
-                logger.warning(f"Error loading filter cache: {e}")
-        return False
-
-    def _save_filter_cache(self, cache_file):
-        """Save filter cache to file."""
-        if cache_file:
-            try:
-                with open(cache_file, "w") as f:
-                    json.dump(self.filter_cache, f)
-                logger.info(f"Saved {len(self.filter_cache)} filter results to cache")
-                return True
-            except Exception as e:
-                logger.warning(f"Error saving filter cache: {e}")
-        return False
-
-    def _process_cached_questions(self, qa_pairs):
-        """Process questions using the cache."""
-        filtered_pairs = []
-        engineering_pairs = []
-        questions_to_process = []
-
-        for q, a in qa_pairs:
-            if q in self.filter_cache:
-                if not self.filter_cache[
-                    q
-                ]:  # False means it's not an engineering question
-                    filtered_pairs.append((q, a))
-                else:
-                    engineering_pairs.append((q, a))
-            else:
-                questions_to_process.append((q, a))
-
-        return filtered_pairs, engineering_pairs, questions_to_process
-
-    def _process_questions_in_batches(self, questions_to_process, batch_size):
-        """Process questions in batches using LLM classification."""
-        filtered_pairs = []
-        engineering_pairs = []
-
-        batches = [
-            questions_to_process[i : i + batch_size]
-            for i in range(0, len(questions_to_process), batch_size)
-        ]
-
-        total_processed = 0
-        start_time = time.time()
-
-        for batch in batches:
-            batch_results = self._classify_questions_batch([q for q, _ in batch])
-
-            for (q, a), is_engineering in zip(batch, batch_results):
-                self.filter_cache[q] = is_engineering
-
-                if not is_engineering:
-                    filtered_pairs.append((q, a))
-                else:
-                    engineering_pairs.append((q, a))
-
-            total_processed += len(batch)
-            elapsed = time.time() - start_time
-            rate = total_processed / elapsed if elapsed > 0 else 0
-            logger.info(
-                f"Processed {total_processed}/{len(questions_to_process)} questions "
-                f"({rate:.2f} q/s), found {len(engineering_pairs)} engineering"
-                f" questions"
-            )
-
-            # Small delay to avoid rate limiting
-            time.sleep(0.1)
-
-        return filtered_pairs, engineering_pairs
-
-    def _save_engineering_questions(self, engineering_pairs):
-        """Save engineering questions to a CSV file."""
-        engineering_file = os.path.join(self.output_dir, "engineering_questions.csv")
-        with open(engineering_file, "w", encoding="utf-8", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["question", "answer"])
-            for q, a in engineering_pairs:
-                writer.writerow([q, a])
-        logger.info(f"Saved engineering questions to {engineering_file}")
-
     def filter_questions(
         self,
         qa_pairs: List[Tuple[str, str]],
@@ -329,11 +250,15 @@ class BaseClusterer(ABC):
         use_llm: bool = True,
         cache_file: Optional[str] = None,
     ) -> List[Tuple[str, str]]:
-        """Filter out questions intended for engineering teams rather than end clients.
+        """Filter out questions for product development teams.
 
-        Uses an LLM to classify questions as either engineering-focused or
+        Uses an LLM to classify questions as either product development-focused or
         client-focused. Processes questions in batches for efficiency and maintains
         a cache to avoid redundant LLM calls.
+
+        This filter distinguishes between:
+        1. Client engineering questions (which are kept)
+        2. Product development team questions (which are filtered out)
 
         Args:
             qa_pairs: List of (question, answer) tuples
@@ -342,7 +267,7 @@ class BaseClusterer(ABC):
             cache_file: Optional path to a cache file to persist filter results
 
         Returns:
-            List of filtered (question, answer) tuples for end clients
+            List of filtered (question, answer) tuples for clients
 
         Example:
             >>> clusterer = HDBSCANQAClusterer(
@@ -365,134 +290,21 @@ class BaseClusterer(ABC):
             logger.warning("LLM not provided or filtering disabled, skipping filter")
             return qa_pairs
 
-        # Load cache from file if provided
-        self._load_filter_cache(cache_file)
-
-        # Process questions using cache
-        filtered_pairs, engineering_pairs, questions_to_process = (
-            self._process_cached_questions(qa_pairs)
-        )
-
-        if not questions_to_process:
-            logger.info("All questions found in cache, no LLM calls needed")
-        else:
-            # Process uncached questions in batches
-            logger.info(
-                f"Processing {len(questions_to_process)} uncached questions in batches"
-            )
-            new_filtered, new_engineering = self._process_questions_in_batches(
-                questions_to_process, batch_size
-            )
-            filtered_pairs.extend(new_filtered)
-            engineering_pairs.extend(new_engineering)
-
-            # Save cache to file if provided
-            self._save_filter_cache(cache_file)
-
-        # Log filtering results
-        logger.info(
-            f"Filtered out {len(engineering_pairs)} engineering questions "
-            f"({len(engineering_pairs)/len(qa_pairs)*100:.1f}%)"
+        # Use the ProductDevelopmentFilter to process questions
+        kept_pairs, filtered_pairs = self.product_dev_filter.process_questions(
+            qa_pairs, batch_size, cache_file
         )
 
         # Save engineering questions to a separate file
-        self._save_engineering_questions(engineering_pairs)
+        engineering_file = os.path.join(self.output_dir, "engineering_questions.csv")
+        with open(engineering_file, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["question", "answer"])
+            for q, a in filtered_pairs:
+                writer.writerow([q, a])
+        logger.info(f"Saved engineering questions to {engineering_file}")
 
-        return filtered_pairs
-
-    def _classify_questions_batch(self, questions: List[str]) -> List[bool]:
-        """Classify a batch of questions as engineering-focused or client-focused.
-
-        Uses an LLM to determine if each question is intended for engineering teams
-        or end clients. Returns a list of boolean values where True indicates
-        an engineering-focused question.
-
-        Args:
-            questions: List of questions to classify
-
-        Returns:
-            List of booleans where True means the question is engineering-focused
-        """
-        if not self.llm:
-            return [False] * len(questions)
-
-        formatted_questions = "\n".join(
-            [f"{i+1}. {q}" for i, q in enumerate(questions)]
-        )
-
-        prompt_template = PromptTemplate(
-            input_variables=["questions"],
-            template="""
-            You are an expert at classifying content for the right audience.
-
-            Below is a list of questions about a software product:
-
-            {questions}
-
-            For each question, determine if it is intended for ENGINEERING TEAMS
-            (developers, testers, DevOps) or for END CLIENTS (users of the product).
-
-            Engineering questions typically involve:
-            - Development processes
-            - Deployment procedures
-            - Testing methodologies
-            - Technical infrastructure
-            - Internal systems
-            - Code or API details
-
-            Client questions typically involve:
-            - Product features and usage
-            - User interface
-            - Account management
-            - Pricing and subscriptions
-            - Common workflows
-            - Troubleshooting from a user perspective
-
-            Respond with ONLY a JSON array of boolean values (true/false), where:
-            - true = question is for ENGINEERING TEAMS
-            - false = question is for END CLIENTS
-
-            Example response format:
-            [false, true, false, false, true]
-            """,
-        )
-
-        chain = prompt_template | self.llm
-
-        try:
-            response = chain.invoke({"questions": formatted_questions})
-
-            content = ""
-            if hasattr(response, "content"):
-                content = str(response.content).strip()
-            else:
-                content = str(response).strip()
-
-            import re
-
-            json_match = re.search(r"\[.*\]", content)
-            if json_match:
-                json_str = json_match.group(0)
-                try:
-                    results = json.loads(json_str)
-                    if len(results) != len(questions):
-                        logger.warning(
-                            f"Expected {len(questions)} results, got {len(results)}"
-                        )
-                        if len(results) < len(questions):
-                            results.extend([False] * (len(questions) - len(results)))
-                        else:
-                            results = results[: len(questions)]
-                    return results
-                except json.JSONDecodeError:
-                    logger.warning(f"Failed to parse JSON from response: {json_str}")
-
-            logger.warning("Could not extract valid classification from LLM response")
-            return [False] * len(questions)
-
-        except Exception as e:
-            logger.warning(f"Error classifying questions: {e}")
-            return [False] * len(questions)
+        return kept_pairs
 
     @abstractmethod
     def cluster_questions(self, qa_pairs: List[Tuple[str, str]]) -> Dict[str, Any]:
