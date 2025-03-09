@@ -1,3 +1,5 @@
+"""HDBSCAN-based QA dataset clustering implementation."""
+
 import logging
 from typing import Any, Dict, List, Tuple
 
@@ -253,66 +255,215 @@ class HDBSCANQAClusterer(BaseClusterer):
 
         return subclusters
 
+    def _identify_large_clusters(
+        self, clusters: Dict[str, Dict], max_cluster_size: int
+    ) -> Dict[str, Dict]:
+        """Identify clusters that exceed the maximum size threshold.
+
+        Args:
+            clusters: Dict of cluster ID to cluster data
+            max_cluster_size: Maximum allowed cluster size
+
+        Returns:
+            Dict of large cluster ID to cluster data
+        """
+        large_clusters = {}
+        for cluster_id, cluster_data in clusters.items():
+            if len(cluster_data["questions"]) > max_cluster_size:
+                large_clusters[cluster_id] = cluster_data
+
+        if large_clusters:
+            logger.info(f"Found {len(large_clusters)} large clusters to split")
+        else:
+            logger.debug("No large clusters found")
+
+        return large_clusters
+
+    def _get_recursive_hdbscan_params(self, cluster_size: int) -> Tuple[int, float]:
+        """Calculate parameters for recursive HDBSCAN on a large cluster.
+
+        Args:
+            cluster_size: Number of questions in the cluster
+
+        Returns:
+            Tuple of (min_cluster_size, epsilon)
+        """
+        # Use a smaller min_cluster_size to encourage more fine-grained clusters
+        recursive_min_cluster_size = max(
+            int(np.log(cluster_size) ** 1.5),  # More aggressive scaling
+            5,  # Minimum of 5 to avoid tiny clusters
+        )
+
+        # Use a smaller epsilon to be more strict about cluster boundaries
+        recursive_epsilon = 0.2  # Tighter than the default 0.3
+
+        logger.debug(
+            "Recursive HDBSCAN parameters: "
+            f"min_cluster_size={recursive_min_cluster_size}, "
+            f"epsilon={recursive_epsilon}"
+        )
+
+        return recursive_min_cluster_size, recursive_epsilon
+
+    def _apply_recursive_clustering(
+        self, questions: List[str], embeddings_array: np.ndarray, cluster_id: str
+    ) -> Tuple[np.ndarray, int]:
+        """Apply recursive clustering to a large cluster.
+
+        First tries HDBSCAN with stricter parameters, falls back to K-means if needed.
+
+        Args:
+            questions: List of questions in the cluster
+            embeddings_array: Array of embeddings for the questions
+            cluster_id: ID of the cluster being processed
+
+        Returns:
+            Tuple of (subcluster_labels, num_subclusters)
+        """
+        # Get parameters for recursive HDBSCAN
+        cluster_size = len(questions)
+        min_cluster_size, epsilon = self._get_recursive_hdbscan_params(cluster_size)
+
+        # Apply HDBSCAN with stricter parameters
+        hdbscan = HDBSCAN(
+            min_cluster_size=min_cluster_size,
+            min_samples=3,  # Slightly lower than default to allow smaller clusters
+            cluster_selection_epsilon=epsilon,
+            cluster_selection_method="eom",  # Excess of Mass for better small clusters
+        )
+
+        subcluster_labels = hdbscan.fit_predict(embeddings_array)
+
+        # Count the number of subclusters (excluding noise)
+        num_subclusters = len(set(subcluster_labels))
+        if -1 in subcluster_labels:
+            num_subclusters -= 1
+
+        # If HDBSCAN couldn't split the cluster effectively, fall back to K-means
+        if num_subclusters <= 1:
+            logger.info(
+                f"Recursive HDBSCAN couldn't split cluster {cluster_id} effectively. "
+                "Falling back to K-means."
+            )
+
+            # Apply K-means with adaptive number of clusters
+            k = self._calculate_kmeans_clusters(len(questions))
+            kmeans = KMeans(n_clusters=k, random_state=42)
+            subcluster_labels = kmeans.fit_predict(embeddings_array)
+            num_subclusters = k
+
+        logger.info(f"Split cluster {cluster_id} into {num_subclusters} subclusters")
+        return subcluster_labels, num_subclusters
+
+    def _calculate_kmeans_clusters(self, num_questions: int) -> int:
+        """Calculate the appropriate number of K-means clusters.
+
+        Args:
+            num_questions: Number of questions in the cluster
+
+        Returns:
+            Number of clusters to use for K-means
+        """
+        return min(
+            # At least 2, aim for ~30 questions per cluster
+            max(2, int(num_questions / 30)),
+            # Cap at 10 subclusters to avoid excessive fragmentation
+            10,
+        )
+
+    def _create_subclusters(
+        self,
+        cluster_id: str,
+        questions: List[str],
+        qa_pairs: List[Dict],
+        subcluster_labels: np.ndarray,
+    ) -> Dict[str, Dict]:
+        """Create subclusters from the clustering results.
+
+        Args:
+            cluster_id: ID of the original cluster
+            questions: List of questions in the cluster
+            qa_pairs: List of QA pairs in the cluster
+            subcluster_labels: Array of subcluster labels
+
+        Returns:
+            Dict of subcluster ID to subcluster data
+        """
+        subclusters = {}
+        for i, label in enumerate(subcluster_labels):
+            if label == -1:  # Skip noise points
+                continue
+
+            label_key = f"{cluster_id}.{label}"
+            if label_key not in subclusters:
+                subclusters[label_key] = {"questions": [], "qa_pairs": []}
+
+            subclusters[label_key]["questions"].append(questions[i])
+            subclusters[label_key]["qa_pairs"].append(qa_pairs[i])
+
+        return subclusters
+
     def _handle_large_clusters(
         self, clusters: Dict[str, Dict], total_questions: int
     ) -> Dict[str, Dict]:
-        """Split large clusters into smaller subclusters for better granularity.
+        """Handle large clusters by recursively applying HDBSCAN with stricter
+        parameters.
 
-        Very large clusters may contain distinct subgroups that HDBSCAN merged due to
-        density connectivity. This method applies K-means to large clusters to split
-        them into more manageable and potentially more coherent subclusters.
+        Large clusters often contain diverse content that should be further subdivided.
+        Instead of using K-means (which doesn't respect the density-based nature of the
+        original clustering), this method recursively applies HDBSCAN with stricter
+        parameters to maintain consistency with the main algorithm.
 
         Args:
-            clusters: Initial clustering result
+            clusters: Dict of cluster ID to cluster data
             total_questions: Total number of questions in the dataset
 
         Returns:
-            Dict with refined clustering after splitting large clusters
+            Dict of cluster ID to cluster data with large clusters split
         """
-        large_cluster_threshold = max(30, total_questions // 5)
-        final_clusters = {}
-        cluster_counter = 0
+        # Calculate the maximum cluster size threshold (20% of total questions)
+        max_cluster_size = max(int(total_questions * 0.2), 50)
+        logger.debug(f"Maximum cluster size threshold: {max_cluster_size}")
 
-        for label, cluster_data in clusters.items():
-            if len(cluster_data["questions"]) > large_cluster_threshold:
-                logger.info(
-                    f"Splitting large cluster {label} with "
-                    f"{len(cluster_data['questions'])} questions"
-                )
+        # Identify large clusters
+        large_clusters = self._identify_large_clusters(clusters, max_cluster_size)
 
-                cluster_embeddings = self.embeddings_model.embed_documents(
-                    cluster_data["questions"]
-                )
-                cluster_embeddings_array = np.array(cluster_embeddings)
-                num_subclusters = max(2, len(cluster_data["questions"]) // 20)
+        if not large_clusters:
+            return clusters
 
-                subcluster_kmeans = KMeans(
-                    n_clusters=num_subclusters, random_state=42, n_init=10
-                )
-                subcluster_labels = subcluster_kmeans.fit_predict(
-                    cluster_embeddings_array
-                )
+        # Process each large cluster
+        for cluster_id, cluster_data in large_clusters.items():
+            logger.info(
+                f"Splitting large cluster {cluster_id} with "
+                f"{len(cluster_data['questions'])} questions"
+            )
 
-                subclusters = {}
-                for i, sublabel in enumerate(subcluster_labels):
-                    sublabel_key = int(sublabel)
-                    if sublabel_key not in subclusters:
-                        subclusters[sublabel_key] = {"questions": [], "qa_pairs": []}
-                    subclusters[sublabel_key]["questions"].append(
-                        cluster_data["questions"][i]
-                    )
-                    subclusters[sublabel_key]["qa_pairs"].append(
-                        cluster_data["qa_pairs"][i]
-                    )
+            # Extract questions and embeddings for this cluster
+            questions = cluster_data["questions"]
+            qa_pairs = cluster_data["qa_pairs"]
 
-                for _, subcluster_data in subclusters.items():
-                    final_clusters[str(cluster_counter)] = subcluster_data
-                    cluster_counter += 1
-            else:
-                final_clusters[str(cluster_counter)] = cluster_data
-                cluster_counter += 1
+            # Get embeddings for the questions in this cluster
+            embeddings = self.get_embeddings(questions)
+            embeddings_array = np.array(embeddings)
 
-        return final_clusters
+            # Apply recursive clustering
+            subcluster_labels, _ = self._apply_recursive_clustering(
+                questions, embeddings_array, cluster_id
+            )
+
+            # Create subclusters
+            subclusters = self._create_subclusters(
+                cluster_id, questions, qa_pairs, subcluster_labels
+            )
+
+            # Remove the original large cluster
+            del clusters[cluster_id]
+
+            # Add the subclusters
+            for subcluster_id, subcluster_data in subclusters.items():
+                clusters[subcluster_id] = subcluster_data
+
+        return clusters
 
     def _format_clusters(self, clusters: Dict[str, Dict]) -> Dict[str, List]:
         """Format clusters into the standardized output structure.
