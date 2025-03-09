@@ -107,6 +107,11 @@ def cli():
     default=None,
     help="HDBSCAN cluster_selection_epsilon parameter (default: 0.3)",
 )
+@click.option(
+    "--keep-noise/--cluster-noise",
+    default=False,
+    help="Keep noise points unclustered (default: False, noise points are clustered)",
+)
 def cluster_command(
     output_dir,
     llm_model,
@@ -116,6 +121,7 @@ def cluster_command(
     min_cluster_size,
     min_samples,
     cluster_selection_epsilon,
+    keep_noise,
 ):
     """Cluster QA pairs using HDBSCAN algorithm."""
     logger.info("Starting QA dataset clustering process")
@@ -138,6 +144,7 @@ def cluster_command(
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
         cluster_selection_epsilon=cluster_selection_epsilon,
+        keep_noise=keep_noise,
     )
 
     logger.info(f"Processing dataset from {input}")

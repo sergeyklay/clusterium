@@ -30,6 +30,7 @@ qadst benchmark --clusters output/qa_clusters.json --qa-pairs data/qa_pairs.csv 
 - `--min-cluster-size`: Minimum size of clusters (if not provided, calculated automatically)
 - `--min-samples`: HDBSCAN min_samples parameter (default: 5)
 - `--cluster-selection-epsilon`: HDBSCAN cluster_selection_epsilon parameter (default: 0.3)
+- `--keep-noise/--cluster-noise`: Keep noise points unclustered or force them into clusters (default: --cluster-noise)
 
 ## Input Format
 
@@ -189,6 +190,9 @@ Possible steps to improve: Adjust HDBSCAN Parameters
 
    # Or with custom HDBSCAN parameters
    qadst cluster --input data/qa_pairs.csv --min-cluster-size 50 --min-samples 3 --cluster-selection-epsilon 0.2
+
+   # Or preserve noise points for better cluster quality
+   qadst cluster --input data/qa_pairs.csv --keep-noise
    ```
    - The clustering process automatically handles large clusters using recursive HDBSCAN to maintain density-based properties
 3. **Run benchmarking** to evaluate cluster quality
@@ -217,6 +221,34 @@ qadst cluster --input data/qa_pairs.csv --min-cluster-size 50 --min-samples 3 --
 ```
 
 This allows you to fine-tune the clustering process for your specific dataset characteristics.
+
+### Noise Point Handling
+
+HDBSCAN naturally identifies outliers as "noise points" - data points that don't fit well into any cluster based on density criteria. By default, the toolkit attempts to recover potentially useful information from these noise points by applying K-means clustering to them.
+
+You can control this behavior with the `--keep-noise/--cluster-noise` option:
+
+- **--cluster-noise** (default): Force noise points into clusters using K-means
+  - Ensures all questions are assigned to a cluster
+  - May reduce overall cluster quality by including outliers
+  - Results in noise_ratio=0.00 in metrics
+
+- **--keep-noise**: Keep noise points unclustered
+  - Preserves HDBSCAN's density-based clustering decisions
+  - Improves cluster coherence and separation metrics
+  - Creates a special "noise" cluster (id: 0) in the output
+  - Shows true noise_ratio in metrics
+
+Example:
+```bash
+# Keep noise points unclustered for better cluster quality
+qadst cluster --input data/qa_pairs.csv --keep-noise
+```
+
+This option is particularly useful when:
+- You want to identify truly outlier questions
+- You're prioritizing cluster quality over complete coverage
+- Your dataset contains questions that genuinely don't fit into semantic groups
 
 ### Large Cluster Handling
 

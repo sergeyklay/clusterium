@@ -42,6 +42,7 @@ class BaseClusterer(ABC):
         min_cluster_size: Optional[int] = None,
         min_samples: Optional[int] = None,
         cluster_selection_epsilon: Optional[float] = None,
+        keep_noise: bool = False,
     ):
         """Initialize the clusterer.
 
@@ -53,6 +54,7 @@ class BaseClusterer(ABC):
             min_cluster_size: Minimum size of clusters (if None, auto-calculated)
             min_samples: HDBSCAN min_samples parameter (default: 5)
             cluster_selection_epsilon: HDBSCAN epsilon parameter (default: 0.3)
+            keep_noise: Whether to keep noise points unclustered (default: False)
         """
         self.embedding_model_name = embedding_model_name
         self.llm_model_name = llm_model_name
@@ -62,6 +64,7 @@ class BaseClusterer(ABC):
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples
         self.cluster_selection_epsilon = cluster_selection_epsilon
+        self.keep_noise = keep_noise
 
         # Create output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
