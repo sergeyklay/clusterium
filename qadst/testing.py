@@ -20,7 +20,10 @@ class FakeClusterer(BaseClusterer):
 
     Example:
         >>> from qadst.testing import FakeClusterer
-        >>> clusterer = FakeClusterer(embedding_model_name="test-model")
+        >>> from qadst.embeddings import get_embeddings_model, EmbeddingsProvider
+        >>> model = get_embeddings_model("test-model")
+        >>> provider = EmbeddingsProvider(model=model)
+        >>> clusterer = FakeClusterer(embeddings_provider=provider)
         >>> clusterer.cluster_method()
         'test'
     """

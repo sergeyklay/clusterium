@@ -36,7 +36,12 @@ class HDBSCANQAClusterer(BaseClusterer):
             Dict containing clustering results in the requested format
 
         Example:
-            >>> clusterer = HDBSCANQAClusterer("text-embedding-3-large")
+            >>> from qadst.embeddings import get_embeddings_model, EmbeddingsProvider
+            >>> # Create embeddings provider
+            >>> model = get_embeddings_model("text-embedding-3-large")
+            >>> provider = EmbeddingsProvider(model=model)
+            >>> # Create clusterer with the provider
+            >>> clusterer = HDBSCANQAClusterer(embeddings_provider=provider)
             >>> qa_pairs = [
             ...     ("How do I reset my password?", "Click 'Forgot Password'"),
             ...     ("How do I change my email?", "Go to account settings"),
@@ -102,6 +107,10 @@ class HDBSCANQAClusterer(BaseClusterer):
             >>> clusterer._calculate_min_cluster_size(3000)
             64
         """
+        # If min_cluster_size is explicitly set, use it
+        if self.min_cluster_size is not None:
+            return self.min_cluster_size
+
         # Use logarithmic scaling for more natural cluster size determination
         # The square of the natural logarithm provides a good balance
         base_size = max(3, int(np.log(total_questions) ** 2))
@@ -127,7 +136,8 @@ class HDBSCANQAClusterer(BaseClusterer):
 
         # Use cached embeddings if available
         questions_hash = self._calculate_deterministic_hash(questions)
-        cache_key = f"cluster_{self.embedding_model_name}_{questions_hash}"
+        model_name = self.embeddings_provider.get_model_name()
+        cache_key = f"cluster_{model_name}_{questions_hash}"
         question_embeddings = self.embeddings_provider.get_embeddings(
             questions, cache_key
         )
