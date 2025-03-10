@@ -7,3 +7,4 @@ junit.xml
 /dist
 /input.csv
 /output
+/.cache

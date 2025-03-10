@@ -37,10 +37,15 @@ click = "^8.1.8"
 hdbscan = "^0.8.4"
 langchain = "^0.3.19"
 langchain-openai = "^0.3.6"
-numpy = "^2.2.3"
 pandas = "^2.2.3"
 python-dotenv = "^1.0.1"
 scikit-learn = "^1.6.1"
+
+numpy = "^2.2.3"
+sentence-transformers = "^3.4.1"
+tqdm = "^4.67.1"
+scipy = "^1.15.2"
+matplotlib = "^3.10.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
