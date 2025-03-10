@@ -1,6 +1,9 @@
-# QA Dataset Clustering
+# QA Dataset Clustering Toolkit (qadst)
 
-A tool for clustering question-answer datasets using Dirichlet Process and Pitman-Yor Process.
+[![CI](https://github.com/sergeyklay/qa-dataset-clustering/actions/workflows/ci.yml/badge.svg)](https://github.com/sergeyklay/qa-dataset-clustering/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sergeyklay/qa-dataset-clustering/graph/badge.svg?token=T5d9KTXtqP)](https://codecov.io/gh/sergeyklay/qa-dataset-clustering)
+
+A toolkit for clustering, analyzing, and benchmarking question-answer datasets using state-of-the-art embedding models and clustering algorithms.
 
 ## Features
 
@@ -15,7 +18,8 @@ A tool for clustering question-answer datasets using Dirichlet Process and Pitma
 
 For detailed installation instructions, please see [INSTALL.md](INSTALL.md).
 
-Quick start:
+### Quick Start
+
 ```bash
 git clone https://github.com/sergeyklay/qa-dataset-clustering.git
 cd qa-dataset-clustering
@@ -24,7 +28,7 @@ poetry install
 
 ## Usage
 
-For detailed usage instructions, please see [USAGE.md](USAGE.md).
+For detailed usage instructions, use cases, examples, and advanced configuration options, please see [USAGE.md](USAGE.md).
 
 ### Quick Start
 

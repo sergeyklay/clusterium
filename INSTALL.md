@@ -1,16 +1,16 @@
 # Installation Guide
 
-This document provides detailed instructions for installing the QA Dataset Clustering Tool (qadst).
+This document provides detailed instructions for installing the QA Dataset Clustering Toolkit (qadst).
 
 ## Prerequisites
 
-Before installing, ensure you have the following prerequisites:
+Before installing qadst, ensure you have the following prerequisites:
 
-- Python 3.10 or newer
+- Python 3.10 or higher
 - [Poetry](https://python-poetry.org/) for dependency management
 - Git (for cloning the repository)
 
-## Installation
+## Installation Steps
 
 1. Clone the repository:
    ```bash

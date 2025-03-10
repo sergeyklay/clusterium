@@ -1,37 +1,21 @@
 # Python
-__pycache__/
+__pycache__
 *.py[cod]
-*$py.class
-*.so
-.Python
-.env
 .venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+
+# Testing
+/coverage
+/.pytest_cache
+/junit.xml
 
 # Project specific
-.cache/
-output/
+/dist
+/output
+/.cache
+
 *.csv
 *.json
 *.png
 
 # Distribution / packaging
-dist/
-build/
-*.egg-info/
-
-# Testing
-.coverage
-coverage/
-.pytest_cache/
-junit.xml
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+/dist
