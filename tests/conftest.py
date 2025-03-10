@@ -46,8 +46,6 @@ def filter_qa_pairs() -> List[Tuple[str, str]]:
 @pytest.fixture
 def mock_embeddings() -> List[np.ndarray]:
     """Return mock embeddings for testing."""
-    # Create deterministic embeddings where the first two are similar
-    # and the third and fourth are similar
     return [
         np.array([0.9, 0.1, 0.1]),  # Password reset
         np.array([0.85, 0.15, 0.1]),  # Password change (similar to first)
@@ -61,13 +59,9 @@ def mock_embeddings() -> List[np.ndarray]:
 def mock_base_clusterer():
     """Return a mock BaseClusterer for testing."""
     with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
-        # Create a mock embeddings provider
         mock_embeddings_provider = MagicMock()
-
-        # Mock the get_model_name method
         mock_embeddings_provider.get_model_name.return_value = "test-model"
 
-        # Mock the calculate_cosine_similarity method
         def mock_cosine_similarity(vec1, vec2):
             vec1_np = np.array(vec1)
             vec2_np = np.array(vec2)
@@ -81,7 +75,6 @@ def mock_base_clusterer():
             mock_cosine_similarity
         )
 
-        # Create the clusterer with the mock provider
         clusterer = FakeClusterer(
             embeddings_provider=mock_embeddings_provider,
             output_dir=tempfile.mkdtemp(),
@@ -99,10 +92,8 @@ def mock_filter_clusterer():
         patch("qadst.base.PromptTemplate"),
         patch("qadst.base.os.path.exists", return_value=True),
     ):
-        # Create a temporary output directory
         output_dir = tempfile.mkdtemp()
 
-        # Create a mock embeddings provider
         mock_embeddings_provider = MagicMock()
         mock_embeddings_provider.get_model_name.return_value = "test-model"
 
@@ -112,24 +103,16 @@ def mock_filter_clusterer():
             output_dir=output_dir,
         )
 
-        # Initialize the filter cache
         clusterer.filter_cache = {}
-
-        # Mock the LLM to return predetermined classifications
         clusterer.llm = MagicMock()
 
-        # Create a response object with content attribute
         mock_response = MagicMock()
         mock_response.content = "[false, false, false, true, true]"
         clusterer.llm.invoke.return_value = mock_response
 
-        # Mock the _classify_questions_batch method to return predetermined results
-        # This ensures we have consistent behavior regardless of LLM response parsing
         original_classify = clusterer._classify_questions_batch
 
         def mock_classify_batch(questions):
-            # Default classification: first 3 are client questions,
-            # last 2 are engineering
             if len(questions) == 5:
                 return [False, False, False, True, True]
             elif len(questions) == 3:  # For the cache test
@@ -143,7 +126,6 @@ def mock_filter_clusterer():
 
         yield clusterer
 
-        # Clean up
         if os.path.exists(output_dir):
             import shutil
 
@@ -158,11 +140,9 @@ def mock_hdbscan_clusterer():
         patch("qadst.embeddings.get_embeddings_model"),
         patch("qadst.base.ChatOpenAI"),
     ):
-        # Create a mock embeddings provider
         mock_embeddings_provider = MagicMock()
         mock_embeddings_provider.get_model_name.return_value = "test-model"
 
-        # Mock the calculate_cosine_similarity method
         def mock_cosine_similarity(vec1, vec2):
             vec1_np = np.array(vec1)
             vec2_np = np.array(vec2)
@@ -176,14 +156,12 @@ def mock_hdbscan_clusterer():
             mock_cosine_similarity
         )
 
-        # Mock the get_embeddings method
         mock_embeddings_provider.get_embeddings.return_value = [
             np.array([0.1, 0.2, 0.3]),
             np.array([0.4, 0.5, 0.6]),
             np.array([0.7, 0.8, 0.9]),
         ]
 
-        # Create the clusterer with the mock provider
         clusterer = HDBSCANQAClusterer(
             embeddings_provider=mock_embeddings_provider,
             output_dir=tempfile.mkdtemp(),
@@ -206,6 +184,5 @@ def temp_csv_file():
 
     yield temp_file_name
 
-    # Clean up
     if os.path.exists(temp_file_name):
         os.unlink(temp_file_name)
