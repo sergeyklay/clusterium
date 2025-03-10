@@ -45,6 +45,7 @@ class BaseClusterer(ABC):
         cluster_selection_epsilon: Optional[float] = None,
         keep_noise: bool = False,
         cluster_selection_method: str = "eom",
+        embeddings_provider: Optional[EmbeddingsProvider] = None,
     ):
         """Initialize the clusterer.
 
@@ -58,6 +59,7 @@ class BaseClusterer(ABC):
             cluster_selection_epsilon: HDBSCAN epsilon parameter (default: 0.3)
             keep_noise: Whether to keep noise points unclustered (default: False)
             cluster_selection_method: HDBSCAN cluster selection method (default: "eom")
+            embeddings_provider: Optional pre-configured EmbeddingsProvider instance
         """
         self.embedding_model_name = embedding_model_name
         self.llm_model_name = llm_model_name
@@ -73,15 +75,19 @@ class BaseClusterer(ABC):
         # Create output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
 
-        # Initialize embedding model
-        embeddings_model = get_embeddings_model(
-            model_name=embedding_model_name,
-            chunk_size=1000,
-        )
-        self.embeddings_provider = EmbeddingsProvider(
-            model=embeddings_model,
-            output_dir=self.output_dir,
-        )
+        # Use provided embeddings_provider or initialize a new one
+        if embeddings_provider is not None:
+            self.embeddings_provider = embeddings_provider
+        else:
+            # Initialize embedding model
+            embeddings_model = get_embeddings_model(
+                model_name=embedding_model_name,
+                chunk_size=1000,
+            )
+            self.embeddings_provider = EmbeddingsProvider(
+                model=embeddings_model,
+                output_dir=self.output_dir,
+            )
 
         # Initialize LLM if provided
         self.llm = None

@@ -23,7 +23,7 @@ from sklearn.metrics import (
     silhouette_score,
 )
 
-from .embeddings import EmbeddingsProvider, get_embeddings_model
+from .embeddings import EmbeddingsProvider
 from .reporters import (
     ConsoleReporter,
     CSVReporter,
@@ -56,41 +56,33 @@ class ClusterBenchmarker:
 
     def __init__(
         self,
-        embedding_model_name: Optional[str] = None,
+        embeddings_provider: "EmbeddingsProvider",
         llm_model_name: Optional[str] = None,
         output_dir: str = "./output",
     ):
-        """Initialize the benchmarker.
+        """Initialize the ClusterBenchmarker.
 
         Args:
-            embedding_model_name: Name of the embedding model to use
-            llm_model_name: Name of the LLM model to use for topic labeling
-            output_dir: Directory to save output files
+            embeddings_provider: The embeddings provider to use for generating
+                embeddings
+            llm_model_name: Name of the language model to use
+            output_dir: Directory to store output files
         """
-        self.embeddings_provider = None
-        if embedding_model_name:
-            try:
-                embeddings_model = get_embeddings_model(model_name=embedding_model_name)
-                self.embeddings_provider = EmbeddingsProvider(
-                    model=embeddings_model,
-                    output_dir=output_dir,
-                )
-                logger.info(f"Initialized embeddings model: {embedding_model_name}")
-            except Exception as e:
-                logger.warning(f"Failed to initialize embeddings model: {e}")
-
-        self.llm = None
-        if llm_model_name:
-            try:
-                self.llm = ChatOpenAI(model=llm_model_name, temperature=0.0)
-                logger.info(f"Initialized LLM: {llm_model_name}")
-            except Exception as e:
-                logger.warning(f"Failed to initialize LLM: {e}")
-
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
 
-        # Initialize reporter registry with default reporters
+        # Set embeddings provider
+        self.embeddings_provider = embeddings_provider
+
+        # Initialize LLM
+        self.llm = None
+        if llm_model_name is not None:
+            try:
+                self.llm = ChatOpenAI(model=llm_model_name, temperature=0.0)
+            except Exception as e:
+                logger.warning(f"Failed to initialize LLM: {e}")
+
+        # Initialize reporter registry
         self.reporter_registry = ReporterRegistry()
         self.reporter_registry.register("csv", CSVReporter(output_dir), enabled=True)
         self.reporter_registry.register(
@@ -156,9 +148,6 @@ class ClusterBenchmarker:
         Returns:
             Array of embeddings for the questions
         """
-        if self.embeddings_provider is None:
-            raise ValueError("Embeddings model not provided")
-
         questions = [q for q, _ in qa_pairs]
         embeddings = self.embeddings_provider.get_embeddings(questions)
         return np.array(embeddings)
@@ -213,20 +202,27 @@ class ClusterBenchmarker:
 
         Example:
             >>> import numpy as np
-            >>> benchmarker = ClusterBenchmarker()
-            >>> # Create sample embeddings (20 samples, 5 dimensions)
-            >>> embeddings = np.random.rand(20, 5)
-            >>> # Create sample cluster labels (3 clusters + noise points)
-            >>> labels = np.array([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, -1, -1,
-            ...                    0, 1, 2, 0, 1, 2, -1, 0])
-            >>> metrics = benchmarker.calculate_metrics(embeddings, labels)
-            >>> # Print the metrics
-            >>> for metric, value in metrics.items():
-            ...     print(f"{metric}: {value:.4f}")
-            noise_ratio: 0.2000
-            davies_bouldin_score: 1.2345
-            calinski_harabasz_score: 2.3456
-            silhouette_score: 0.3456
+            >>> provider = EmbeddingsProvider(model)
+            >>> benchmarker = ClusterBenchmarker(provider)
+            >>> # Questions about password management (semantically similar)
+            >>> coherent_cluster = [
+            ...     "How do I reset my password?",
+            ...     "What's the process for changing my password?",
+            ...     "I forgot my password, how can I recover my account?"
+            ... ]
+            >>> coherence = benchmarker.calculate_cluster_coherence(coherent_cluster)
+            >>> print(f"Coherence score: {coherence:.4f}")
+            Coherence score: 0.8765  # High score indicates coherent cluster
+
+            >>> # Mixed questions (semantically diverse)
+            >>> mixed_cluster = [
+            ...     "How do I reset my password?",
+            ...     "What payment methods do you accept?",
+            ...     "How do I cancel my subscription?"
+            ... ]
+            >>> coherence = benchmarker.calculate_cluster_coherence(mixed_cluster)
+            >>> print(f"Coherence score: {coherence:.4f}")
+            Coherence score: 0.5432  # Lower score for less coherent cluster
         """
         non_noise_mask = labels != -1
         non_noise_embeddings = embeddings[non_noise_mask]
@@ -269,7 +265,8 @@ class ClusterBenchmarker:
             Coherence score (average pairwise similarity) between 0 and 1
 
         Example:
-            >>> benchmarker = ClusterBenchmarker("text-embedding-3-large")
+            >>> provider = EmbeddingsProvider(model)
+            >>> benchmarker = ClusterBenchmarker(provider)
             >>> # Questions about password management (semantically similar)
             >>> coherent_cluster = [
             ...     "How do I reset my password?",
@@ -290,9 +287,6 @@ class ClusterBenchmarker:
             >>> print(f"Coherence score: {coherence:.4f}")
             Coherence score: 0.5432  # Lower score for less coherent cluster
         """
-        if self.embeddings_provider is None:
-            raise ValueError("Embeddings model not provided")
-
         if len(cluster_questions) <= 1:
             return 1.0  # Perfect coherence for single-item clusters
 
