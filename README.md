@@ -12,7 +12,6 @@ A toolkit for clustering, analyzing, and benchmarking question-answer datasets u
 - **Embedding Caching**: Efficiently caches text embeddings to speed up repeated runs
 - **CSV and JSON Output**: Saves clustering results in both CSV and JSON formats
 - **Visualization**: Generates plots of cluster size distributions
-- **Real Answers**: Includes real answers from the source data in the output
 
 ## Installation
 

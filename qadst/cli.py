@@ -12,8 +12,8 @@ from typing import Optional
 
 import click
 
-from qadst import __copyright__, __version__
 from qadst.logging import get_logger, setup_logging
+from qadst.version import __copyright__, __version__
 
 logger = get_logger(__name__)
 
@@ -83,10 +83,11 @@ def cli():
     help="Discount parameter for Pitman-Yor",
 )
 @click.option(
-    "--plot/--no-plot",
-    default=False,
+    "--plot",
+    type=click.Choice(["none", "linear", "log-log"]),
+    default="none",
     show_default=True,
-    help="Generate cluster distribution plot",
+    help="Generate cluster distribution plots with specified scale",
 )
 @click.option(
     "--cache-dir",
@@ -101,12 +102,10 @@ def cluster(
     output_dir: str,
     alpha: float,
     sigma: float,
-    plot: bool,
+    plot: str,
     cache_dir: str,
 ) -> None:
     """Cluster text data using Dirichlet Process and Pitman-Yor Process."""
-    import matplotlib.pyplot as plt
-
     from qadst.clustering import (
         DirichletProcess,
         EmbeddingCache,
@@ -114,7 +113,6 @@ def cluster(
     )
     from qadst.clustering.utils import (
         load_data_from_csv,
-        plot_cluster_distribution,
         save_clusters_to_csv,
         save_clusters_to_json,
     )
@@ -181,23 +179,145 @@ def cluster(
         logger.info(f"Combined clusters saved to {qa_clusters_path}")
 
         # Generate plot if requested
-        if plot:
-            plt.figure(figsize=(12, 5))
-            plt.subplot(1, 2, 1)
-            plot_cluster_distribution(
-                clusters_dp, "Dirichlet Process Cluster Sizes", "blue"
+        if plot != "none":
+            # Generate plots based on the selected type
+            from qadst.visualization import plot_cluster_distributions
+
+            if plot == "linear":
+                plot_cluster_distributions(
+                    clusters_dp, clusters_pyp, output_dir, "linear"
+                )
+            elif plot == "log-log":
+                plot_cluster_distributions(
+                    clusters_dp, clusters_pyp, output_dir, "log-log"
+                )
+
+    except Exception as e:
+        logger.exception(f"Error: {e}")
+        raise click.ClickException(str(e))
+
+
+@cli.command(help="Evaluate clustering results")
+@common_options
+@click.option(
+    "--input",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
+    help="Path to the input CSV file containing QA pairs",
+    required=True,
+)
+@click.option(
+    "--column",
+    default="question",
+    show_default=True,
+    help="Column name to use for clustering",
+)
+@click.option(
+    "--dp-clusters",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
+    help="Path to Dirichlet Process clustering results CSV",
+    required=True,
+)
+@click.option(
+    "--pyp-clusters",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
+    help="Path to Pitman-Yor Process clustering results CSV",
+    required=True,
+)
+@click.option(
+    "--plot",
+    type=click.Choice(["none", "silhouette"]),
+    default="silhouette",
+    show_default=True,
+    help="Generate evaluation plots with specified type",
+)
+@click.option(
+    "--cache-dir",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=CACHE_DIR,
+    help="Directory to cache embeddings  [default: ./.cache]",
+)
+def evaluate(
+    input: str,
+    column: str,
+    dp_clusters: str,
+    pyp_clusters: str,
+    output_dir: str,
+    plot: str,
+    cache_dir: str,
+) -> None:
+    """Evaluate clustering results using established metrics."""
+    from qadst.clustering import EmbeddingCache
+    from qadst.clustering.utils import (
+        get_embeddings,
+        load_cluster_assignments,
+        load_data_from_csv,
+    )
+    from qadst.evaluation import (
+        ClusterEvaluator,
+        save_evaluation_report,
+    )
+
+    try:
+        # Create necessary directories
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Load data
+        logger.info(f"Loading data from {input}, using column '{column}'...")
+        texts, data = load_data_from_csv(input, column)
+
+        if not texts:
+            logger.error(
+                f"No data found in column '{column}'. Please check your CSV file."
             )
-            plt.subplot(1, 2, 2)
-            plot_cluster_distribution(
-                clusters_pyp, "Pitman-Yor Process Cluster Sizes", "red"
-            )
-            plt.tight_layout()
-            plot_path = os.path.join(
-                output_dir, output_basename.replace(".csv", "_clusters.png")
-            )
-            plt.savefig(plot_path)
-            logger.info(f"Cluster distribution plot saved to {plot_path}")
-            plt.show()
+            raise click.ClickException(f"No data found in column '{column}'")
+
+        logger.info(f"Loaded {len(texts)} texts for evaluation")
+
+        # Load cluster assignments
+        logger.info(f"Loading DP cluster assignments from {dp_clusters}...")
+        dp_cluster_assignments = load_cluster_assignments(dp_clusters)
+
+        logger.info(f"Loading PYP cluster assignments from {pyp_clusters}...")
+        pyp_cluster_assignments = load_cluster_assignments(pyp_clusters)
+
+        # Create cache provider
+        cache_provider = EmbeddingCache(cache_dir=cache_dir)
+
+        # Get embeddings
+        embeddings = get_embeddings(texts, cache_provider)
+
+        # Evaluate DP clusters
+        logger.info("Evaluating Dirichlet Process clustering...")
+        dp_evaluator = ClusterEvaluator(
+            texts, embeddings, dp_cluster_assignments, "DirichletProcess"
+        )
+        dp_report = dp_evaluator.generate_report()
+
+        # Evaluate PYP clusters
+        logger.info("Evaluating Pitman-Yor Process clustering...")
+        pyp_evaluator = ClusterEvaluator(
+            texts, embeddings, pyp_cluster_assignments, "PitmanYorProcess"
+        )
+        pyp_report = pyp_evaluator.generate_report()
+
+        # Save reports
+        reports = {
+            "DirichletProcess": dp_report,
+            "PitmanYorProcess": pyp_report,
+        }
+
+        save_evaluation_report(reports, output_dir)
+
+        # Visualize results based on plot option
+        if plot != "none":
+            logger.info(f"Generating {plot} visualization...")
+
+            if plot == "silhouette":
+                from qadst.visualization import visualize_silhouette_score
+
+                visualize_silhouette_score(reports, output_dir)
+
+        logger.info("Evaluation completed successfully")
 
     except Exception as e:
         logger.exception(f"Error: {e}")

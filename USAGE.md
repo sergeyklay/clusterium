@@ -22,6 +22,7 @@ qadst [global-options] COMMAND [command-options]
 
 Available commands:
 - `cluster`: Cluster text data using Dirichlet Process and Pitman-Yor Process
+- `evaluate`: Evaluate clustering results using established metrics
 
 ### Command Line Options for `cluster`
 
@@ -33,7 +34,19 @@ Available commands:
 | `--output-dir` | Directory to save output files | "output" |
 | `--alpha` | Concentration parameter for clustering | 1.0 |
 | `--sigma` | Discount parameter for Pitman-Yor Process | 0.5 |
-| `--plot` | Generate cluster distribution plot | False |
+| `--plot` | Generate cluster distribution plots with specified scale: "none", "linear", or "log-log" | "none" |
+| `--cache-dir` | Directory to cache embeddings | ".cache" |
+
+### Command Line Options for `evaluate`
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--input` | Path to input CSV file (required) | - |
+| `--column` | Column name to use for clustering | "question" |
+| `--dp-clusters` | Path to Dirichlet Process clustering results CSV (required) | - |
+| `--pyp-clusters` | Path to Pitman-Yor Process clustering results CSV (required) | - |
+| `--plot` | Generate evaluation plots: "none" or "silhouette" | "silhouette" |
+| `--output-dir` | Directory to save output files | "output" |
 | `--cache-dir` | Directory to cache embeddings | ".cache" |
 
 ### Examples
@@ -65,8 +78,14 @@ qadst cluster --input your_data.csv --alpha 0.5 --sigma 0.3
 Generate plots showing the distribution of cluster sizes:
 
 ```bash
-qadst cluster --input your_data.csv --plot
+# Generate linear scale plots
+qadst cluster --input your_data.csv --plot linear
+
+# Generate log-log scale plots
+qadst cluster --input your_data.csv --plot log-log
 ```
+
+These commands will save the plots as `cluster_distribution.png` and `cluster_distribution_log.png` in the output directory.
 
 #### Specifying Output Directory
 
@@ -75,6 +94,20 @@ Save all output files to a specific directory:
 ```bash
 qadst cluster --input your_data.csv --output-dir results
 ```
+
+#### Evaluating Clustering Results
+
+After running clustering, you can evaluate the quality of the clusters:
+
+```bash
+# Basic evaluation with silhouette score visualization
+qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv
+
+# Evaluation without visualizations
+qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --plot none
+```
+
+This will generate evaluation metrics and a silhouette score visualization comparing the quality of the Dirichlet Process and Pitman-Yor Process clustering results. For cluster distribution visualizations, use the `cluster` command with the `--plot` option.
 
 ## Python API
 
@@ -113,6 +146,34 @@ clusters_pyp, params_pyp = pyp.fit(texts)
 save_clusters_to_json("pyp_clusters.json", texts, clusters_pyp, "PYP", data)
 ```
 
+### Evaluating Clusters
+
+You can evaluate the quality of your clusters using the evaluation module:
+
+```python
+from qadst.evaluation import ClusterEvaluator, save_evaluation_report, visualize_silhouette_score
+import numpy as np
+
+# Get embeddings for evaluation
+embeddings = np.array([dp.get_embedding(text).cpu().numpy() for text in texts])
+
+# Evaluate DP clusters
+dp_evaluator = ClusterEvaluator(texts, embeddings, clusters, "DirichletProcess")
+dp_report = dp_evaluator.generate_report()
+
+# Evaluate PYP clusters
+pyp_evaluator = ClusterEvaluator(texts, embeddings, clusters_pyp, "PitmanYorProcess")
+pyp_report = pyp_evaluator.generate_report()
+
+# Compare results
+reports = {
+    "DirichletProcess": dp_report,
+    "PitmanYorProcess": pyp_report,
+}
+save_evaluation_report(reports, "output")
+visualize_silhouette_score(reports, "output")
+```
+
 ### Customizing the Clustering Process
 
 You can customize various aspects of the clustering process:
@@ -142,6 +203,13 @@ The tool generates several output files:
 - `*_pyp.json`: JSON file with Pitman-Yor Process clustering results
 - `qa_clusters.json`: Combined JSON file with clustering results
 - `*_clusters.png`: Visualization of cluster size distributions (if `--plot` is specified)
+
+### Evaluation Output Files
+
+When using the `evaluate` command, the following files are generated:
+
+- `evaluation_report.json`: JSON file containing evaluation metrics for both clustering methods
+- `silhouette_comparison.png`: Visualization comparing silhouette scores of both methods
 
 ### JSON Output Format
 
