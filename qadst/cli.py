@@ -7,6 +7,7 @@ functionality based on user commands.
 """
 
 import os
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -15,6 +16,11 @@ from qadst import __copyright__, __version__
 from qadst.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
+
+# Set up paths
+BASE_DIR = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = BASE_DIR / "output"
+CACHE_DIR = BASE_DIR / ".cache"
 
 
 @click.group(help="QA Dataset Clustering Toolkit")
@@ -27,7 +33,7 @@ This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.""",
 )
 def cli():
-    """QA Dataset Clustering Toolkit command-line interface."""
+    """QA Dataset Toolkit for clustering and benchmarking."""
     pass
 
 
@@ -52,10 +58,9 @@ def cli():
 )
 @click.option(
     "--output-dir",
-    default="output",
-    show_default=True,
-    type=click.Path(file_okay=False),
-    help="Directory to save output files",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=OUTPUT_DIR,
+    help="Directory to save output files  [default: ./output]",
 )
 @click.option(
     "--alpha",
@@ -79,10 +84,9 @@ def cli():
 )
 @click.option(
     "--cache-dir",
-    default=".cache",
-    show_default=True,
-    type=click.Path(file_okay=False),
-    help="Directory to cache embeddings",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=CACHE_DIR,
+    help="Directory to cache embeddings  [default: ./.cache]",
 )
 def cluster(
     input: str,
