@@ -2,7 +2,7 @@
 
 import pytest
 
-from qadst.utils import if_ok, is_numeric
+from qadst.utils import if_ok, is_numeric, to_numeric
 
 
 @pytest.mark.parametrize(
@@ -34,7 +34,7 @@ from qadst.utils import if_ok, is_numeric
     ],
 )
 def test_if_ok(fn, string, expected_result):
-    """Test the _if_ok method with various inputs."""
+    """Test the if_ok method with various inputs."""
     result = if_ok(fn, string)
     assert result == expected_result
 
@@ -71,6 +71,52 @@ def test_if_ok(fn, string, expected_result):
     ],
 )
 def test_is_numeric(string, expected_result):
-    """Test the _is_numeric method with various inputs."""
+    """Test the is_numeric method with various inputs."""
     result = is_numeric(string)
+    assert result == expected_result
+
+
+@pytest.mark.parametrize(
+    "string, expected_result",
+    [
+        # Regular numeric strings
+        ("0", 0),
+        ("1", 1),
+        ("2", 2),
+        ("10", 10),
+        ("100", 100),
+        ("-1", -1),
+        ("-2", -2),
+        # Floating point numbers
+        ("0.0", 0.0),
+        ("0.1", 0.1),
+        ("1.0", 1.0),
+        ("1.1", 1.1),
+        ("1.2", 1.2),
+        ("2.0", 2.0),
+        ("10.5", 10.5),
+        ("-1.0", -1.0),
+        ("-1.1", -1.1),
+        # Scientific notation
+        ("1e6", 1000000.0),
+        ("1.0e6", 1000000.0),
+        # Floating point numbers with non-numeric components
+        ("a.0", None),
+        ("0.a", None),
+        ("a.b", None),
+        # Non-numeric strings
+        ("a", None),
+        ("abc", None),
+        ("", None),
+        ("None", None),
+        ("True", None),
+        ("False", None),
+        # Edge cases
+        ("1.0.0", None),
+        ("1,000", None),
+    ],
+)
+def test_to_numeric(string, expected_result):
+    """Test the to_numeric method with various inputs."""
+    result = to_numeric(string)
     assert result == expected_result

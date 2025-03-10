@@ -8,7 +8,7 @@ from hdbscan import HDBSCAN
 from sklearn.cluster import KMeans
 
 from .base import BaseClusterer
-from .utils import if_ok, is_numeric
+from .utils import if_ok, is_numeric, to_numeric
 
 logger = logging.getLogger(__name__)
 
@@ -492,50 +492,6 @@ class HDBSCANQAClusterer(BaseClusterer):
 
         return clusters
 
-    def _convert_cluster_id_to_numeric(self, cluster_id: str) -> int:
-        """Convert a cluster ID string to a numeric ID.
-
-        Args:
-            cluster_id: String cluster ID, which may include dots for subclusters
-
-        Returns:
-            Numeric ID for the cluster
-        """
-        # If it's a subcluster ID (contains a dot), use a different approach
-        if "." in cluster_id:
-            # For subclusters, use a consistent ID scheme
-            # Extract the base cluster ID and subcluster number
-            try:
-                base_id, sub_id = cluster_id.split(".", 1)  # Split on first dot only
-
-                # Convert base_id to int if possible
-                base_int = self._if_ok(int, base_id)
-                if base_int is not None:
-                    # Convert sub_id to int if possible
-                    sub_float = self._if_ok(float, sub_id)
-                    if sub_float is not None:
-                        return base_int * 1000 + int(sub_float) + 1
-
-                # If conversion fails, use a hash-based approach
-                return abs(hash(cluster_id)) % 10000 + 1000
-            except Exception:
-                # Fallback for any unexpected format
-                return abs(hash(cluster_id)) % 10000 + 1000
-        else:
-            # Handle scientific notation specially (only if no dots)
-            if "e" in cluster_id.lower() and self._is_numeric(cluster_id):
-                # For scientific notation like "1e6", convert to float first
-                float_val = float(cluster_id)
-                return int(float_val) + 1
-
-            # For regular clusters, use the standard approach
-            base_int = self._if_ok(int, cluster_id)
-            if base_int is not None:
-                return base_int + 1  # Make IDs 1-based
-            else:
-                # If conversion fails, use a hash-based approach
-                return abs(hash(cluster_id)) % 1000 + 1
-
     def _format_clusters(self, clusters: Dict[str, Dict]) -> Dict[str, List]:
         """Format clusters into the standardized output structure.
 
@@ -580,11 +536,11 @@ class HDBSCANQAClusterer(BaseClusterer):
             sources = cluster_data["qa_pairs"]
 
             # Convert cluster ID to numeric ID
-            numeric_id = self._convert_cluster_id_to_numeric(cluster_id)
+            numeric_id = to_numeric(cluster_id)
 
             formatted_clusters.append(
                 {
-                    "id": numeric_id,
+                    "id": numeric_id or "NaN",
                     "representative": representative,
                     "source": sources,
                 }
