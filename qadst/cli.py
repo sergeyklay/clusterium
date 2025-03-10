@@ -52,9 +52,9 @@ def cli():
 @common_options
 @click.option(
     "--input",
-    required=True,
     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
-    help="Path to input CSV file",
+    help="Path to the input CSV file containing QA pairs",
+    required=True,
 )
 @click.option(
     "--column",
