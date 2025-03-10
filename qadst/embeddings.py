@@ -151,12 +151,24 @@ class EmbeddingsProvider:
     def calculate_cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         """Calculate cosine similarity between two vectors.
 
+        The cosine similarity measures the cosine of the angle between two vectors,
+        providing a similarity score between -1 and 1, where 1 means identical,
+        0 means orthogonal, and -1 means opposite.
+
         Args:
             vec1: First vector
             vec2: Second vector
 
         Returns:
             Cosine similarity between the vectors (between -1 and 1)
+
+        Example:
+            >>> vec1 = np.array([0.1, 0.2, 0.3])
+            >>> vec2 = np.array([0.2, 0.3, 0.5])
+            >>> embeddings_provider = EmbeddingsProvider(model=None)
+            >>> similarity = embeddings_provider.calculate_cosine_similarity(vec1, vec2)
+            >>> print(f"Similarity: {similarity:.4f}")
+            Similarity: 0.9972
         """
         norm1 = np.linalg.norm(vec1)
         norm2 = np.linalg.norm(vec2)
