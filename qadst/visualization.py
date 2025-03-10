@@ -115,7 +115,7 @@ def visualize_silhouette_score(
 
     for model_name, report in reports.items():
         models.append(model_name)
-        scores.append(report["metrics"]["silhouette_score"])
+        scores.append(report["silhouette_score"])
 
     # Create the visualization
     plt.figure(figsize=(10, 6))

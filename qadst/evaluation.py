@@ -114,12 +114,12 @@ class ClusterEvaluator:
             Dictionary containing evaluation metrics
         """
         report = {
-            "model_name": self.model_name,
-            "num_texts": len(self.texts),
-            "num_clusters": len(self.unique_clusters),
-            "metrics": {
-                "silhouette_score": self.calculate_silhouette_score(),
+            "basic_metrics": {
+                "model_name": self.model_name,
+                "num_texts": len(self.texts),
+                "num_clusters": len(self.unique_clusters),
             },
+            "silhouette_score": self.calculate_silhouette_score(),
         }
 
         return report
