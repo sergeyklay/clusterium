@@ -128,7 +128,9 @@ class HDBSCANQAClusterer(BaseClusterer):
         # Use cached embeddings if available
         questions_hash = self._calculate_deterministic_hash(questions)
         cache_key = f"cluster_{self.embedding_model_name}_{questions_hash}"
-        question_embeddings = self.get_embeddings(questions, cache_key)
+        question_embeddings = self.embeddings_provider.get_embeddings(
+            questions, cache_key
+        )
 
         # Convert to numpy array for HDBSCAN
         embeddings_array = np.array(question_embeddings)
@@ -241,7 +243,7 @@ class HDBSCANQAClusterer(BaseClusterer):
             return {}
 
         questions = [q for q, _ in noise_qa_pairs]
-        question_embeddings = self.embeddings_model.embed_documents(questions)
+        question_embeddings = self.embeddings_provider.get_embeddings(questions)
         embeddings_array = np.array(question_embeddings)
 
         total_noise_points = len(questions)
@@ -470,7 +472,7 @@ class HDBSCANQAClusterer(BaseClusterer):
             qa_pairs = cluster_data["qa_pairs"]
 
             # Get embeddings for the questions
-            question_embeddings = self.get_embeddings(questions)
+            question_embeddings = self.embeddings_provider.get_embeddings(questions)
             embeddings_array = np.array(question_embeddings)
 
             # Apply recursive clustering

@@ -10,8 +10,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 
+from .embeddings import EmbeddingsProvider, get_embeddings_model
 from .filters import ProductDevelopmentFilter
 
 logger = logging.getLogger(__name__)
@@ -73,9 +74,13 @@ class BaseClusterer(ABC):
         os.makedirs(self.output_dir, exist_ok=True)
 
         # Initialize embedding model
-        self.embeddings_model = OpenAIEmbeddings(
-            model=embedding_model_name,
+        embeddings_model = get_embeddings_model(
+            model_name=embedding_model_name,
             chunk_size=1000,
+        )
+        self.embeddings_provider = EmbeddingsProvider(
+            model=embeddings_model,
+            output_dir=self.output_dir,
         )
 
         # Initialize LLM if provided
@@ -136,31 +141,14 @@ class BaseClusterer(ABC):
     def calculate_cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         """Calculate cosine similarity between two vectors.
 
-        The cosine similarity measures the cosine of the angle between two vectors,
-        providing a similarity score between -1 and 1, where 1 means identical,
-        0 means orthogonal, and -1 means opposite.
-
         Args:
             vec1: First vector
             vec2: Second vector
 
         Returns:
-            Cosine similarity value between -1 and 1
-
-        Example:
-            >>> clusterer = BaseClusterer(embedding_model_name="text-embedding-3-large")
-            >>> vec1 = np.array([0.1, 0.2, 0.3])
-            >>> vec2 = np.array([0.2, 0.3, 0.5])
-            >>> similarity = clusterer.calculate_cosine_similarity(vec1, vec2)
-            >>> print(f"Similarity: {similarity:.4f}")
-            Similarity: 0.9922
+            Cosine similarity between the vectors (between -1 and 1)
         """
-        # Convert to numpy arrays if they aren't already
-        vec1_np = np.array(vec1)
-        vec2_np = np.array(vec2)
-        return np.dot(vec1_np, vec2_np) / (
-            np.linalg.norm(vec1_np) * np.linalg.norm(vec2_np)
-        )
+        return self.embeddings_provider.calculate_cosine_similarity(vec1, vec2)
 
     def _calculate_deterministic_hash(self, items: List[str]) -> str:
         """Calculate a stable hash for an items list."""
@@ -213,7 +201,9 @@ class BaseClusterer(ABC):
         # Use cached embeddings if available
         questions_hash = self._calculate_deterministic_hash(questions)
         cache_key = f"dedup_{self.embedding_model_name}_{questions_hash}"
-        question_embeddings = self.get_embeddings(questions, cache_key)
+        question_embeddings = self.embeddings_provider.get_embeddings(
+            questions, cache_key
+        )
 
         similarity_threshold = 0.85
         duplicate_groups = {}
@@ -469,52 +459,4 @@ class BaseClusterer(ABC):
         Returns:
             List of numpy arrays containing the embeddings
         """
-        if not questions:
-            return []
-
-        def embed_questions(items: List[str]) -> List[np.ndarray]:
-            """Embed questions using the embedding model."""
-            embeddings_list = self.embeddings_model.embed_documents(items)
-            embeddings = [np.array(emb) for emb in embeddings_list]
-            return embeddings
-
-        if cache_key is None:
-            return embed_questions(questions)
-
-        # Check in-memory cache first
-        if cache_key in self.embedding_cache:
-            logger.info(f"Using in-memory cache for embeddings (key: {cache_key})")
-            return self.embedding_cache[cache_key]
-
-        # Check disk cache
-        cache_dir = os.path.join(self.output_dir, "embedding_cache")
-        os.makedirs(cache_dir, exist_ok=True)
-        cache_file = os.path.join(cache_dir, f"{cache_key}.npy")
-
-        if os.path.exists(cache_file):
-            try:
-                logger.debug(f"Loading embeddings from cache file: {cache_file}")
-                embeddings_array = np.load(cache_file, allow_pickle=True)
-                embeddings = [np.array(emb) for emb in embeddings_array]
-
-                # Store in memory cache for faster access next time
-                self.embedding_cache[cache_key] = embeddings
-                return embeddings
-            except Exception as e:
-                logger.warning(f"Failed to load embeddings from cache: {e}")
-
-        # Compute embeddings if not in cache
-        logger.info(f"Computing embeddings for {len(questions)} questions")
-        embeddings = embed_questions(questions)
-
-        # Save to disk cache
-        try:
-            logger.debug(f"Saving embeddings to cache file: {cache_file}")
-            np.save(cache_file, embeddings, allow_pickle=True)
-
-            # Store in memory cache
-            self.embedding_cache[cache_key] = embeddings
-        except Exception as e:
-            logger.warning(f"Failed to save embeddings to cache: {e}")
-
-        return embeddings
+        return self.embeddings_provider.get_embeddings(questions, cache_key)

@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 from langchain.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 from sklearn.decomposition import NMF
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import (
@@ -23,6 +23,7 @@ from sklearn.metrics import (
     silhouette_score,
 )
 
+from .embeddings import EmbeddingsProvider, get_embeddings_model
 from .reporters import (
     ConsoleReporter,
     CSVReporter,
@@ -47,7 +48,7 @@ class ClusterBenchmarker:
     4. TF-IDF/NMF-based topic extraction as a fallback
 
     Attributes:
-        embeddings_model: Model for generating embeddings
+        embeddings_provider: Model for generating embeddings
         llm: Language model for topic labeling
         output_dir: Directory to save output files
         reporter_registry: Registry of reporters for output
@@ -66,10 +67,14 @@ class ClusterBenchmarker:
             llm_model_name: Name of the LLM model to use for topic labeling
             output_dir: Directory to save output files
         """
-        self.embeddings_model = None
+        self.embeddings_provider = None
         if embedding_model_name:
             try:
-                self.embeddings_model = OpenAIEmbeddings(model=embedding_model_name)
+                embeddings_model = get_embeddings_model(model_name=embedding_model_name)
+                self.embeddings_provider = EmbeddingsProvider(
+                    model=embeddings_model,
+                    output_dir=output_dir,
+                )
                 logger.info(f"Initialized embeddings model: {embedding_model_name}")
             except Exception as e:
                 logger.warning(f"Failed to initialize embeddings model: {e}")
@@ -78,12 +83,12 @@ class ClusterBenchmarker:
         if llm_model_name:
             try:
                 self.llm = ChatOpenAI(model=llm_model_name, temperature=0.0)
-                logger.info(f"Initialized LLM with model: {llm_model_name}")
+                logger.info(f"Initialized LLM: {llm_model_name}")
             except Exception as e:
                 logger.warning(f"Failed to initialize LLM: {e}")
 
         self.output_dir = output_dir
-        os.makedirs(self.output_dir, exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
 
         # Initialize reporter registry with default reporters
         self.reporter_registry = ReporterRegistry()
@@ -105,21 +110,39 @@ class ClusterBenchmarker:
             return json.load(f)
 
     def load_qa_pairs(self, csv_path: str) -> List[Tuple[str, str]]:
-        """Load question-answer pairs from a CSV file.
+        """Load QA pairs from a CSV file.
 
         Args:
-            csv_path: Path to the CSV file containing question-answer pairs
+            csv_path: Path to the CSV file
 
         Returns:
             List of (question, answer) tuples
+
+        Raises:
+            FileNotFoundError: If the CSV file does not exist
+            ValueError: If the CSV file is malformed
         """
+        if not os.path.exists(csv_path):
+            raise FileNotFoundError(f"CSV file not found: {csv_path}")
+
         qa_pairs = []
-        with open(csv_path, "r") as f:
+        with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
-            next(reader)  # Skip header
+            header = next(reader)  # Skip header row
+
+            # Check that the header has at least two columns
+            if len(header) < 2:
+                raise ValueError("CSV file must have at least two columns")
+
             for row in reader:
-                if len(row) >= 2:
-                    qa_pairs.append((row[0], row[1]))
+                # Check that the row has at least two columns
+                if len(row) < 2:
+                    raise ValueError(f"Row does not have enough columns: {row}")
+
+                question = row[0].strip()
+                answer = row[1].strip()
+                qa_pairs.append((question, answer))
+
         return qa_pairs
 
     def extract_embeddings_from_qa_pairs(
@@ -133,11 +156,12 @@ class ClusterBenchmarker:
         Returns:
             Array of embeddings for the questions
         """
-        if self.embeddings_model is None:
+        if self.embeddings_provider is None:
             raise ValueError("Embeddings model not provided")
 
         questions = [q for q, _ in qa_pairs]
-        return np.array(self.embeddings_model.embed_documents(questions))
+        embeddings = self.embeddings_provider.get_embeddings(questions)
+        return np.array(embeddings)
 
     def prepare_cluster_data(
         self, clusters: Dict[str, Any], embeddings: np.ndarray
@@ -266,18 +290,21 @@ class ClusterBenchmarker:
             >>> print(f"Coherence score: {coherence:.4f}")
             Coherence score: 0.5432  # Lower score for less coherent cluster
         """
-        if self.embeddings_model is None:
+        if self.embeddings_provider is None:
             raise ValueError("Embeddings model not provided")
 
         if len(cluster_questions) <= 1:
             return 1.0  # Perfect coherence for single-item clusters
 
-        embeddings = np.array(self.embeddings_model.embed_documents(cluster_questions))
+        embeddings = self.embeddings_provider.get_embeddings(cluster_questions)
+        embeddings_array = np.array(embeddings)
 
         similarities = []
-        for i in range(len(embeddings)):
-            for j in range(i + 1, len(embeddings)):
-                similarity = self._cosine_similarity(embeddings[i], embeddings[j])
+        for i in range(len(embeddings_array)):
+            for j in range(i + 1, len(embeddings_array)):
+                similarity = self.embeddings_provider.calculate_cosine_similarity(
+                    embeddings_array[i], embeddings_array[j]
+                )
                 similarities.append(similarity)
 
         return float(np.mean(similarities))
@@ -285,18 +312,22 @@ class ClusterBenchmarker:
     def _cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         """Calculate cosine similarity between two vectors.
 
-        The cosine similarity measures the cosine of the angle between two vectors,
-        providing a similarity score between -1 and 1, where 1 means identical,
-        0 means orthogonal, and -1 means opposite.
-
         Args:
             vec1: First vector
             vec2: Second vector
 
         Returns:
-            Cosine similarity value between -1 and 1
+            Cosine similarity between the vectors (between -1 and 1)
         """
-        return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+        if self.embeddings_provider is None:
+            # Fallback implementation if embeddings_provider is not available
+            norm1 = np.linalg.norm(vec1)
+            norm2 = np.linalg.norm(vec2)
+            if norm1 == 0 or norm2 == 0:
+                return 0.0
+            return float(np.dot(vec1, vec2) / (norm1 * norm2))
+
+        return self.embeddings_provider.calculate_cosine_similarity(vec1, vec2)
 
     def _generate_llm_topic_label(
         self, questions: List[str], previous_topics: Optional[List[str]] = None

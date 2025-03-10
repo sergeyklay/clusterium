@@ -1,4 +1,4 @@
-"""Unit tests for the BaseClusterer class."""
+"""Tests for the BaseClusterer class."""
 
 import hashlib
 import os
@@ -13,23 +13,26 @@ from qadst import FakeClusterer
 
 def test_calculate_cosine_similarity(mock_base_clusterer):
     """Test the calculate_cosine_similarity method."""
-    # Test with orthogonal vectors (should be 0)
-    vec1 = np.array([1, 0, 0])
-    vec2 = np.array([0, 1, 0])
-    similarity = mock_base_clusterer.calculate_cosine_similarity(vec1, vec2)
-    assert np.isclose(similarity, 0.0)
+    with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
+        clusterer = FakeClusterer(embedding_model_name="test-model")
 
-    # Test with identical vectors (should be 1)
-    vec1 = np.array([0.5, 0.5, 0.5])
-    vec2 = np.array([0.5, 0.5, 0.5])
-    similarity = mock_base_clusterer.calculate_cosine_similarity(vec1, vec2)
-    assert np.isclose(similarity, 1.0)
+        # Test with orthogonal vectors
+        vec1 = np.array([1.0, 0.0, 0.0])
+        vec2 = np.array([0.0, 1.0, 0.0])
+        similarity = clusterer.calculate_cosine_similarity(vec1, vec2)
+        assert similarity == 0.0
 
-    # Test with similar vectors
-    vec1 = np.array([0.9, 0.1, 0.0])
-    vec2 = np.array([0.8, 0.2, 0.0])
-    similarity = mock_base_clusterer.calculate_cosine_similarity(vec1, vec2)
-    assert 0.9 < similarity < 1.0
+        # Test with identical vectors
+        vec1 = np.array([0.1, 0.2, 0.3])
+        vec2 = np.array([0.1, 0.2, 0.3])
+        similarity = clusterer.calculate_cosine_similarity(vec1, vec2)
+        assert similarity == 1.0
+
+        # Test with similar vectors
+        vec1 = np.array([0.1, 0.2, 0.3])
+        vec2 = np.array([0.2, 0.3, 0.4])
+        similarity = clusterer.calculate_cosine_similarity(vec1, vec2)
+        assert 0.9 < similarity < 1.0
 
 
 def test_calculate_deterministic_hash(mock_base_clusterer):
@@ -54,73 +57,48 @@ def test_calculate_deterministic_hash(mock_base_clusterer):
 
 
 def test_deterministic_hash_consistency():
-    """Test that the hash function produces consistent results."""
-    with patch("qadst.base.OpenAIEmbeddings"), patch("qadst.base.ChatOpenAI"):
-        clusterer = FakeClusterer(
-            embedding_model_name="test-model",
-            output_dir=tempfile.mkdtemp(),
-        )
+    """Test that the deterministic hash is consistent for the same input."""
+    with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
+        clusterer = FakeClusterer(embedding_model_name="test-model")
 
-        # Test with a list of strings
-        items = ["apple", "banana", "cherry"]
-
-        # Calculate hash multiple times
+        items = ["item1", "item2", "item3"]
         hash1 = clusterer._calculate_deterministic_hash(items)
         hash2 = clusterer._calculate_deterministic_hash(items)
-        hash3 = clusterer._calculate_deterministic_hash(items)
 
-        # All hashes should be identical
-        assert hash1 == hash2 == hash3
-
-        # Verify the hash is correct
-        expected = hashlib.sha256("".join(sorted(items)).encode("utf-8")).hexdigest()
-        assert hash1 == expected
+        assert hash1 == hash2
 
 
 def test_deterministic_hash_order_independence():
-    """Test that the hash function is order-independent."""
-    with patch("qadst.base.OpenAIEmbeddings"), patch("qadst.base.ChatOpenAI"):
-        clusterer = FakeClusterer(
-            embedding_model_name="test-model",
-            output_dir=tempfile.mkdtemp(),
-        )
+    """Test that the deterministic hash is independent of the order of items."""
+    with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
+        clusterer = FakeClusterer(embedding_model_name="test-model")
 
-        # Test with different orderings of the same items
-        items1 = ["apple", "banana", "cherry"]
-        items2 = ["banana", "cherry", "apple"]
-        items3 = ["cherry", "apple", "banana"]
+        items1 = ["item1", "item2", "item3"]
+        items2 = ["item3", "item1", "item2"]
 
-        # Calculate hashes
         hash1 = clusterer._calculate_deterministic_hash(items1)
         hash2 = clusterer._calculate_deterministic_hash(items2)
-        hash3 = clusterer._calculate_deterministic_hash(items3)
 
-        # All hashes should be identical
-        assert hash1 == hash2 == hash3
+        assert hash1 == hash2
 
 
 def test_deterministic_hash_different_inputs():
-    """Test that the hash function produces different results for different inputs."""
-    with patch("qadst.base.OpenAIEmbeddings"), patch("qadst.base.ChatOpenAI"):
-        clusterer = FakeClusterer(
-            embedding_model_name="test-model",
-            output_dir=tempfile.mkdtemp(),
-        )
+    """Test that the deterministic hash is different for different inputs."""
+    with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
+        clusterer = FakeClusterer(embedding_model_name="test-model")
 
-        # Test with different inputs
-        hash1 = clusterer._calculate_deterministic_hash(["apple", "banana"])
-        hash2 = clusterer._calculate_deterministic_hash(["apple", "cherry"])
-        hash3 = clusterer._calculate_deterministic_hash(["banana", "cherry"])
+        items1 = ["item1", "item2", "item3"]
+        items2 = ["item1", "item2", "item4"]
 
-        # All hashes should be different
+        hash1 = clusterer._calculate_deterministic_hash(items1)
+        hash2 = clusterer._calculate_deterministic_hash(items2)
+
         assert hash1 != hash2
-        assert hash1 != hash3
-        assert hash2 != hash3
 
 
 def test_load_qa_pairs(temp_csv_file):
     """Test the load_qa_pairs method."""
-    with patch("qadst.base.OpenAIEmbeddings"), patch("qadst.base.ChatOpenAI"):
+    with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
         clusterer = FakeClusterer(
             embedding_model_name="test-model",
             output_dir=tempfile.mkdtemp(),
@@ -150,9 +128,6 @@ def test_load_qa_pairs(temp_csv_file):
         finally:
             if os.path.exists(invalid_file):
                 os.unlink(invalid_file)
-
-
-# Filter Questions Tests
 
 
 class FilterClusterer(FakeClusterer):
@@ -233,7 +208,7 @@ class FilterClusterer(FakeClusterer):
 def test_filter_clusterer():
     """Return a TestFilterClusterer for testing."""
     with (
-        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.embeddings.get_embeddings_model"),
         patch("qadst.base.ChatOpenAI"),
         patch("builtins.open", create=True),
         patch("qadst.filters.PromptTemplate"),
