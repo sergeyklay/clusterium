@@ -16,6 +16,7 @@ import click
 from dotenv import load_dotenv
 
 from qadst import ClusterBenchmarker, HDBSCANQAClusterer, __copyright__, __version__
+from qadst.embeddings import EmbeddingsProvider, get_embeddings_model
 
 # Set up logging
 logging.basicConfig(
@@ -37,6 +38,24 @@ if env_file.exists():
 else:
     logger.warning(f"No .env file found at {env_file}")
     load_dotenv()
+
+
+def create_embeddings_provider(embedding_model_name, output_dir):
+    """Create an EmbeddingsProvider instance.
+
+    Args:
+        embedding_model_name: Name of the embedding model to use
+        output_dir: Directory to save cached embeddings
+
+    Returns:
+        An EmbeddingsProvider instance
+    """
+    try:
+        embeddings_model = get_embeddings_model(model_name=embedding_model_name)
+        return EmbeddingsProvider(model=embeddings_model, output_dir=output_dir)
+    except Exception as e:
+        logger.error(f"Failed to initialize embeddings model: {e}")
+        raise click.UsageError(f"Failed to initialize embeddings model: {e}")
 
 
 def common_options(func):
@@ -143,6 +162,10 @@ def cluster_command(
         logger.warning("OPENAI_API_KEY not set, disabling filtering")
         filter = False
 
+    # Create embeddings provider
+    embeddings_provider = create_embeddings_provider(embedding_model, output_dir)
+
+    # Create clusterer with the embeddings provider
     clusterer = HDBSCANQAClusterer(
         embedding_model_name=embedding_model,
         llm_model_name=llm_model if filter else None,
@@ -153,6 +176,7 @@ def cluster_command(
         cluster_selection_epsilon=cluster_selection_epsilon,
         keep_noise=keep_noise,
         cluster_selection_method=cluster_selection_method,
+        embeddings_provider=embeddings_provider,
     )
 
     logger.info(f"Processing dataset from {input}")
@@ -210,8 +234,12 @@ def benchmark_command(
         logger.warning("OPENAI_API_KEY not set, disabling LLM topic labeling")
         use_llm = False
 
+    # Create embeddings provider
+    embeddings_provider = create_embeddings_provider(embedding_model, output_dir)
+
+    # Create benchmarker with the embeddings provider
     benchmarker = ClusterBenchmarker(
-        embedding_model_name=embedding_model,
+        embeddings_provider=embeddings_provider,
         llm_model_name=llm_model if use_llm else None,
         output_dir=output_dir,
     )
@@ -248,23 +276,5 @@ def benchmark_command(
 
 
 def main():
-    """Main entry point for the QA toolkit CLI.
-
-    Handles exceptions and returns appropriate exit codes:
-    - 0: Success
-    - 1: General error
-    - 128+SIGINT: Keyboard interrupt (Ctrl+C)
-    - 128+SIGTERM: Termination signal
-    """
-    try:
-        cli()
-        return 0
-    except KeyboardInterrupt:
-        logger.error("Operation interrupted by user")
-        return 128 + signal.SIGINT
-    except SystemExit as e:
-        # Click raises SystemExit with the exit code
-        return e.code if isinstance(e.code, int) else 128 + signal.SIGTERM
-    except Exception as e:
-        logger.error(f"Error: {e}")
-        return 1
+    """Entry point for the CLI."""
+    cli()
