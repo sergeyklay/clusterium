@@ -105,7 +105,6 @@ def test_deterministic_hash_different_inputs():
 def test_load_qa_pairs(temp_csv_file):
     """Test the load_qa_pairs method."""
     with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
-        # Create a mock embeddings provider
         mock_embeddings_provider = MagicMock()
         mock_embeddings_provider.get_model_name.return_value = "test-model"
 
@@ -223,10 +222,8 @@ def test_filter_clusterer():
         patch("builtins.open", create=True),
         patch("qadst.filters.PromptTemplate"),
     ):
-        # Create a temporary output directory
         output_dir = tempfile.mkdtemp()
 
-        # Create a mock embeddings provider
         mock_embeddings_provider = MagicMock()
         mock_embeddings_provider.get_model_name.return_value = "test-model"
 
