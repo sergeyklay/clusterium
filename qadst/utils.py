@@ -1,6 +1,6 @@
 """Utility functions."""
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 
 
 def if_ok(fn: Callable, string: str) -> Optional[Any]:
@@ -19,7 +19,7 @@ def if_ok(fn: Callable, string: str) -> Optional[Any]:
         return None
 
 
-def is_numeric(string):
+def is_numeric(string: str) -> bool:
     """Check if a string can be converted to a numeric type.
 
     Args:
@@ -28,8 +28,12 @@ def is_numeric(string):
     Returns:
         True if the string can be converted to int, float, or complex
     """
-    # Special case for empty strings
-    if not string:
+    # Special case for numeric types
+    if isinstance(string, (int, float, complex)):
+        return True
+
+    # Special case for empty strings or non-string values
+    if not string or not isinstance(string, str) or string.strip() == "":
         return False
 
     # Try to convert to numeric types
@@ -38,3 +42,29 @@ def is_numeric(string):
         or if_ok(float, string) is not None
         or if_ok(complex, string) is not None
     )
+
+
+def to_numeric(string: Any) -> Optional[Union[int, float, complex]]:
+    """Convert a string to the most appropriate numeric type (int, float, complex).
+
+    Args:
+        string: Input value to convert. If already a numeric type, it is returned as-is.
+
+    Returns:
+        The converted numeric value (int, float, complex) if possible, otherwise None.
+    """
+    # Check if the input is already a numeric type
+    if isinstance(string, (int, float, complex)):
+        return string
+
+    # Proceed only if the input is a string
+    if not isinstance(string, str):
+        return None
+
+    # Check in order: int, float, complex
+    for converter in (int, float, complex):
+        result = if_ok(converter, string)
+        if result is not None:
+            return result
+
+    return None
