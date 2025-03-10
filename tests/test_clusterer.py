@@ -514,7 +514,7 @@ def test_keep_noise_parameter():
             noise_cluster = None
             regular_cluster = None
             for cluster in result["clusters"]:
-                if cluster.get("is_noise", False):
+                if cluster["id"] == 0:
                     noise_cluster = cluster
                 else:
                     regular_cluster = cluster
