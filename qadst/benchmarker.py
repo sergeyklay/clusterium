@@ -56,7 +56,7 @@ class ClusterBenchmarker:
 
     def __init__(
         self,
-        embeddings_provider: "EmbeddingsProvider",
+        embeddings_provider: EmbeddingsProvider,
         llm_model_name: Optional[str] = None,
         output_dir: str = "./output",
     ):
