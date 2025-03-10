@@ -540,7 +540,7 @@ class HDBSCANQAClusterer(BaseClusterer):
 
             formatted_clusters.append(
                 {
-                    "id": numeric_id or "NaN",
+                    "id": numeric_id,
                     "representative": representative,
                     "source": sources,
                 }
