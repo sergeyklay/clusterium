@@ -9,18 +9,18 @@ from typing import List, Optional
 
 import matplotlib.pyplot as plt
 
-from qa_dataset_clustering.clustering import (
+from qadst.clustering import (
     DirichletProcess,
     EmbeddingCache,
     PitmanYorProcess,
 )
-from qa_dataset_clustering.clustering.utils import (
+from qadst.clustering.utils import (
     load_data_from_csv,
     plot_cluster_distribution,
     save_clusters_to_csv,
     save_clusters_to_json,
 )
-from qa_dataset_clustering.logging import get_logger, setup_logging
+from qadst.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
 

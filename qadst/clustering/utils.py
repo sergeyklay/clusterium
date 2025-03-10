@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 
-from qa_dataset_clustering.logging import get_logger
+from qadst.logging import get_logger
 
 logger = get_logger(__name__)
 

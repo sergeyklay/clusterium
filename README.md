@@ -15,8 +15,8 @@ A tool for clustering question-answer datasets using Dirichlet Process and Pitma
 
 ```bash
 # Clone the repository
-git clone https://github.com/sergeyklay/qa-dataset-clustering.git
-cd qa-dataset-clustering
+git clone https://github.com/sergeyklay/qa-dataset-clustering.git qadst
+cd qadst
 
 # Install with Poetry
 poetry install
@@ -28,26 +28,26 @@ poetry install
 
 ```bash
 # Basic usage
-qa-cluster --input your_data.csv --output clusters.csv
+qadst --input your_data.csv --output clusters.csv
 
 # Specify column names
-qa-cluster --input your_data.csv --column question --output clusters.csv
+qadst --input your_data.csv --column question --output clusters.csv
 
 # Adjust clustering parameters
-qa-cluster --input your_data.csv --alpha 0.5 --sigma 0.3
+qadst --input your_data.csv --alpha 0.5 --sigma 0.3
 
 # Generate visualization
-qa-cluster --input your_data.csv --plot
+qadst --input your_data.csv --plot
 
 # Specify output directory
-qa-cluster --input your_data.csv --output-dir results
+qadst --input your_data.csv --output-dir results
 ```
 
 ### Python API
 
 ```python
-from qa_dataset_clustering.clustering import DirichletProcess, PitmanYorProcess, EmbeddingCache
-from qa_dataset_clustering.clustering.utils import load_data_from_csv, save_clusters_to_json
+from qadst.clustering import DirichletProcess, PitmanYorProcess, EmbeddingCache
+from qadst.clustering.utils import load_data_from_csv, save_clusters_to_json
 
 # Load data
 texts, data = load_data_from_csv("your_data.csv", column="question")

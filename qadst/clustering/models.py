@@ -10,8 +10,8 @@ from sentence_transformers import SentenceTransformer
 from torch import Tensor
 from tqdm import tqdm
 
-from qa_dataset_clustering.clustering.cache import EmbeddingCache
-from qa_dataset_clustering.logging import get_logger
+from qadst.clustering.cache import EmbeddingCache
+from qadst.logging import get_logger
 
 logger = get_logger(__name__)
 

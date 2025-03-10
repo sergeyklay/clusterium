@@ -3,7 +3,7 @@ requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0"]
 build-backend = "poetry_dynamic_versioning.backend"
 
 [project]
-name = "qa-dataset-clustering"
+name = "qadst"
 description = "QA Dataset Clustering using Dirichlet Process and Pitman-Yor Process"
 license = "MIT"
 readme = "README.md"
@@ -20,14 +20,14 @@ include = [
 
 [tool.poetry]
 requires-poetry = ">=2.0"
-packages = [{ include = "qa_dataset_clustering" }]
+packages = [{ include = "qadst" }]
 version = "0.1.0"
 
 [tool.poetry.urls]
 "Bug Tracker" = "https://github.com/sergeyklay/qa-dataset-clustering/issues"
 
 [tool.poetry.scripts]
-qa-cluster = "qa_dataset_clustering.cli:main"
+qadst = "qadst.cli:main"
 
 [tool.poetry.dependencies]
 numpy = "^2.2.3"
