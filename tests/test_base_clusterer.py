@@ -13,26 +13,25 @@ from qadst import FakeClusterer
 
 def test_calculate_cosine_similarity(mock_base_clusterer):
     """Test the calculate_cosine_similarity method."""
-    with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
-        clusterer = FakeClusterer(embedding_model_name="test-model")
+    # Use the mock_base_clusterer fixture which already has the correct mocks
 
-        # Test with orthogonal vectors
-        vec1 = np.array([1.0, 0.0, 0.0])
-        vec2 = np.array([0.0, 1.0, 0.0])
-        similarity = clusterer.calculate_cosine_similarity(vec1, vec2)
-        assert similarity == 0.0
+    # Test with orthogonal vectors
+    vec1 = np.array([1.0, 0.0, 0.0])
+    vec2 = np.array([0.0, 1.0, 0.0])
+    similarity = mock_base_clusterer.calculate_cosine_similarity(vec1, vec2)
+    assert similarity == 0.0
 
-        # Test with identical vectors
-        vec1 = np.array([0.1, 0.2, 0.3])
-        vec2 = np.array([0.1, 0.2, 0.3])
-        similarity = clusterer.calculate_cosine_similarity(vec1, vec2)
-        assert similarity == 1.0
+    # Test with identical vectors
+    vec1 = np.array([0.1, 0.2, 0.3])
+    vec2 = np.array([0.1, 0.2, 0.3])
+    similarity = mock_base_clusterer.calculate_cosine_similarity(vec1, vec2)
+    assert similarity == 1.0
 
-        # Test with similar vectors
-        vec1 = np.array([0.1, 0.2, 0.3])
-        vec2 = np.array([0.2, 0.3, 0.4])
-        similarity = clusterer.calculate_cosine_similarity(vec1, vec2)
-        assert 0.9 < similarity < 1.0
+    # Test with similar vectors
+    vec1 = np.array([0.1, 0.2, 0.3])
+    vec2 = np.array([0.2, 0.3, 0.4])
+    similarity = mock_base_clusterer.calculate_cosine_similarity(vec1, vec2)
+    assert 0.9 < similarity < 1.0
 
 
 def test_calculate_deterministic_hash(mock_base_clusterer):
@@ -59,7 +58,11 @@ def test_calculate_deterministic_hash(mock_base_clusterer):
 def test_deterministic_hash_consistency():
     """Test that the deterministic hash is consistent for the same input."""
     with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
-        clusterer = FakeClusterer(embedding_model_name="test-model")
+        # Create a mock embeddings provider
+        mock_embeddings_provider = MagicMock()
+        mock_embeddings_provider.get_model_name.return_value = "test-model"
+
+        clusterer = FakeClusterer(embeddings_provider=mock_embeddings_provider)
 
         items = ["item1", "item2", "item3"]
         hash1 = clusterer._calculate_deterministic_hash(items)
@@ -71,7 +74,11 @@ def test_deterministic_hash_consistency():
 def test_deterministic_hash_order_independence():
     """Test that the deterministic hash is independent of the order of items."""
     with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
-        clusterer = FakeClusterer(embedding_model_name="test-model")
+        # Create a mock embeddings provider
+        mock_embeddings_provider = MagicMock()
+        mock_embeddings_provider.get_model_name.return_value = "test-model"
+
+        clusterer = FakeClusterer(embeddings_provider=mock_embeddings_provider)
 
         items1 = ["item1", "item2", "item3"]
         items2 = ["item3", "item1", "item2"]
@@ -85,7 +92,11 @@ def test_deterministic_hash_order_independence():
 def test_deterministic_hash_different_inputs():
     """Test that the deterministic hash is different for different inputs."""
     with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
-        clusterer = FakeClusterer(embedding_model_name="test-model")
+        # Create a mock embeddings provider
+        mock_embeddings_provider = MagicMock()
+        mock_embeddings_provider.get_model_name.return_value = "test-model"
+
+        clusterer = FakeClusterer(embeddings_provider=mock_embeddings_provider)
 
         items1 = ["item1", "item2", "item3"]
         items2 = ["item1", "item2", "item4"]
@@ -99,8 +110,12 @@ def test_deterministic_hash_different_inputs():
 def test_load_qa_pairs(temp_csv_file):
     """Test the load_qa_pairs method."""
     with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
+        # Create a mock embeddings provider
+        mock_embeddings_provider = MagicMock()
+        mock_embeddings_provider.get_model_name.return_value = "test-model"
+
         clusterer = FakeClusterer(
-            embedding_model_name="test-model",
+            embeddings_provider=mock_embeddings_provider,
             output_dir=tempfile.mkdtemp(),
         )
 
@@ -213,18 +228,18 @@ def test_filter_clusterer():
         patch("builtins.open", create=True),
         patch("qadst.filters.PromptTemplate"),
     ):
-
         # Create a temporary output directory
         output_dir = tempfile.mkdtemp()
 
+        # Create a mock embeddings provider
+        mock_embeddings_provider = MagicMock()
+        mock_embeddings_provider.get_model_name.return_value = "test-model"
+
         clusterer = FilterClusterer(
-            embedding_model_name="test-model",
+            embeddings_provider=mock_embeddings_provider,
             llm_model_name="test-llm",
             output_dir=output_dir,
         )
-
-        # Mock the LLM
-        clusterer.llm = MagicMock()
 
         # Also mock the product_dev_filter
         clusterer.product_dev_filter = MagicMock()

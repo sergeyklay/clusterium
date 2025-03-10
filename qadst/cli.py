@@ -167,7 +167,7 @@ def cluster_command(
 
     # Create clusterer with the embeddings provider
     clusterer = HDBSCANQAClusterer(
-        embedding_model_name=embedding_model,
+        embeddings_provider=embeddings_provider,
         llm_model_name=llm_model if filter else None,
         output_dir=output_dir,
         filter_enabled=filter,
@@ -176,7 +176,6 @@ def cluster_command(
         cluster_selection_epsilon=cluster_selection_epsilon,
         keep_noise=keep_noise,
         cluster_selection_method=cluster_selection_method,
-        embeddings_provider=embeddings_provider,
     )
 
     logger.info(f"Processing dataset from {input}")

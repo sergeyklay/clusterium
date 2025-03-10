@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from langchain_openai import ChatOpenAI
 
-from .embeddings import EmbeddingsProvider, get_embeddings_model
+from .embeddings import EmbeddingsProvider
 from .filters import ProductDevelopmentFilter
 
 logger = logging.getLogger(__name__)
@@ -27,8 +27,7 @@ class BaseClusterer(ABC):
 
     Attributes:
         output_dir: Directory to save output files
-        embedding_model_name: Name of the embedding model
-        embeddings_model: Initialized embedding model instance
+        embeddings_provider: Provider for embeddings functionality
         filter_enabled: Whether filtering is enabled
         filter_cache: Cache for filter results to avoid redundant LLM calls
         llm: Language model for filtering and topic labeling
@@ -36,7 +35,7 @@ class BaseClusterer(ABC):
 
     def __init__(
         self,
-        embedding_model_name: str,
+        embeddings_provider: EmbeddingsProvider,
         llm_model_name: Optional[str] = None,
         output_dir: str = "./output",
         filter_enabled: bool = True,
@@ -45,12 +44,12 @@ class BaseClusterer(ABC):
         cluster_selection_epsilon: Optional[float] = None,
         keep_noise: bool = False,
         cluster_selection_method: str = "eom",
-        embeddings_provider: Optional[EmbeddingsProvider] = None,
     ):
         """Initialize the clusterer.
 
         Args:
-            embedding_model_name: Name of the embedding model to use
+            embeddings_provider: The embeddings provider to use for generating
+                embeddings
             llm_model_name: Optional name of the LLM to use for filtering and labeling
             output_dir: Directory to save output files
             filter_enabled: Whether to filter out engineering-focused questions
@@ -59,9 +58,10 @@ class BaseClusterer(ABC):
             cluster_selection_epsilon: HDBSCAN epsilon parameter (default: 0.3)
             keep_noise: Whether to keep noise points unclustered (default: False)
             cluster_selection_method: HDBSCAN cluster selection method (default: "eom")
-            embeddings_provider: Optional pre-configured EmbeddingsProvider instance
         """
-        self.embedding_model_name = embedding_model_name
+        if embeddings_provider is None:
+            raise ValueError("embeddings_provider cannot be None")
+
         self.llm_model_name = llm_model_name
         self.output_dir = output_dir
         self.filter_enabled = filter_enabled
@@ -71,23 +71,10 @@ class BaseClusterer(ABC):
         self.cluster_selection_epsilon = cluster_selection_epsilon
         self.keep_noise = keep_noise
         self.cluster_selection_method = cluster_selection_method
+        self.embeddings_provider = embeddings_provider
 
         # Create output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
-
-        # Use provided embeddings_provider or initialize a new one
-        if embeddings_provider is not None:
-            self.embeddings_provider = embeddings_provider
-        else:
-            # Initialize embedding model
-            embeddings_model = get_embeddings_model(
-                model_name=embedding_model_name,
-                chunk_size=1000,
-            )
-            self.embeddings_provider = EmbeddingsProvider(
-                model=embeddings_model,
-                output_dir=self.output_dir,
-            )
 
         # Initialize LLM if provided
         self.llm = None
@@ -206,7 +193,8 @@ class BaseClusterer(ABC):
 
         # Use cached embeddings if available
         questions_hash = self._calculate_deterministic_hash(questions)
-        cache_key = f"dedup_{self.embedding_model_name}_{questions_hash}"
+        model_name = self.embeddings_provider.get_model_name()
+        cache_key = f"dedup_{model_name}_{questions_hash}"
         question_embeddings = self.embeddings_provider.get_embeddings(
             questions, cache_key
         )

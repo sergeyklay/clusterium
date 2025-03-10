@@ -61,14 +61,11 @@ def mock_embeddings() -> List[np.ndarray]:
 def mock_base_clusterer():
     """Return a mock BaseClusterer for testing."""
     with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
-        clusterer = FakeClusterer(
-            embedding_model_name="test-model",
-            output_dir=tempfile.mkdtemp(),
-        )
-
-        # Mock the embeddings_provider
+        # Create a mock embeddings provider
         mock_embeddings_provider = MagicMock()
-        clusterer.embeddings_provider = mock_embeddings_provider
+
+        # Mock the get_model_name method
+        mock_embeddings_provider.get_model_name.return_value = "test-model"
 
         # Mock the calculate_cosine_similarity method
         def mock_cosine_similarity(vec1, vec2):
@@ -84,6 +81,12 @@ def mock_base_clusterer():
             mock_cosine_similarity
         )
 
+        # Create the clusterer with the mock provider
+        clusterer = FakeClusterer(
+            embeddings_provider=mock_embeddings_provider,
+            output_dir=tempfile.mkdtemp(),
+        )
+
         yield clusterer
 
 
@@ -96,12 +99,15 @@ def mock_filter_clusterer():
         patch("qadst.base.PromptTemplate"),
         patch("qadst.base.os.path.exists", return_value=True),
     ):
-
         # Create a temporary output directory
         output_dir = tempfile.mkdtemp()
 
+        # Create a mock embeddings provider
+        mock_embeddings_provider = MagicMock()
+        mock_embeddings_provider.get_model_name.return_value = "test-model"
+
         clusterer = FakeClusterer(
-            embedding_model_name="test-model",
+            embeddings_provider=mock_embeddings_provider,
             llm_model_name="test-llm",
             output_dir=output_dir,
         )
@@ -152,14 +158,9 @@ def mock_hdbscan_clusterer():
         patch("qadst.embeddings.get_embeddings_model"),
         patch("qadst.base.ChatOpenAI"),
     ):
-        clusterer = HDBSCANQAClusterer(
-            embedding_model_name="test-model",
-            output_dir=tempfile.mkdtemp(),
-        )
-
-        # Mock the embeddings_provider
+        # Create a mock embeddings provider
         mock_embeddings_provider = MagicMock()
-        clusterer.embeddings_provider = mock_embeddings_provider
+        mock_embeddings_provider.get_model_name.return_value = "test-model"
 
         # Mock the calculate_cosine_similarity method
         def mock_cosine_similarity(vec1, vec2):
@@ -181,6 +182,12 @@ def mock_hdbscan_clusterer():
             np.array([0.4, 0.5, 0.6]),
             np.array([0.7, 0.8, 0.9]),
         ]
+
+        # Create the clusterer with the mock provider
+        clusterer = HDBSCANQAClusterer(
+            embeddings_provider=mock_embeddings_provider,
+            output_dir=tempfile.mkdtemp(),
+        )
 
         yield clusterer
 

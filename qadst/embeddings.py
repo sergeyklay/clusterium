@@ -176,6 +176,24 @@ class EmbeddingsProvider:
             return 0.0
         return float(np.dot(vec1, vec2) / (norm1 * norm2))
 
+    def get_model_name(self) -> str:
+        """Get the name of the embedding model.
+
+        Returns:
+            The name of the embedding model, or a default name if not available
+        """
+        try:
+            # For OpenAI embeddings
+            if hasattr(self.model, "model"):
+                return str(self.model.model)
+            # For other models
+            if hasattr(self.model, "model_name"):
+                return str(self.model.model_name)
+            # Fallback
+            return str(self.model.__class__.__name__)
+        except Exception:
+            return "unknown-model"
+
 
 def get_embeddings_model(
     model_name: str, api_key: Optional[str] = None, **kwargs
