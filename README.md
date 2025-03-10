@@ -13,97 +13,44 @@ A tool for clustering question-answer datasets using Dirichlet Process and Pitma
 
 ## Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/sergeyklay/qa-dataset-clustering.git qadst
-cd qadst
+For detailed installation instructions, please see [INSTALL.md](INSTALL.md).
 
-# Install with Poetry
+Quick start:
+```bash
+git clone https://github.com/sergeyklay/qa-dataset-clustering.git
+cd qa-dataset-clustering
 poetry install
 ```
 
 ## Usage
 
-### Command Line Interface
+For detailed usage instructions, please see [USAGE.md](USAGE.md).
+
+### Quick Start
 
 ```bash
 # Basic usage
 qadst --input your_data.csv --output clusters.csv
 
-# Specify column names
-qadst --input your_data.csv --column question --output clusters.csv
-
-# Adjust clustering parameters
-qadst --input your_data.csv --alpha 0.5 --sigma 0.3
-
 # Generate visualization
 qadst --input your_data.csv --plot
-
-# Specify output directory
-qadst --input your_data.csv --output-dir results
 ```
 
-### Python API
+### Python API Example
 
 ```python
-from qadst.clustering import DirichletProcess, PitmanYorProcess, EmbeddingCache
+from qadst.clustering import DirichletProcess
 from qadst.clustering.utils import load_data_from_csv, save_clusters_to_json
 
 # Load data
-texts, data = load_data_from_csv("your_data.csv", column="question")
+texts, data = load_data_from_csv("your_data.csv")
 
-# Create cache provider
-cache = EmbeddingCache(cache_dir=".cache")
-
-# Perform Dirichlet Process clustering
-dp = DirichletProcess(alpha=1.0, cache=cache)
+# Perform clustering
+dp = DirichletProcess(alpha=1.0)
 clusters, params = dp.fit(texts)
-
-# Perform Pitman-Yor Process clustering
-pyp = PitmanYorProcess(alpha=1.0, sigma=0.5, cache=cache)
-clusters_pyp, params_pyp = pyp.fit(texts)
 
 # Save results
 save_clusters_to_json("clusters.json", texts, clusters, "DP", data)
-```
-
-## Output Format
-
-The tool generates several output files:
-
-- `*_dp.csv`: CSV file with Dirichlet Process clustering results
-- `*_pyp.csv`: CSV file with Pitman-Yor Process clustering results
-- `*_dp.json`: JSON file with Dirichlet Process clustering results
-- `*_pyp.json`: JSON file with Pitman-Yor Process clustering results
-- `qa_clusters.json`: Combined JSON file with clustering results
-- `*_clusters.png`: Visualization of cluster size distributions (if `--plot` is specified)
-
-The JSON format follows this structure:
-
-```json
-{
-  "clusters": [
-    {
-      "id": 1,
-      "representative": [
-        {
-          "question": "What is the capital of France?",
-          "answer": "Paris is the capital of France."
-        }
-      ],
-      "source": [
-        {
-          "question": "What is the capital of France?",
-          "answer": "Paris is the capital of France."
-        },
-        {
-          "question": "What city is the capital of France?",
-          "answer": "Paris is the capital city of France."
-        }
-      ]
-    }
-  ]
-}
 ```
 
 ## License
