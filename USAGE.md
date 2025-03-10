@@ -376,10 +376,16 @@ For developers who want to use qadst programmatically, refer to the class docume
 Example programmatic usage:
 ```python
 from qadst import HDBSCANQAClusterer, ClusterBenchmarker
+from qadst.embeddings import get_embeddings_model, EmbeddingsProvider
+
+# Create embeddings provider
+embeddings_model = get_embeddings_model("text-embedding-3-large")
+embeddings_provider = EmbeddingsProvider(model=embeddings_model, output_dir="./output")
 
 # Create a clusterer
 clusterer = HDBSCANQAClusterer(
-    embedding_model_name="text-embedding-3-large",
+    embeddings_provider=embeddings_provider,
+    llm_model_name="gpt-4o",
     output_dir="./output"
 )
 
@@ -388,7 +394,8 @@ results = clusterer.process_dataset("data/qa_pairs.csv")
 
 # Benchmark the results
 benchmarker = ClusterBenchmarker(
-    embedding_model_name="text-embedding-3-large",
+    embeddings_provider=embeddings_provider,
+    llm_model_name="gpt-4o",
     output_dir="./output"
 )
 report = benchmarker.generate_cluster_report(
