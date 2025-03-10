@@ -8,6 +8,7 @@ from hdbscan import HDBSCAN
 from sklearn.cluster import KMeans
 
 from .base import BaseClusterer
+from .utils import if_ok, is_numeric
 
 logger = logging.getLogger(__name__)
 
@@ -452,7 +453,7 @@ class HDBSCANQAClusterer(BaseClusterer):
             # Skip the noise cluster if keep_noise is True
             # Check if it's "-1" or can be converted to -1
             is_noise_cluster = cluster_id == "-1" or (
-                self._is_numeric(cluster_id) and self._if_ok(int, cluster_id) == -1
+                is_numeric(cluster_id) and if_ok(int, cluster_id) == -1
             )
 
             if is_noise_cluster and self.keep_noise:
@@ -490,41 +491,6 @@ class HDBSCANQAClusterer(BaseClusterer):
                 clusters[subcluster_id] = subcluster_data
 
         return clusters
-
-    def _if_ok(self, fn, string):
-        """Try to apply a function to a string, return None if it fails.
-
-        Args:
-            fn: Function to apply
-            string: String to apply the function to
-
-        Returns:
-            Result of fn(string) or None if an exception occurs
-        """
-        try:
-            return fn(string)
-        except Exception:
-            return None
-
-    def _is_numeric(self, string):
-        """Check if a string can be converted to a numeric type.
-
-        Args:
-            string: String to check
-
-        Returns:
-            True if the string can be converted to int, float, or complex
-        """
-        # Special case for empty strings
-        if not string:
-            return False
-
-        # Try to convert to numeric types
-        return (
-            self._if_ok(int, string) is not None
-            or self._if_ok(float, string) is not None
-            or self._if_ok(complex, string) is not None
-        )
 
     def _convert_cluster_id_to_numeric(self, cluster_id: str) -> int:
         """Convert a cluster ID string to a numeric ID.
@@ -592,7 +558,7 @@ class HDBSCANQAClusterer(BaseClusterer):
             # Handle noise points specially
             # Check if it's "-1" or can be converted to -1
             is_noise_cluster = cluster_id == "-1" or (
-                self._is_numeric(cluster_id) and self._if_ok(int, cluster_id) == -1
+                is_numeric(cluster_id) and if_ok(int, cluster_id) == -1
             )
 
             if is_noise_cluster and self.keep_noise:
