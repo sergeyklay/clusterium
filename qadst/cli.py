@@ -1,31 +1,31 @@
-"""
-Command-line interface for QA Dataset Clustering.
+"""Command-line interface for the QA dataset clustering toolkit.
+
+This module provides a command-line interface for clustering QA datasets,
+benchmarking clustering results, and generating reports. It handles command-line
+arguments, environment configuration, and execution of the appropriate toolkit
+functionality based on user commands.
 """
 
 import os
-import sys
 from typing import Optional
 
 import click
-import matplotlib.pyplot as plt
 
-from qadst.clustering import (
-    DirichletProcess,
-    EmbeddingCache,
-    PitmanYorProcess,
-)
-from qadst.clustering.utils import (
-    load_data_from_csv,
-    plot_cluster_distribution,
-    save_clusters_to_csv,
-    save_clusters_to_json,
-)
+from qadst import __copyright__, __version__
 from qadst.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
 
 
 @click.group(help="QA Dataset Clustering Toolkit")
+@click.version_option(
+    version=__version__,
+    prog_name="qadst",
+    message=f"""%(prog)s %(version)s
+{__copyright__}
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.""",
+)
 def cli():
     """QA Dataset Clustering Toolkit command-line interface."""
     pass
@@ -95,6 +95,20 @@ def cluster(
     cache_dir: str,
 ) -> None:
     """Cluster text data using Dirichlet Process and Pitman-Yor Process."""
+    import matplotlib.pyplot as plt
+
+    from qadst.clustering import (
+        DirichletProcess,
+        EmbeddingCache,
+        PitmanYorProcess,
+    )
+    from qadst.clustering.utils import (
+        load_data_from_csv,
+        plot_cluster_distribution,
+        save_clusters_to_csv,
+        save_clusters_to_json,
+    )
+
     try:
         # Create necessary directories
         os.makedirs(cache_dir, exist_ok=True)
@@ -108,7 +122,7 @@ def cluster(
             logger.error(
                 f"No data found in column '{column}'. Please check your CSV file."
             )
-            sys.exit(1)
+            raise click.ClickException(f"No data found in column '{column}'")
 
         logger.info(f"Loaded {len(texts)} texts for clustering")
 
@@ -177,21 +191,7 @@ def cluster(
 
     except Exception as e:
         logger.exception(f"Error: {e}")
-        sys.exit(1)
-
-
-# Example of how to add another command in the future:
-# @cli.command(help="Benchmark clustering results")
-# @click.option(
-#     "--clusters",
-#     required=True,
-#     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
-#     help="Path to clusters JSON file",
-# )
-# def benchmark(clusters: str) -> None:
-#     """Benchmark clustering results."""
-#     logger.info(f"Benchmarking clusters from {clusters}...")
-#     # Implementation goes here
+        raise click.ClickException(str(e))
 
 
 def main(args: Optional[list[str]] = None) -> int:

@@ -9,10 +9,21 @@ The `qadst` command-line tool provides a simple interface for clustering questio
 ### Basic Usage
 
 ```bash
-qadst --input your_data.csv --output clusters.csv
+qadst cluster --input your_data.csv --output clusters.csv
 ```
 
-### Command Line Options
+### Command Structure
+
+The `qadst` tool uses a command-based structure:
+
+```bash
+qadst [global-options] COMMAND [command-options]
+```
+
+Available commands:
+- `cluster`: Cluster text data using Dirichlet Process and Pitman-Yor Process
+
+### Command Line Options for `cluster`
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -27,12 +38,18 @@ qadst --input your_data.csv --output clusters.csv
 
 ### Examples
 
+#### Basic Clustering
+
+```bash
+qadst cluster --input your_data.csv
+```
+
 #### Specifying Column Names
 
 If your CSV file has a different column name for questions:
 
 ```bash
-qadst --input your_data.csv --column question_text --output clusters.csv
+qadst cluster --input your_data.csv --column question_text --output clusters.csv
 ```
 
 #### Adjusting Clustering Parameters
@@ -40,7 +57,7 @@ qadst --input your_data.csv --column question_text --output clusters.csv
 Fine-tune the clustering by adjusting the alpha and sigma parameters:
 
 ```bash
-qadst --input your_data.csv --alpha 0.5 --sigma 0.3
+qadst cluster --input your_data.csv --alpha 0.5 --sigma 0.3
 ```
 
 #### Generating Visualizations
@@ -48,7 +65,7 @@ qadst --input your_data.csv --alpha 0.5 --sigma 0.3
 Generate plots showing the distribution of cluster sizes:
 
 ```bash
-qadst --input your_data.csv --plot
+qadst cluster --input your_data.csv --plot
 ```
 
 #### Specifying Output Directory
@@ -56,7 +73,7 @@ qadst --input your_data.csv --plot
 Save all output files to a specific directory:
 
 ```bash
-qadst --input your_data.csv --output-dir results
+qadst cluster --input your_data.csv --output-dir results
 ```
 
 ## Python API
@@ -174,5 +191,6 @@ If you encounter issues:
 1. Check your input CSV file format
 2. Ensure you have sufficient memory for large datasets
 3. Try adjusting the alpha and sigma parameters for better clustering results
+4. Remember to use the correct command structure: `qadst cluster [options]` instead of just `qadst [options]`
 
 For more help, please open an issue on the [GitHub repository](https://github.com/sergeyklay/qa-dataset-clustering/issues).

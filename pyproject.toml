@@ -110,6 +110,6 @@ omit = [
     "*/coverage/*",
     "*/dist/*",
     "*/tests/*",
-    "/tmp/*",
     "*/tmp_*/*",
+    "/tmp/*",
 ]
