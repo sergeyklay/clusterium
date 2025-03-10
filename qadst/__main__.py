@@ -8,7 +8,6 @@ control to the main CLI function.
 import sys
 
 from qadst.cli import main
-from qadst.logging import setup_logging
 
 
 def init() -> None:
@@ -19,7 +18,6 @@ def init() -> None:
     value of qadst.cli.main(), as all good UNIX programs do.
     """
     if __name__ == "__main__":
-        setup_logging()
         sys.exit(main())
 
 
