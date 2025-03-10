@@ -309,26 +309,6 @@ class ClusterBenchmarker:
 
         return float(np.mean(similarities))
 
-    def _cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
-        """Calculate cosine similarity between two vectors.
-
-        Args:
-            vec1: First vector
-            vec2: Second vector
-
-        Returns:
-            Cosine similarity between the vectors (between -1 and 1)
-        """
-        if self.embeddings_provider is None:
-            # Fallback implementation if embeddings_provider is not available
-            norm1 = np.linalg.norm(vec1)
-            norm2 = np.linalg.norm(vec2)
-            if norm1 == 0 or norm2 == 0:
-                return 0.0
-            return float(np.dot(vec1, vec2) / (norm1 * norm2))
-
-        return self.embeddings_provider.calculate_cosine_similarity(vec1, vec2)
-
     def _generate_llm_topic_label(
         self, questions: List[str], previous_topics: Optional[List[str]] = None
     ) -> str:
