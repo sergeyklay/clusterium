@@ -23,6 +23,17 @@ OUTPUT_DIR = BASE_DIR / "output"
 CACHE_DIR = BASE_DIR / ".cache"
 
 
+def common_options(func):
+    """Common options for all commands."""
+    func = click.option(
+        "--output-dir",
+        type=click.Path(exists=True, file_okay=False, dir_okay=True),
+        default=str(OUTPUT_DIR),
+        help="Directory to save output files (default: ./output)",
+    )(func)
+    return func
+
+
 @click.group(help="QA Dataset Clustering Toolkit")
 @click.version_option(
     version=__version__,
@@ -38,6 +49,7 @@ def cli():
 
 
 @cli.command(help="Cluster text data using Dirichlet Process and Pitman-Yor Process")
+@common_options
 @click.option(
     "--input",
     required=True,
@@ -55,12 +67,6 @@ def cli():
     default="clusters_output.csv",
     show_default=True,
     help="Output CSV file path",
-)
-@click.option(
-    "--output-dir",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=OUTPUT_DIR,
-    help="Directory to save output files  [default: ./output]",
 )
 @click.option(
     "--alpha",
