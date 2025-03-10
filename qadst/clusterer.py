@@ -8,7 +8,7 @@ from hdbscan import HDBSCAN
 from sklearn.cluster import KMeans
 
 from .base import BaseClusterer
-from .utils import if_ok, is_numeric, to_numeric
+from .utils import if_ok, is_numeric
 
 logger = logging.getLogger(__name__)
 
@@ -505,49 +505,42 @@ class HDBSCANQAClusterer(BaseClusterer):
             Dict with clusters in the standardized format
         """
         formatted_clusters = []
-        noise_cluster = None
+        next_cluster_id = 1  # Start regular clusters from ID 1
 
         for cluster_id, cluster_data in clusters.items():
             if not cluster_data["qa_pairs"]:
                 continue
 
-            # Handle noise points specially
-            # Check if it's "-1" or can be converted to -1
+            sources = cluster_data["qa_pairs"]
+
+            # HDBSCAN uses -1 internally to represent noise points.
+            # Check if it's "-1" or can be converted to -1.
             is_noise_cluster = cluster_id == "-1" or (
                 is_numeric(cluster_id) and if_ok(int, cluster_id) == -1
             )
 
             if is_noise_cluster and self.keep_noise:
-                noise_cluster = {
-                    "id": 0,  # Use 0 for noise cluster
-                    "representative": [],  # No representative for noise
-                    "source": cluster_data["qa_pairs"],
-                    "is_noise": True,
-                }
-                continue
-
-            representative = [
-                {
-                    "question": cluster_data["qa_pairs"][0]["question"],
-                    "answer": cluster_data["qa_pairs"][0]["answer"],
-                }
-            ]
-
-            sources = cluster_data["qa_pairs"]
-
-            # Convert cluster ID to numeric ID
-            numeric_id = to_numeric(cluster_id)
+                id = 0  # Use 0 for noise cluster
+                representative = []  # No representative for noise
+            else:
+                id = next_cluster_id
+                representative = [
+                    {
+                        "question": cluster_data["qa_pairs"][0]["question"],
+                        "answer": cluster_data["qa_pairs"][0]["answer"],
+                    }
+                ]
 
             formatted_clusters.append(
                 {
-                    "id": numeric_id,
+                    "id": id,
                     "representative": representative,
                     "source": sources,
                 }
             )
+            next_cluster_id += 1
 
-        # Add noise cluster at the end if it exists
-        if noise_cluster:
-            formatted_clusters.append(noise_cluster)
+        # Sort clusters by ID
+        formatted_clusters.sort(key=lambda x: x["id"])
 
         return {"clusters": formatted_clusters}
