@@ -24,56 +24,46 @@ class TestClusterBenchmarker:
 
     def test_init_with_models(self):
         """Test initialization with model names."""
-        # Create mocks
         mock_embeddings_provider = MagicMock()
         mock_llm = MagicMock()
 
-        # Setup patches
         with (
             patch(
                 "qadst.benchmarker.ChatOpenAI", return_value=mock_llm
             ) as mock_chat_openai,
-            patch("qadst.benchmarker.ReporterRegistry"),  # Mock the reporter registry
+            patch("qadst.benchmarker.ReporterRegistry"),
         ):
-            # Create benchmarker with model names
             benchmarker = ClusterBenchmarker(
                 embeddings_provider=mock_embeddings_provider,
                 llm_model_name="test-llm-model",
                 output_dir="/tmp/test",
             )
 
-            # Check that models were initialized correctly
             assert benchmarker.embeddings_provider == mock_embeddings_provider
             assert benchmarker.llm == mock_llm
             assert benchmarker.output_dir == "/tmp/test"
 
-            # Check that the models were created with the right parameters
             mock_chat_openai.assert_called_once_with(
                 model="test-llm-model", temperature=0.0
             )
 
     def test_init_with_model_errors(self):
         """Test initialization with model errors."""
-        # Create mock
         mock_embeddings_provider = MagicMock()
 
-        # Setup patches with exceptions
         with (
             patch("qadst.benchmarker.ChatOpenAI", side_effect=Exception("LLM error")),
-            patch("qadst.benchmarker.ReporterRegistry"),  # Mock the reporter registry
-            patch("qadst.benchmarker.logger") as mock_logger,  # Mock the logger
+            patch("qadst.benchmarker.ReporterRegistry"),
+            patch("qadst.benchmarker.logger") as mock_logger,
         ):
-            # Create benchmarker with model names
             benchmarker = ClusterBenchmarker(
                 embeddings_provider=mock_embeddings_provider,
                 llm_model_name="test-llm-model",
             )
 
-            # Check that models are None due to errors
             assert benchmarker.embeddings_provider == mock_embeddings_provider
             assert benchmarker.llm is None
 
-            # Verify warning logs were created
             mock_logger.warning.assert_any_call("Failed to initialize LLM: LLM error")
 
     @patch("qadst.embeddings.get_embeddings_model")
@@ -82,7 +72,6 @@ class TestClusterBenchmarker:
         mock_embeddings_provider = MagicMock()
         benchmarker = ClusterBenchmarker(embeddings_provider=mock_embeddings_provider)
 
-        # Create a temporary JSON file with valid content
         clusters_data = {
             "clusters": {
                 "0": ["Q1", "Q2"],
@@ -94,13 +83,9 @@ class TestClusterBenchmarker:
             json_path = f.name
 
         try:
-            # Load the clusters
             result = benchmarker.load_clusters(json_path)
-
-            # Check that the clusters were loaded correctly
             assert result == clusters_data
         finally:
-            # Clean up
             if os.path.exists(json_path):
                 os.unlink(json_path)
 

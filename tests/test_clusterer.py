@@ -20,7 +20,6 @@ def test_calculate_min_cluster_size():
         patch("qadst.embeddings.get_embeddings_model"),
         patch("qadst.base.ChatOpenAI"),
     ):
-        # Create a mock embeddings provider
         mock_embeddings_provider = MagicMock()
         mock_embeddings_provider.get_model_name.return_value = "test-model"
 
@@ -36,7 +35,6 @@ def test_calculate_min_cluster_size():
         # Reset min_cluster_size to None for the default behavior tests
         clusterer.min_cluster_size = None
 
-        # Test with different dataset sizes
         # Values calculated using max(3, int(np.log(n) ** 2))
         assert clusterer._calculate_min_cluster_size(10) == 5
         assert clusterer._calculate_min_cluster_size(100) == 21

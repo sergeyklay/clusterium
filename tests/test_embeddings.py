@@ -132,18 +132,14 @@ class TestEmbeddingsProvider:
 @patch("qadst.embeddings.OpenAIEmbeddings")
 def test_get_embeddings_model(mock_openai_embeddings):
     """Test the get_embeddings_model factory function."""
-    # Setup mock
     mock_instance = MagicMock()
     mock_openai_embeddings.return_value = mock_instance
 
-    # Call the function
     model = get_embeddings_model("text-embedding-3-large", api_key="test_key")
 
-    # Check that OpenAIEmbeddings was called with the right arguments
     mock_openai_embeddings.assert_called_once()
     call_args = mock_openai_embeddings.call_args[1]
     assert call_args["model"] == "text-embedding-3-large"
     assert call_args["api_key"] is not None
 
-    # Check that the returned model is the mock instance
     assert model == mock_instance
