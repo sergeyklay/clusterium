@@ -68,13 +68,16 @@ class HDBSCANQAClusterer(BaseClusterer):
             >>> print(clusters['clusters'][0]['representative'][0]['question'])
             How do I reset my password?
         """
+        if not qa_pairs:
+            return {"clusters": []}
+
         return self._perform_hdbscan_clustering(qa_pairs)
 
     def cluster_method(self) -> str:
-        """Return the name of the clustering method.
+        """Return the clustering method name.
 
         Returns:
-            String identifier for the HDBSCAN clustering method
+            String identifier for the clustering method
         """
         return "hdbscan"
 
@@ -107,12 +110,9 @@ class HDBSCANQAClusterer(BaseClusterer):
             >>> clusterer._calculate_min_cluster_size(3000)
             64
         """
-        # If min_cluster_size is explicitly set, use it
         if self.min_cluster_size is not None:
             return self.min_cluster_size
 
-        # Use logarithmic scaling for more natural cluster size determination
-        # The square of the natural logarithm provides a good balance
         base_size = max(3, int(np.log(total_questions) ** 2))
 
         # Cap at 100 for very large datasets to prevent overly large minimum clusters
