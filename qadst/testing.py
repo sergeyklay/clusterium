@@ -28,6 +28,11 @@ class FakeClusterer(BaseClusterer):
         'test'
     """
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the FakeClusterer with additional testing attributes."""
+        super().__init__(*args, **kwargs)
+        self.filter_cache = {}
+
     def cluster_questions(self, qa_pairs: List[Tuple[str, str]]) -> Dict[str, Any]:
         """Implement abstract method with minimal functionality."""
         return {"clusters": []}
@@ -35,3 +40,7 @@ class FakeClusterer(BaseClusterer):
     def cluster_method(self) -> str:
         """Implement abstract method with a test identifier."""
         return "test"
+
+    def _classify_questions_batch(self, questions: List[str]) -> List[bool]:
+        """Mock implementation for testing purposes."""
+        return [False] * len(questions)
