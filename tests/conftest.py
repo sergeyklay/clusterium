@@ -60,21 +60,29 @@ def mock_embeddings() -> List[np.ndarray]:
 @pytest.fixture
 def mock_base_clusterer():
     """Return a mock BaseClusterer for testing."""
-    with patch("qadst.base.OpenAIEmbeddings"), patch("qadst.base.ChatOpenAI"):
+    with patch("qadst.embeddings.get_embeddings_model"), patch("qadst.base.ChatOpenAI"):
         clusterer = FakeClusterer(
             embedding_model_name="test-model",
             output_dir=tempfile.mkdtemp(),
         )
 
-        # Mock the embeddings_model.embed_documents method
-        clusterer.embeddings_model = MagicMock()
-        clusterer.embeddings_model.embed_documents.return_value = [
-            [0.9, 0.1, 0.1],  # Password reset
-            [0.85, 0.15, 0.1],  # Password change (similar to first)
-            [0.1, 0.9, 0.1],  # Payment methods
-            [0.15, 0.85, 0.1],  # Bitcoin (similar to payment)
-            [0.1, 0.1, 0.9],  # Support contact (unique)
-        ]
+        # Mock the embeddings_provider
+        mock_embeddings_provider = MagicMock()
+        clusterer.embeddings_provider = mock_embeddings_provider
+
+        # Mock the calculate_cosine_similarity method
+        def mock_cosine_similarity(vec1, vec2):
+            vec1_np = np.array(vec1)
+            vec2_np = np.array(vec2)
+            norm1 = np.linalg.norm(vec1_np)
+            norm2 = np.linalg.norm(vec2_np)
+            if norm1 == 0 or norm2 == 0:
+                return 0.0
+            return float(np.dot(vec1_np, vec2_np) / (norm1 * norm2))
+
+        mock_embeddings_provider.calculate_cosine_similarity.side_effect = (
+            mock_cosine_similarity
+        )
 
         yield clusterer
 
@@ -141,7 +149,7 @@ def mock_hdbscan_clusterer():
     """Return a mock HDBSCANQAClusterer for testing."""
     with (
         patch("qadst.clusterer.HDBSCAN"),
-        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.embeddings.get_embeddings_model"),
         patch("qadst.base.ChatOpenAI"),
     ):
         clusterer = HDBSCANQAClusterer(
@@ -149,14 +157,29 @@ def mock_hdbscan_clusterer():
             output_dir=tempfile.mkdtemp(),
         )
 
-        # Mock the embeddings_model.embed_documents method
-        clusterer.embeddings_model = MagicMock()
-        clusterer.embeddings_model.embed_documents.return_value = [
-            [0.9, 0.1, 0.1],  # Password reset
-            [0.85, 0.15, 0.1],  # Password change (similar to first)
-            [0.1, 0.9, 0.1],  # Payment methods
-            [0.15, 0.85, 0.1],  # Bitcoin (similar to payment)
-            [0.1, 0.1, 0.9],  # Support contact (unique)
+        # Mock the embeddings_provider
+        mock_embeddings_provider = MagicMock()
+        clusterer.embeddings_provider = mock_embeddings_provider
+
+        # Mock the calculate_cosine_similarity method
+        def mock_cosine_similarity(vec1, vec2):
+            vec1_np = np.array(vec1)
+            vec2_np = np.array(vec2)
+            norm1 = np.linalg.norm(vec1_np)
+            norm2 = np.linalg.norm(vec2_np)
+            if norm1 == 0 or norm2 == 0:
+                return 0.0
+            return float(np.dot(vec1_np, vec2_np) / (norm1 * norm2))
+
+        mock_embeddings_provider.calculate_cosine_similarity.side_effect = (
+            mock_cosine_similarity
+        )
+
+        # Mock the get_embeddings method
+        mock_embeddings_provider.get_embeddings.return_value = [
+            np.array([0.1, 0.2, 0.3]),
+            np.array([0.4, 0.5, 0.6]),
+            np.array([0.7, 0.8, 0.9]),
         ]
 
         yield clusterer

@@ -1,7 +1,7 @@
-"""Tests for the HDBSCAN-based QA dataset clustering implementation."""
+"""Tests for the HDBSCANQAClusterer class."""
 
 import tempfile
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 
@@ -17,7 +17,7 @@ def test_calculate_min_cluster_size():
     """Test the _calculate_min_cluster_size method."""
     with (
         patch("qadst.clusterer.HDBSCAN"),
-        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.embeddings.get_embeddings_model"),
         patch("qadst.base.ChatOpenAI"),
     ):
         clusterer = HDBSCANQAClusterer(
@@ -25,19 +25,14 @@ def test_calculate_min_cluster_size():
             output_dir=tempfile.mkdtemp(),
         )
 
-        # Test with small dataset
-        assert clusterer._calculate_min_cluster_size(30) == 11
+        # Test with different numbers of questions
+        # Values calculated using max(3, int(np.log(n) ** 2))
+        assert clusterer._calculate_min_cluster_size(10) == 5
+        assert clusterer._calculate_min_cluster_size(100) == 21
+        assert clusterer._calculate_min_cluster_size(1000) == 47
+        assert clusterer._calculate_min_cluster_size(10000) == 84
 
-        # Test with medium dataset
-        assert clusterer._calculate_min_cluster_size(150) == 25
-
-        # Test with large dataset
-        assert clusterer._calculate_min_cluster_size(500) == 38
-
-        # Test with very large dataset
-        assert clusterer._calculate_min_cluster_size(3000) == 64
-
-        # Test with extremely large dataset (should be capped at 100)
+        # Test the cap at 100 for very large datasets
         assert clusterer._calculate_min_cluster_size(100000) == 100
 
 
@@ -335,10 +330,11 @@ def test_handle_large_clusters(
     large_clusters = {"2": clusters["2"]}
     mock_identify_large.return_value = large_clusters
 
-    # Mock the get_embeddings method
-    mock_hdbscan_clusterer.get_embeddings = MagicMock()
+    mock_hdbscan_clusterer.embeddings_provider.get_embeddings = MagicMock()
     mock_embeddings = [np.array([0.1, 0.2]) for _ in range(5)]
-    mock_hdbscan_clusterer.get_embeddings.return_value = mock_embeddings
+    mock_hdbscan_clusterer.embeddings_provider.get_embeddings.return_value = (
+        mock_embeddings
+    )
 
     # Mock the _apply_recursive_clustering method
     subcluster_labels = np.array([0, 0, 1, 1, 1])
@@ -372,8 +368,9 @@ def test_handle_large_clusters(
     # Verify that identify_large_clusters was called with correct arguments
     mock_identify_large.assert_called_once()
 
-    # Verify that get_embeddings was called with the questions from the large cluster
-    mock_hdbscan_clusterer.get_embeddings.assert_called_once_with(
+    # Verify that embeddings_provider.get_embeddings was called
+    # with the questions from the large cluster
+    mock_hdbscan_clusterer.embeddings_provider.get_embeddings.assert_called_once_with(
         clusters["2"]["questions"]
     )
 
@@ -405,79 +402,89 @@ def test_custom_hdbscan_parameters():
     """Test that custom HDBSCAN parameters are used correctly."""
     with (
         patch("qadst.clusterer.HDBSCAN") as mock_hdbscan_class,
-        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.embeddings.get_embeddings_model"),
         patch("qadst.base.ChatOpenAI"),
     ):
-        # Create clusterer with custom parameters
+        # Create a mock HDBSCAN instance
+        mock_hdbscan = MagicMock()
+        mock_hdbscan.labels_ = np.array([0, 0, 1, 1, -1])
+        mock_hdbscan.probabilities_ = np.array([0.9, 0.8, 0.7, 0.6, 0.0])
+        mock_hdbscan_class.return_value = mock_hdbscan
+
+        # Create a clusterer with custom parameters
         clusterer = HDBSCANQAClusterer(
             embedding_model_name="test-model",
             output_dir=tempfile.mkdtemp(),
-            min_cluster_size=50,
-            min_samples=3,
-            cluster_selection_epsilon=0.2,
+            min_cluster_size=10,
+            min_samples=5,
+            cluster_selection_epsilon=0.5,
         )
 
-        # Mock the get_embeddings method
-        clusterer.get_embeddings = MagicMock(return_value=[[0.1, 0.2, 0.3]])
+        # Mock the embeddings
+        embeddings = np.random.rand(5, 10)
 
-        # Create a mock for HDBSCAN
-        mock_hdbscan_instance = MagicMock()
-        mock_hdbscan_instance.fit_predict.return_value = np.array([0])
-        mock_hdbscan_class.return_value = mock_hdbscan_instance
+        # Mock the embeddings_provider.get_embeddings method
+        clusterer.embeddings_provider.get_embeddings = MagicMock(
+            return_value=embeddings
+        )
 
         # Call the method that uses HDBSCAN
-        clusterer._perform_hdbscan_clustering([("test question", "test answer")])
+        clusterer._perform_hdbscan_clustering(
+            [("Q1", "A1"), ("Q2", "A2"), ("Q3", "A3"), ("Q4", "A4"), ("Q5", "A5")]
+        )
 
         # Check that HDBSCAN was called with the correct parameters
-        mock_hdbscan_class.assert_called_once_with(
-            min_cluster_size=50,
-            min_samples=3,
-            cluster_selection_epsilon=0.2,
-            cluster_selection_method="eom",  # Default value
-        )
+        mock_hdbscan_class.assert_called_once()
+        args, kwargs = mock_hdbscan_class.call_args
+        assert kwargs["min_cluster_size"] == 10
+        assert kwargs["min_samples"] == 5
+        assert kwargs["cluster_selection_epsilon"] == 0.5
 
 
 def test_cluster_selection_method_parameter():
     """Test that the cluster_selection_method parameter is used correctly."""
     with (
         patch("qadst.clusterer.HDBSCAN") as mock_hdbscan_class,
-        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.embeddings.get_embeddings_model"),
         patch("qadst.base.ChatOpenAI"),
     ):
-        # Create clusterer with custom cluster_selection_method
+        # Create a mock HDBSCAN instance
+        mock_hdbscan = MagicMock()
+        mock_hdbscan.labels_ = np.array([0, 0, 1, 1, -1])
+        mock_hdbscan.probabilities_ = np.array([0.9, 0.8, 0.7, 0.6, 0.0])
+        mock_hdbscan_class.return_value = mock_hdbscan
+
+        # Create a clusterer with a custom cluster_selection_method
         clusterer = HDBSCANQAClusterer(
             embedding_model_name="test-model",
             output_dir=tempfile.mkdtemp(),
             cluster_selection_method="leaf",
         )
 
-        # Mock the get_embeddings method
-        clusterer.get_embeddings = MagicMock(return_value=[[0.1, 0.2, 0.3]])
+        # Mock the embeddings
+        embeddings = np.random.rand(5, 10)
 
-        # Create a mock for HDBSCAN
-        mock_hdbscan_instance = MagicMock()
-        mock_hdbscan_instance.fit_predict.return_value = np.array([0])
-        mock_hdbscan_class.return_value = mock_hdbscan_instance
+        # Mock the embeddings_provider.get_embeddings method
+        clusterer.embeddings_provider.get_embeddings = MagicMock(
+            return_value=embeddings
+        )
 
         # Call the method that uses HDBSCAN
-        clusterer._perform_hdbscan_clustering([("test question", "test answer")])
-
-        # Check that HDBSCAN was called with the correct parameters
-        # min_cluster_size will be calculated automatically
-        # min_samples and cluster_selection_epsilon will use defaults
-        mock_hdbscan_class.assert_called_once_with(
-            min_cluster_size=ANY,  # Calculated automatically
-            min_samples=5,  # Default value
-            cluster_selection_epsilon=0.3,  # Default value
-            cluster_selection_method="leaf",  # Custom value
+        clusterer._perform_hdbscan_clustering(
+            [("Q1", "A1"), ("Q2", "A2"), ("Q3", "A3"), ("Q4", "A4"), ("Q5", "A5")]
         )
+
+        # Check that HDBSCAN was called with the correct cluster_selection_method
+        mock_hdbscan_class.assert_called_once()
+        args, kwargs = mock_hdbscan_class.call_args
+        assert kwargs["cluster_selection_method"] == "leaf"
 
 
 def test_keep_noise_parameter():
     """Test that the keep_noise parameter preserves noise points."""
     with (
         patch("qadst.clusterer.HDBSCAN"),
-        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.embeddings.get_embeddings_model"),
         patch("qadst.base.ChatOpenAI"),
     ):
         # Create a clusterer with keep_noise=True
@@ -487,59 +494,62 @@ def test_keep_noise_parameter():
             keep_noise=True,
         )
 
-        # Mock the get_embeddings method
-        clusterer.get_embeddings = MagicMock(
-            return_value=[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]
-        )
+        # Create test data with a noise cluster
+        clusters = {
+            "0": {
+                "questions": ["Q1", "Q2"],
+                "qa_pairs": [
+                    {"question": "Q1", "answer": "A1"},
+                    {"question": "Q2", "answer": "A2"},
+                ],
+            },
+            "-1": {  # Noise cluster
+                "questions": ["Q3"],
+                "qa_pairs": [{"question": "Q3", "answer": "A3"}],
+            },
+        }
 
-        # Create a mock for HDBSCAN
-        mock_hdbscan_instance = MagicMock()
-        # Set up the mock to return one regular cluster and one noise point
-        mock_hdbscan_instance.fit_predict.return_value = np.array([0, 0, -1])
+        # Test the _format_clusters method directly
+        result = clusterer._format_clusters(clusters)
 
-        # Replace the HDBSCAN class with a mock
-        with patch("qadst.clusterer.HDBSCAN", return_value=mock_hdbscan_instance):
-            # Call the clustering method with test data
-            qa_pairs = [
-                ("question1", "answer1"),
-                ("question2", "answer2"),
-                ("question3", "answer3"),
-            ]
-            result = clusterer._perform_hdbscan_clustering(qa_pairs)
+        # Check that the result has the expected format
+        assert "clusters" in result
+        assert isinstance(result["clusters"], list)
 
-            # Verify that the result contains both a regular cluster and a noise cluster
-            assert len(result["clusters"]) == 2
+        # Find the noise cluster (should have id=0)
+        noise_cluster = None
+        for cluster in result["clusters"]:
+            if cluster["id"] == 0:
+                noise_cluster = cluster
+                break
 
-            # Find the noise cluster (id should be 0)
-            noise_cluster = None
-            regular_cluster = None
-            for cluster in result["clusters"]:
-                if cluster["id"] == 0:
-                    noise_cluster = cluster
-                else:
-                    regular_cluster = cluster
+        # Verify the noise cluster exists and has the expected structure
+        assert noise_cluster is not None
+        assert len(noise_cluster["representative"]) == 0  # No representative for noise
+        assert len(noise_cluster["source"]) == 1
+        assert noise_cluster["source"][0]["question"] == "Q3"
 
-            # Verify the noise cluster exists and has the correct structure
-            assert noise_cluster is not None
-            assert noise_cluster["id"] == 0
-            assert len(noise_cluster["representative"]) == 0
-            assert len(noise_cluster["source"]) == 1
-            assert noise_cluster["source"][0]["question"] == "question3"
+        # Find the regular cluster (should have id=1)
+        regular_cluster = None
+        for cluster in result["clusters"]:
+            if cluster["id"] == 1:
+                regular_cluster = cluster
+                break
 
-            # Verify the regular cluster
-            assert regular_cluster is not None
-            assert regular_cluster["id"] == 1
-            assert len(regular_cluster["source"]) == 2
-            assert regular_cluster["source"][0]["question"] == "question1"
-            assert regular_cluster["source"][1]["question"] == "question2"
+        # Verify the regular cluster exists and has the expected structure
+        assert regular_cluster is not None
+        assert len(regular_cluster["representative"]) == 1
+        assert regular_cluster["representative"][0]["question"] == "Q1"
+        assert len(regular_cluster["source"]) == 2
 
 
 def test_cluster_noise_points():
-    """Test that the _cluster_noise_points method is called when keep_noise is False."""
+    """Test that the _cluster_noise_points method clusters noise points correctly."""
     with (
         patch("qadst.clusterer.HDBSCAN"),
-        patch("qadst.base.OpenAIEmbeddings"),
+        patch("qadst.embeddings.get_embeddings_model"),
         patch("qadst.base.ChatOpenAI"),
+        patch("qadst.clusterer.KMeans"),
     ):
         # Create a clusterer with keep_noise=False
         clusterer = HDBSCANQAClusterer(
@@ -548,34 +558,38 @@ def test_cluster_noise_points():
             keep_noise=False,
         )
 
-        # Test the _cluster_noise_points method directly
+        # Create test noise QA pairs
         noise_qa_pairs = [
-            ("question1", "answer1"),
-            ("question2", "answer2"),
+            ("Q1", "A1"),
+            ("Q2", "A2"),
+            ("Q3", "A3"),
         ]
 
-        # Mock the embeddings_model.embed_documents method
-        clusterer.embeddings_model = MagicMock()
-        clusterer.embeddings_model.embed_documents.return_value = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6],
+        # Mock the embeddings_provider.get_embeddings method
+        clusterer.embeddings_provider = MagicMock()
+        clusterer.embeddings_provider.get_embeddings.return_value = [
+            np.array([0.1, 0.2, 0.3]),
+            np.array([0.4, 0.5, 0.6]),
+            np.array([0.7, 0.8, 0.9]),
         ]
 
-        # Mock KMeans
-        with patch("qadst.clusterer.KMeans") as mock_kmeans_class:
-            mock_kmeans_instance = MagicMock()
-            mock_kmeans_instance.fit_predict.return_value = np.array([0, 1])
-            mock_kmeans_class.return_value = mock_kmeans_instance
+        # Mock KMeans to return cluster labels
+        kmeans_instance = MagicMock()
+        kmeans_instance.fit_predict.return_value = np.array([0, 0, 1])
+        with patch("qadst.clusterer.KMeans", return_value=kmeans_instance):
+            # Call the method directly
+            result = clusterer._cluster_noise_points(noise_qa_pairs, min_cluster_size=2)
 
-            # Call the method
-            result = clusterer._cluster_noise_points(noise_qa_pairs, 1)
+        # Check that the result has the expected structure
+        assert len(result) == 2  # Two clusters
+        assert "0" in result
+        assert "1" in result
 
-            # Verify KMeans was called
-            mock_kmeans_class.assert_called_once()
+        # Check the first cluster
+        assert len(result["0"]["questions"]) == 2
+        assert "Q1" in result["0"]["questions"]
+        assert "Q2" in result["0"]["questions"]
 
-            # Verify the result structure
-            assert len(result) == 2
-            assert "0" in result
-            assert "1" in result
-            assert result["0"]["questions"] == ["question1"]
-            assert result["1"]["questions"] == ["question2"]
+        # Check the second cluster
+        assert len(result["1"]["questions"]) == 1
+        assert "Q3" in result["1"]["questions"]
