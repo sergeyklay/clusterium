@@ -16,10 +16,11 @@ test:
 .PHONY: ccov
 ccov:
 	@echo $(CS)Combine coverage reports for package: $(PKG_NAME)$(CE)
-	$(VENV_BIN)/coverage combine
+	@mkdir -p coverage/html coverage/xml coverage/lcov
+	$(VENV_BIN)/coverage combine || true
 	$(VENV_BIN)/coverage report
-	$(VENV_BIN)/coverage html
-	$(VENV_BIN)/coverage xml
+	$(VENV_BIN)/coverage html -d coverage/html
+	$(VENV_BIN)/coverage xml -o coverage/xml/coverage.xml
 
 .PHONY: format
 format:
