@@ -62,7 +62,7 @@ classifiers = [
     "Topic :: Text Processing :: Linguistic",
     "Typing :: Typed"
 ]
-version = "0.3.0"
+version = "0.0.0"
 
 [tool.poetry.dependencies]
 click = "^8.1.8"
@@ -99,6 +99,7 @@ enable = true
 vcs = "git"
 style = "semver"
 metadata = true
+pattern = '(?P<base>\d+\.\d+\.\d+)'
 
 [tool.black]
 line-length = 88
