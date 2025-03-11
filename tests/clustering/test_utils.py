@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from qadst.clustering.utils import (
+from clusx.clustering.utils import (
     get_embeddings,
     load_cluster_assignments,
     load_data_from_csv,
@@ -156,7 +156,7 @@ def test_save_clusters_to_json_with_data(
     )
 
 
-@patch("qadst.clustering.DirichletProcess")
+@patch("clusx.clustering.DirichletProcess")
 def test_get_embeddings(mock_dp_class):
     """Test get_embeddings with mocked DirichletProcess."""
     mock_dp = MagicMock()

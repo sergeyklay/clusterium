@@ -12,7 +12,7 @@ def test_init():
     The final line of the code, the init() call will run at the module import
     time and, therefore, is run at test time.
     """
-    from qadst import __main__ as module
+    from clusx import __main__ as module
 
     with mock.patch.object(module, "main", return_value=42):
         with mock.patch.object(module, "__name__", "__main__"):

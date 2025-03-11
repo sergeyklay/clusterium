@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colormaps
 
-from qadst.logging import get_logger
+from clusx.logging import get_logger
 
 logger = get_logger(__name__)
 

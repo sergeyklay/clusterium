@@ -9,7 +9,7 @@ from typing import Optional
 
 from torch import Tensor
 
-from qadst.logging import get_logger
+from clusx.logging import get_logger
 
 logger = get_logger(__name__)
 

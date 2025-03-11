@@ -3,14 +3,14 @@
 import os
 from unittest.mock import patch
 
-from qadst.clustering.cache import EmbeddingCache
-from qadst.clustering.models import DirichletProcess, PitmanYorProcess
+from clusx.clustering.cache import EmbeddingCache
+from clusx.clustering.models import DirichletProcess, PitmanYorProcess
 
 
 class TestDirichletProcessWithFixtures:
     """Tests for DirichletProcess using fixtures."""
 
-    @patch("qadst.clustering.models.SentenceTransformer")
+    @patch("clusx.clustering.models.SentenceTransformer")
     def test_fit_with_sample_texts(self, mock_st, sample_texts, tmp_path):
         """Test fitting the model with sample texts from fixtures."""
         # Create a cache directory
@@ -41,7 +41,7 @@ class TestDirichletProcessWithFixtures:
 class TestPitmanYorProcessWithFixtures:
     """Tests for PitmanYorProcess using fixtures."""
 
-    @patch("qadst.clustering.models.SentenceTransformer")
+    @patch("clusx.clustering.models.SentenceTransformer")
     def test_fit_with_sample_texts(self, mock_st, sample_texts, tmp_path):
         """Test fitting the model with sample texts from fixtures."""
         # Create a cache directory
@@ -68,7 +68,7 @@ class TestPitmanYorProcessWithFixtures:
         cache_file = os.path.join(str(cache_dir), "embeddings.pkl")
         assert os.path.exists(cache_file)
 
-    @patch("qadst.clustering.models.SentenceTransformer")
+    @patch("clusx.clustering.models.SentenceTransformer")
     def test_cluster_sizes_tracking(self, mock_st, sample_texts, tmp_path):
         """Test that cluster parameters are properly tracked in PitmanYorProcess."""
         # Create a cache directory

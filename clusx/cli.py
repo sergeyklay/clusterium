@@ -1,6 +1,6 @@
-"""Command-line interface for the QA dataset clustering toolkit.
+"""Command-line interface for the Clusterium.
 
-This module provides a command-line interface for clustering QA datasets,
+This module provides a command-line interface for clustering text data,
 benchmarking clustering results, and generating reports. It handles command-line
 arguments, environment configuration, and execution of the appropriate toolkit
 functionality based on user commands.
@@ -12,8 +12,8 @@ from typing import Optional
 
 import click
 
-from qadst.logging import get_logger, setup_logging
-from qadst.version import __copyright__, __version__
+from clusx.logging import get_logger, setup_logging
+from clusx.version import __copyright__, __version__
 
 logger = get_logger(__name__)
 
@@ -37,7 +37,7 @@ def common_options(func):
 @click.group(help="QA Dataset Clustering Toolkit")
 @click.version_option(
     version=__version__,
-    prog_name="qadst",
+    prog_name="clusx",
     message=f"""%(prog)s %(version)s
 {__copyright__}
 This is free software; see the source for copying conditions.  There is NO
@@ -114,12 +114,12 @@ def cluster(
     cache_dir: str,
 ) -> None:
     """Cluster text data using Dirichlet Process and Pitman-Yor Process."""
-    from qadst.clustering import (
+    from clusx.clustering import (
         DirichletProcess,
         EmbeddingCache,
         PitmanYorProcess,
     )
-    from qadst.clustering.utils import (
+    from clusx.clustering.utils import (
         load_data_from_csv,
         save_clusters_to_csv,
         save_clusters_to_json,
@@ -298,13 +298,13 @@ def evaluate(
     cache_dir: str,
 ) -> None:
     """Evaluate clustering results using established metrics."""
-    from qadst.clustering import EmbeddingCache
-    from qadst.clustering.utils import (
+    from clusx.clustering import EmbeddingCache
+    from clusx.clustering.utils import (
         get_embeddings,
         load_cluster_assignments,
         load_data_from_csv,
     )
-    from qadst.evaluation import (
+    from clusx.evaluation import (
         ClusterEvaluator,
         save_evaluation_report,
     )
@@ -367,7 +367,7 @@ def evaluate(
         save_evaluation_report(reports, output_dir)
 
         if plot:
-            from qadst.visualization import visualize_evaluation_dashboard
+            from clusx.visualization import visualize_evaluation_dashboard
 
             # Generate the dashboard visualization
             click.echo("Generating evaluation dashboard...")

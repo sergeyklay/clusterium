@@ -15,7 +15,7 @@ from sklearn.metrics import silhouette_score
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 
-from qadst.logging import get_logger
+from clusx.logging import get_logger
 
 logger = get_logger(__name__)
 

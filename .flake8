@@ -20,6 +20,7 @@ exclude =
     .poetry,
     .pytest_cache,
     .venv,
+    .cache,
     dist,
 
 extend-ignore = E203,E701,E402

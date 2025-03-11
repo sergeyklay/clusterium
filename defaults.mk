@@ -53,7 +53,7 @@ else
 	RESET := TITLE := SECTION := TARGET := DESCRIPTION := EXAMPLE :=
 endif
 
-PKG_NAME := "qadst"
+PKG_NAME := "clusx"
 
 # Color output configuration
 ifneq ($(TERM),)

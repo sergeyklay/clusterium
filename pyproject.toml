@@ -3,7 +3,7 @@ requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0"]
 build-backend = "poetry_dynamic_versioning.backend"
 
 [project]
-name = "qadst"
+name = "clusx"
 description = "Tool for clustering, analyzing, and benchmarking text data with advanced embeddings and statistical validation."
 license = "MIT"
 readme = "README.md"
@@ -18,11 +18,11 @@ documentation = "https://github.com/sergeyklay/clusterium"
 "Bug Tracker" = "https://github.com/sergeyklay/clusterium/issues"
 
 [project.scripts]
-qadst = "qadst.cli:main"
+clusx = "clusx.cli:main"
 
 [tool.poetry]
 requires-poetry = ">=2.0"
-packages = [{ include = "qadst" }]
+packages = [{ include = "clusx" }]
 include = [
     { path = "tests", format = "sdist" },
     "INSTALL.md",

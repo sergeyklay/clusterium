@@ -1,10 +1,10 @@
 # Installation Guide
 
-This document provides detailed instructions for installing the QA Dataset Clustering Toolkit (qadst).
+This document provides detailed instructions for installing the `clusx` package.
 
 ## Prerequisites
 
-Before installing qadst, ensure you have the following prerequisites:
+Before installing `clusx`, ensure you have the following prerequisites:
 
 - Python 3.10 or higher
 - [Poetry](https://python-poetry.org/) for dependency management
@@ -14,8 +14,8 @@ Before installing qadst, ensure you have the following prerequisites:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/sergeyklay/qa-dataset-clustering.git
-   cd qa-dataset-clustering
+   git clone https://github.com/sergeyklay/clusterium.git
+   cd clusterium
    ```
 
 2. Create and activate the virtual environment:
@@ -34,13 +34,13 @@ Before installing qadst, ensure you have the following prerequisites:
 To verify that the installation was successful, run:
 
 ```bash
-qadst --help
+clusx --help
 ```
 
 Or using the Python module:
 
 ```bash
-python -m qadst --help
+python -m clusx --help
 ```
 
 You should see the help message with available command-line options.
