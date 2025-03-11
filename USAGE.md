@@ -45,7 +45,7 @@ Available commands:
 | `--column` | Column name to use for clustering | "question" |
 | `--dp-clusters` | Path to Dirichlet Process clustering results CSV (required) | - |
 | `--pyp-clusters` | Path to Pitman-Yor Process clustering results CSV (required) | - |
-| `--plot` | Generate evaluation plots: "none" or "silhouette" | "silhouette" |
+| `--plot` | Generate evaluation plots: "none", "silhouette", or "dashboard" | "silhouette" |
 | `--output-dir` | Directory to save output files | "output" |
 | `--cache-dir` | Directory to cache embeddings | ".cache" |
 
@@ -103,11 +103,21 @@ After running clustering, you can evaluate the quality of the clusters:
 # Basic evaluation with silhouette score visualization
 qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv
 
+# Evaluation with comprehensive dashboard visualization
+qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --plot dashboard
+
 # Evaluation without visualizations
 qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --plot none
 ```
 
-This will generate evaluation metrics and a silhouette score visualization comparing the quality of the Dirichlet Process and Pitman-Yor Process clustering results. For cluster distribution visualizations, use the `cluster` command with the `--plot` option.
+This will generate evaluation metrics and visualizations comparing the quality of the Dirichlet Process and Pitman-Yor Process clustering results. The dashboard visualization includes:
+
+1. Cluster size distribution (log-log scale)
+2. Silhouette score comparison
+3. Similarity metrics comparison (intra vs. inter-cluster)
+4. Power-law fit visualization with Clauset's method
+
+For cluster distribution visualizations, use the `cluster` command with the `--plot` option.
 
 ## Python API
 
@@ -151,7 +161,8 @@ save_clusters_to_json("pyp_clusters.json", texts, clusters_pyp, "PYP", data)
 You can evaluate the quality of your clusters using the evaluation module:
 
 ```python
-from qadst.evaluation import ClusterEvaluator, save_evaluation_report, visualize_silhouette_score
+from qadst.evaluation import ClusterEvaluator, save_evaluation_report
+from qadst.visualization import visualize_silhouette_score, visualize_evaluation_dashboard
 import numpy as np
 
 # Get embeddings for evaluation
@@ -160,6 +171,13 @@ embeddings = np.array([dp.get_embedding(text).cpu().numpy() for text in texts])
 # Evaluate DP clusters
 dp_evaluator = ClusterEvaluator(texts, embeddings, clusters, "DirichletProcess")
 dp_report = dp_evaluator.generate_report()
+
+# Check if clusters follow power-law distribution
+powerlaw_params = dp_report["powerlaw_params"]
+if powerlaw_params["is_powerlaw"]:
+    print(f"DP clusters follow power-law with alpha={powerlaw_params['alpha']:.2f}")
+else:
+    print("DP clusters do not follow power-law distribution")
 
 # Evaluate PYP clusters
 pyp_evaluator = ClusterEvaluator(texts, embeddings, clusters_pyp, "PitmanYorProcess")
@@ -171,7 +189,10 @@ reports = {
     "PitmanYorProcess": pyp_report,
 }
 save_evaluation_report(reports, "output")
+
+# Generate visualizations
 visualize_silhouette_score(reports, "output")
+visualize_evaluation_dashboard(reports, "output")
 ```
 
 ### Customizing the Clustering Process
@@ -209,7 +230,8 @@ The tool generates several output files:
 When using the `evaluate` command, the following files are generated:
 
 - `evaluation_report.json`: JSON file containing evaluation metrics for both clustering methods
-- `silhouette_comparison.png`: Visualization comparing silhouette scores of both methods
+- `silhouette_comparison.png`: Visualization comparing silhouette scores of both methods (with `--plot silhouette`)
+- `evaluation_dashboard.png`: Comprehensive dashboard visualization with multiple metrics (with `--plot dashboard`)
 
 ### JSON Output Format
 

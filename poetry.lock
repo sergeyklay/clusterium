@@ -1493,6 +1493,23 @@ dev = ["pre-commit", "tox"]
 testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
+name = "powerlaw"
+version = "1.5"
+description = "Toolbox for testing if a probability distribution fits a power law"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "powerlaw-1.5-py3-none-any.whl", hash = "sha256:633a669573d9fd663d2f452f121117f2d6b2f2c502eca532f9355f733abfec96"},
+]
+
+[package.dependencies]
+matplotlib = "*"
+mpmath = "*"
+numpy = "*"
+scipy = "*"
+
+[[package]]
 name = "pre-commit"
 version = "4.1.0"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
@@ -2351,4 +2368,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <4"
-content-hash = "968813c304ee95b9022ea7fb494ee69f2f515cef47e9a64f37c881d16891fa38"
+content-hash = "5489058c6d2b8d49be6579422cd918124b84aaf73c2ee5e4b44517ca7d5b77ee"
