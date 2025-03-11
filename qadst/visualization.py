@@ -11,61 +11,42 @@ from typing import Any, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import colormaps
 
 from qadst.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Global color scheme for consistent visualization
-MODEL_COLORS = {"Dirichlet": "blue", "Pitman-Yor": "orange"}
+plt.style.use("default")
 
 
-def visualize_silhouette_score(
-    reports: Dict[str, Dict[str, Any]],
-    output_dir: str,
-    filename: str = "silhouette_comparison.png",
-) -> str:
+def get_model_colors(model_names):
+    """Generate consistent colors for models using academically popular colormaps.
+
+    Uses 'Set1' and 'tab10' colormaps which are standard in academic publications.
     """
-    Visualize silhouette scores for different clustering models.
+    num_models = len(model_names)
 
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        output_dir: Directory to save the visualization
-        filename: Name of the output file
+    # For fewer models, use Set1 which has distinct colors commonly used in publications
+    if num_models <= 9:
+        cmap = colormaps["Set1"]
+        colors = [cmap(i / max(1, 8)) for i in range(num_models)]
+    # For more models, use tab10 which supports up to 10 distinct colors
+    elif num_models <= 10:
+        cmap = colormaps["tab10"]
+        colors = [cmap(i / max(1, 9)) for i in range(num_models)]
+    # For even more models, combine colors from both colormaps
+    else:
+        set1_cmap = colormaps["Set1"]
+        tab10_cmap = colormaps["tab10"]
+        colors = []
+        for i in range(num_models):
+            if i < 9:
+                colors.append(set1_cmap(i / 8))
+            else:
+                colors.append(tab10_cmap((i - 9) / 9))
 
-    Returns:
-        Path to the saved visualization file
-    """
-    output_path = os.path.join(output_dir, filename)
-
-    # Extract silhouette scores
-    models = []
-    scores = []
-    colors = []
-
-    for model_name, report in reports.items():
-        models.append(model_name)
-        scores.append(report["silhouette_score"])
-        colors.append(MODEL_COLORS.get(model_name, "gray"))
-
-    # Create the visualization
-    plt.figure(figsize=(10, 6))
-    plt.bar(models, scores, color=colors)
-    plt.title("Silhouette Score Comparison")
-    plt.xlabel("Clustering Model")
-    plt.ylabel("Silhouette Score")
-    plt.ylim(-1, 1)  # Silhouette score range
-
-    # Add value labels on top of bars
-    for i, score in enumerate(scores):
-        plt.text(i, score + 0.05, f"{score:.4f}", ha="center")
-
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
-
-    logger.info(f"Silhouette score visualization saved to {output_path}")
-    return output_path
+    return dict(zip(model_names, colors))
 
 
 def _plot_cluster_size_distribution(reports, ax):
@@ -76,6 +57,9 @@ def _plot_cluster_size_distribution(reports, ax):
         reports: Dictionary mapping model names to their evaluation reports
         ax: Matplotlib axes object to plot on
     """
+    # Generate colors for models
+    model_colors = get_model_colors(list(reports.keys()))
+
     for model_name, report in reports.items():
         # Check if we have the required data
         has_metrics = "basic_metrics" in report
@@ -107,23 +91,7 @@ def _plot_cluster_size_distribution(reports, ax):
         valid_sizes = [sizes[i] for i in valid_indices]
         valid_frequencies = [frequencies[i] for i in valid_indices]
 
-        color = MODEL_COLORS.get(model_name, "gray")
-
-        # Examples of powerlaw_params:
-        #
-        #   {'alpha': 1.2941766512739343, 'xmin': 1.0, 'is_powerlaw': True}
-        #   {'alpha': 2.8547451299978364, 'xmin': 4.0, 'is_powerlaw': True}
-        #
-        powerlaw_params = report.get("powerlaw_params", {})
-
-        alpha = powerlaw_params.get("alpha", None)
-        alpha_str = f"α={alpha:.2f}," if alpha is not None else ""
-
-        is_powerlaw = powerlaw_params.get("is_powerlaw", False)
-        status = " follows power-law" if is_powerlaw else " non power-law"
-
-        label_details = f"{alpha_str}{status}".strip(", ")
-        label = f"{model_name} ({label_details})"
+        color = model_colors.get(model_name)
 
         # Plot rank vs size
         ax.loglog(
@@ -131,7 +99,7 @@ def _plot_cluster_size_distribution(reports, ax):
             valid_frequencies,
             marker="o",
             linestyle="--",
-            label=label,
+            label=model_name,
             color=color,
             alpha=0.7,
         )
@@ -151,16 +119,38 @@ def _plot_silhouette_scores(reports, ax):
         reports: Dictionary mapping model names to their evaluation reports
         ax: Matplotlib axes object to plot on
     """
-    # Extract silhouette scores
     models = []
     scores = []
-    colors = []
+    error_models = []
 
     for model_name, report in reports.items():
         if "silhouette_score" in report:
-            models.append(model_name)
-            scores.append(report["silhouette_score"])
-            colors.append(MODEL_COLORS.get(model_name, "gray"))
+            score = report["silhouette_score"]
+            if score != -1:  # Check for special error value
+                models.append(model_name)
+                scores.append(score)
+            else:
+                error_models.append(model_name)
+
+    if not models and not error_models:
+        ax.text(
+            0.5,
+            0.5,
+            "No silhouette scores available",
+            ha="center",
+            va="center",
+            fontsize=12,
+        )
+        return
+    elif not models and error_models:
+        message = "Silhouette scores could not be calculated\n"
+        message += "Reason: Some clusters have fewer than 2 samples"
+        ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=12)
+        return
+
+    # Generate colors for models
+    model_colors = get_model_colors(models)
+    colors = [model_colors[model] for model in models]
 
     # Create bar chart
     ax.bar(models, scores, color=colors)
@@ -173,6 +163,20 @@ def _plot_silhouette_scores(reports, ax):
     for i, score in enumerate(scores):
         ax.text(i, score + 0.05, f"{score:.4f}", ha="center")
 
+    # If some models had errors, add a note
+    if error_models:
+        note = "Note: Scores not available for: " + ", ".join(error_models)
+        note += "\nReason: Clusters with <2 samples"
+        ax.text(
+            0.5,
+            -0.15,
+            note,
+            ha="center",
+            fontsize=9,
+            transform=ax.transAxes,
+            bbox={"facecolor": "lightgray", "alpha": 0.5, "pad": 5},
+        )
+
 
 def _plot_similarity_metrics(reports, ax):
     """
@@ -184,6 +188,9 @@ def _plot_similarity_metrics(reports, ax):
     """
     has_similarity_data = False
 
+    # Generate colors for models
+    model_colors = get_model_colors(list(reports.keys()))
+
     # Track models for legend
     model_data = {}
 
@@ -191,7 +198,7 @@ def _plot_similarity_metrics(reports, ax):
     for i, (model_name, report) in enumerate(reports.items()):
         if "similarity_metrics" in report:
             has_similarity_data = True
-            color = MODEL_COLORS.get(model_name, "gray")
+            color = model_colors.get(model_name)
 
             # Get metrics
             intra = report["similarity_metrics"].get("intra_cluster_mean", 0)
@@ -250,13 +257,19 @@ def _plot_cluster_counts(reports, ax):
     # Extract number of clusters
     models = []
     num_clusters = []
-    colors = []
 
     for model_name, report in reports.items():
         if "basic_metrics" in report and "num_clusters" in report["basic_metrics"]:
             models.append(model_name)
             num_clusters.append(report["basic_metrics"]["num_clusters"])
-            colors.append(MODEL_COLORS.get(model_name, "gray"))
+
+    if not models:
+        ax.text(0.5, 0.5, "No cluster count data available", ha="center", va="center")
+        return
+
+    # Generate colors for models
+    model_colors = get_model_colors(models)
+    colors = [model_colors[model] for model in models]
 
     # Create bar chart
     ax.bar(models, num_clusters, color=colors)
@@ -279,6 +292,9 @@ def _plot_powerlaw_fit(reports, ax):
     """
     try:
         import powerlaw  # type: ignore
+
+        # Generate colors for models
+        model_colors = get_model_colors(list(reports.keys()))
 
         # Examples of powerlaw_params:
         #
@@ -310,7 +326,7 @@ def _plot_powerlaw_fit(reports, ax):
                 continue
 
             # Get color for this model
-            color = MODEL_COLORS.get(model_name, "gray")
+            color = model_colors.get(model_name)
 
             # Get power-law status
             is_powerlaw = report["powerlaw_params"].get("is_powerlaw", False)
@@ -356,6 +372,11 @@ def _plot_outliers(reports, ax):
         reports: Dictionary mapping model names to their evaluation reports
         ax: Matplotlib axes object to plot on
     """
+    # Generate colors for models
+    model_colors = get_model_colors(list(reports.keys()))
+
+    has_outlier_data = False
+
     for model_name, report in reports.items():
         if "outliers" not in report or not report["outliers"]:
             continue
@@ -365,9 +386,15 @@ def _plot_outliers(reports, ax):
         if not outlier_scores:
             continue
 
-        # Plot histogram of outlier scores
-        color = MODEL_COLORS.get(model_name, "gray")
-        ax.hist(outlier_scores, bins=20, alpha=0.7, color=color, label=model_name)
+        has_outlier_data = True
+
+        # Plot histogram of outlier scores with full opacity
+        color = model_colors.get(model_name)
+        ax.hist(outlier_scores, bins=20, alpha=1.0, color=color, label=model_name)
+
+    if not has_outlier_data:
+        ax.text(0.5, 0.5, "No outlier data available", ha="center", va="center")
+        return
 
     ax.set_title("Outlier Score Distribution")
     ax.set_xlabel("Outlier Score")
@@ -379,6 +406,7 @@ def visualize_evaluation_dashboard(
     reports: Dict[str, Dict[str, Any]],
     output_dir: str,
     filename: str = "evaluation_dashboard.png",
+    show_plot: bool = False,
 ) -> str:
     """
     Generate a comprehensive dashboard visualization of evaluation metrics.
@@ -395,10 +423,13 @@ def visualize_evaluation_dashboard(
         reports: Dictionary mapping model names to their evaluation reports
         output_dir: Directory to save the visualization
         filename: Name of the output file
+        show_plot: Whether to display the plot interactively
 
     Returns:
         Path to the saved visualization file
     """
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, filename)
 
     # Create figure with 3x2 grid
@@ -423,8 +454,15 @@ def visualize_evaluation_dashboard(
     _plot_cluster_counts(reports, axes[2, 1])
 
     plt.tight_layout()
+
+    # Save the figure
     plt.savefig(output_path)
-    plt.close()
+
+    # Show the plot if requested
+    if show_plot:
+        plt.show()
+    else:
+        plt.close()
 
     logger.info(f"Evaluation dashboard saved to {output_path}")
     return output_path
