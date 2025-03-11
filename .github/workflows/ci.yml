@@ -24,15 +24,17 @@ jobs:
     timeout-minutes: 30
 
     strategy:
-        # When set to true, GitHub cancels
-        # all in-progress jobs if any matrix job fails.
-        fail-fast: false
+      # When set to true, GitHub cancels
+      # all in-progress jobs if any matrix job fails.
+      fail-fast: false
 
-        matrix:
-          python:
-            - '3.12'
-          os:
-            - ubuntu-latest
+      matrix:
+        python:
+          - '3.11'
+          - '3.12'
+          - '3.13'
+        os:
+          - ubuntu-latest
 
     defaults:
       run:
