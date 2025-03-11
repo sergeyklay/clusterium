@@ -7,7 +7,7 @@ metrics.
 
 import os
 from collections import Counter
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,81 +17,7 @@ from qadst.logging import get_logger
 logger = get_logger(__name__)
 
 # Global color scheme for consistent visualization
-MODEL_COLORS = {"DirichletProcess": "blue", "PitmanYorProcess": "orange"}
-
-
-def plot_cluster_distribution(
-    cluster_assignments: List[int],
-    title: str,
-    color: str,
-    log_scale: bool = False,
-    ax=None,
-) -> None:
-    """
-    Plot the distribution of cluster sizes.
-
-    Args:
-        cluster_assignments: List of cluster assignments
-        title: Title for the plot
-        color: Color for the bars
-        log_scale: Whether to use log-log scale for the plot
-        ax: Matplotlib axes object to plot on (if None, uses current axes)
-    """
-    # Use provided axes or get current axes
-    if ax is None:
-        ax = plt.gca()
-
-    if log_scale:
-        # For log-log plot, we count how many clusters have each size
-        cluster_counts = Counter(cluster_assignments)
-
-        # Count frequency of each cluster size
-        size_frequency = Counter(cluster_counts.values())
-
-        # Convert to lists for plotting
-        sizes = sorted(size_frequency.keys())  # Unique cluster sizes
-        frequencies = [
-            size_frequency[size] for size in sizes
-        ]  # Number of clusters with each size
-
-        # Filter out zeros for log scale
-        valid_indices = [
-            i for i, freq in enumerate(frequencies) if freq > 0 and sizes[i] > 0
-        ]
-        valid_sizes = [sizes[i] for i in valid_indices]
-        valid_frequencies = [frequencies[i] for i in valid_indices]
-
-        # Use loglog for proper log-log plotting
-        ax.loglog(
-            valid_sizes,
-            valid_frequencies,
-            marker="o",
-            linestyle="-",
-            color=color,
-            alpha=0.8,
-        )
-        title += " (Log-Log Scale)"
-
-        # Set appropriate labels for this distribution view
-        ax.set_xlabel("Cluster Size (number of items, log scale)")
-        ax.set_ylabel("Number of Clusters of Size X (log scale)")
-    else:
-        # For linear scale, keep the original rank-based visualization
-        cluster_counts = Counter(cluster_assignments)
-        sizes = sorted(cluster_counts.values(), reverse=True)
-        ranks = list(range(1, len(sizes) + 1))
-
-        # Use bar plot for linear scale
-        ax.bar(ranks, sizes, color=color, alpha=0.6)
-
-        # For linear plots, use standard labels
-        ax.set_xlabel("Cluster Rank (largest to smallest)")
-        ax.set_ylabel("Number of Items in Cluster")
-
-    ax.set_title(title)
-
-    # Add grid for better readability, especially in log scale
-    ax.grid(True, which="both", ls="-", alpha=0.2)
+MODEL_COLORS = {"Dirichlet": "blue", "Pitman-Yor": "orange"}
 
 
 def visualize_silhouette_score(
@@ -142,60 +68,6 @@ def visualize_silhouette_score(
     return output_path
 
 
-def plot_cluster_distributions(
-    dp_clusters: List[int],
-    pyp_clusters: List[int],
-    output_dir: str,
-    plot_type: str = "linear",
-) -> str:
-    """
-    Generate plots comparing cluster distributions for DP and PYP.
-
-    Args:
-        dp_clusters: List of cluster assignments from Dirichlet Process
-        pyp_clusters: List of cluster assignments from Pitman-Yor Process
-        output_dir: Directory to save the plots
-        plot_type: Type of plot to generate ("linear" or "log-log")
-
-    Returns:
-        Path to the saved plot file
-    """
-    log_scale = plot_type == "log-log"
-    filename = (
-        "cluster_distribution_log.png" if log_scale else "cluster_distribution.png"
-    )
-    output_path = os.path.join(output_dir, filename)
-
-    plt.figure(figsize=(12, 5))
-
-    # Plot DP clusters
-    plt.subplot(1, 2, 1)
-    plot_cluster_distribution(
-        dp_clusters,
-        "Dirichlet Process Cluster Sizes",
-        MODEL_COLORS["DirichletProcess"],
-        log_scale=log_scale,
-    )
-
-    # Plot PYP clusters
-    plt.subplot(1, 2, 2)
-    plot_cluster_distribution(
-        pyp_clusters,
-        "Pitman-Yor Process Cluster Sizes",
-        MODEL_COLORS["PitmanYorProcess"],
-        log_scale=log_scale,
-    )
-
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
-
-    log_msg = "Log-log scale " if log_scale else ""
-    logger.info(f"{log_msg}Cluster distribution plot saved to {output_path}")
-
-    return output_path
-
-
 def _plot_cluster_size_distribution(reports, ax):
     """
     Plot cluster size distributions for each model.
@@ -205,66 +77,75 @@ def _plot_cluster_size_distribution(reports, ax):
         ax: Matplotlib axes object to plot on
     """
     for model_name, report in reports.items():
-        sizes = _get_cluster_sizes(model_name, report)
-        if not sizes:
+        # Check if we have the required data
+        has_metrics = "basic_metrics" in report
+        has_dist_key = "cluster_size_distribution"
+        has_distribution = has_metrics and has_dist_key in report["basic_metrics"]
+
+        if not has_distribution:
+            logger.warning(f"Skipping {model_name}: No cluster size distribution data")
             continue
 
-        # Get color for this model
+        # Use pre-computed cluster size distribution from basic_metrics
+        cluster_size_dist = report["basic_metrics"][has_dist_key]
+
+        # Convert string keys to integers and create a Counter
+        size_frequency = Counter()
+        for cluster_id, size in cluster_size_dist.items():
+            size_frequency[size] += 1
+
+        # Convert to lists for plotting
+        sizes = sorted(size_frequency.keys())  # Unique cluster sizes
+        frequencies = [
+            size_frequency[size] for size in sizes
+        ]  # Number of clusters with each size
+
+        # Filter out zeros for log scale
+        valid_indices = [
+            i for i, freq in enumerate(frequencies) if freq > 0 and sizes[i] > 0
+        ]
+        valid_sizes = [sizes[i] for i in valid_indices]
+        valid_frequencies = [frequencies[i] for i in valid_indices]
+
         color = MODEL_COLORS.get(model_name, "gray")
+
+        # Examples of powerlaw_params:
+        #
+        #   {'alpha': 1.2941766512739343, 'xmin': 1.0, 'is_powerlaw': True}
+        #   {'alpha': 2.8547451299978364, 'xmin': 4.0, 'is_powerlaw': True}
+        #
+        powerlaw_params = report.get("powerlaw_params", {})
+
+        alpha = powerlaw_params.get("alpha", None)
+        alpha_str = f"α={alpha:.2f}," if alpha is not None else ""
+
+        is_powerlaw = powerlaw_params.get("is_powerlaw", False)
+        status = " follows power-law" if is_powerlaw else " non power-law"
+
+        label_details = f"{alpha_str}{status}".strip(", ")
+        label = f"{model_name} ({label_details})"
 
         # Plot rank vs size
         ax.loglog(
-            range(1, len(sizes) + 1),
-            sizes,
+            valid_sizes,
+            valid_frequencies,
             marker="o",
-            linestyle="-",
-            label=model_name,
+            linestyle="--",
+            label=label,
             color=color,
             alpha=0.7,
         )
 
     ax.set_title("Cluster Size Distribution (Log-Log Scale)")
-    ax.set_xlabel("Cluster Rank (log scale)")
-    ax.set_ylabel("Cluster Size (log scale)")
+    ax.set_xlabel("Cluster Size")
+    ax.set_ylabel("Number of Clusters")
     ax.grid(True, which="both", ls="-", alpha=0.2)
     ax.legend()
 
 
-def _get_cluster_sizes(model_name, report):
-    """
-    Extract cluster sizes from a report.
-
-    Args:
-        model_name: Name of the model
-        report: Evaluation report dictionary
-
-    Returns:
-        List of cluster sizes sorted in descending order, or None if not available
-    """
-    if "cluster_assignments" in report and report["cluster_assignments"]:
-        # If we have the raw assignments
-        cluster_counts = Counter(report["cluster_assignments"])
-        return sorted(cluster_counts.values(), reverse=True)
-    elif (
-        "basic_metrics" in report
-        and "cluster_size_distribution" in report["basic_metrics"]
-    ):
-        # If we have pre-computed distribution
-        cluster_dist = report["basic_metrics"]["cluster_size_distribution"]
-        # Handle both dict and Counter objects
-        if isinstance(cluster_dist, dict):
-            return sorted(cluster_dist.values(), reverse=True)
-        else:
-            return sorted(list(cluster_dist.values()), reverse=True)
-    else:
-        # If we only have the number of clusters
-        logger.warning(f"No cluster size distribution data for {model_name}")
-        return None
-
-
 def _plot_silhouette_scores(reports, ax):
     """
-    Plot silhouette scores comparison.
+    Plot silhouette scores for each model.
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
@@ -399,13 +280,32 @@ def _plot_powerlaw_fit(reports, ax):
     try:
         import powerlaw  # type: ignore
 
+        # Examples of powerlaw_params:
+        #
+        #   {'alpha': 1.2941766512739343, 'xmin': 1.0, 'is_powerlaw': True}
+        #   {'alpha': 2.8547451299978364, 'xmin': 4.0, 'is_powerlaw': True}
+        #
         for model_name, report in reports.items():
             if "powerlaw_params" not in report or not report["powerlaw_params"].get(
                 "alpha"
             ):
                 continue
 
-            sizes = _get_cluster_sizes(model_name, report)
+            # Check if we have the required data
+            has_metrics = "basic_metrics" in report
+            has_dist_key = "cluster_size_distribution"
+            has_distribution = has_metrics and has_dist_key in report["basic_metrics"]
+
+            if not has_distribution:
+                logger.warning(
+                    f"Skipping {model_name}: No cluster size distribution data"
+                )
+                continue
+
+            # Get cluster sizes from the distribution
+            cluster_dist = report["basic_metrics"]["cluster_size_distribution"]
+            sizes = list(cluster_dist.values())
+
             if not sizes:
                 continue
 

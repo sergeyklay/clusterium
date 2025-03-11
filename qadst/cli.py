@@ -258,21 +258,20 @@ def evaluate(
         # Evaluate DP clusters
         logger.info("Evaluating Dirichlet Process clustering...")
         dp_evaluator = ClusterEvaluator(
-            texts, embeddings, dp_cluster_assignments, "DirichletProcess"
+            texts, embeddings, dp_cluster_assignments, "Dirichlet"
         )
         dp_report = dp_evaluator.generate_report()
 
         # Evaluate PYP clusters
         logger.info("Evaluating Pitman-Yor Process clustering...")
         pyp_evaluator = ClusterEvaluator(
-            texts, embeddings, pyp_cluster_assignments, "PitmanYorProcess"
+            texts, embeddings, pyp_cluster_assignments, "Pitman-Yor"
         )
         pyp_report = pyp_evaluator.generate_report()
 
-        # Save reports
         reports = {
-            "DirichletProcess": dp_report,
-            "PitmanYorProcess": pyp_report,
+            "Dirichlet": dp_report,
+            "Pitman-Yor": pyp_report,
         }
 
         save_evaluation_report(reports, output_dir)
