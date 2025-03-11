@@ -74,17 +74,17 @@ qadst cluster --input your_data.csv --alpha 0.5 --sigma 0.3
 
 #### Generating Visualizations
 
-Generate plots showing the distribution of cluster sizes:
+Visualizations are generated using the `evaluate` command, not the `cluster` command:
 
 ```bash
-# Generate linear scale plots
-qadst cluster --input your_data.csv --plot linear
+# Generate evaluation dashboard with visualizations (default)
+qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv
 
-# Generate log-log scale plots
-qadst cluster --input your_data.csv --plot log-log
+# Skip visualization generation
+qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --no-plot
 ```
 
-These commands will save the plots as `cluster_distribution.png` and `cluster_distribution_log.png` in the output directory.
+The evaluation dashboard includes visualizations of cluster size distributions, silhouette scores, similarity metrics, and power-law fits. These visualizations are saved as `evaluation_dashboard.png` in the output directory.
 
 #### Specifying Output Directory
 
@@ -158,7 +158,7 @@ You can evaluate the quality of your clusters using the evaluation module:
 
 ```python
 from qadst.evaluation import ClusterEvaluator, save_evaluation_report
-from qadst.visualization import visualize_silhouette_score, visualize_evaluation_dashboard
+from qadst.visualization import visualize_evaluation_dashboard
 import numpy as np
 
 # Get embeddings for evaluation
@@ -186,9 +186,8 @@ reports = {
 }
 save_evaluation_report(reports, "output")
 
-# Generate visualizations
-visualize_silhouette_score(reports, "output")
-visualize_evaluation_dashboard(reports, "output")
+# Generate visualization dashboard
+visualize_evaluation_dashboard(reports, "output", show_plot=True)
 ```
 
 ### Customizing the Clustering Process
@@ -219,15 +218,13 @@ The tool generates several output files:
 - `*_dp.json`: JSON file with Dirichlet Process clustering results
 - `*_pyp.json`: JSON file with Pitman-Yor Process clustering results
 - `qa_clusters.json`: Combined JSON file with clustering results
-- `*_clusters.png`: Visualization of cluster size distributions (if `--plot` is specified)
 
 ### Evaluation Output Files
 
 When using the `evaluate` command, the following files are generated:
 
 - `evaluation_report.json`: JSON file containing evaluation metrics for both clustering methods
-- `silhouette_comparison.png`: Visualization comparing silhouette scores of both methods (with `--plot silhouette`)
-- `evaluation_dashboard.png`: Comprehensive dashboard visualization with multiple metrics (with `--plot dashboard`)
+- `evaluation_dashboard.png`: Comprehensive dashboard visualization with multiple metrics (when using `--plot`)
 
 ### JSON Output Format
 
@@ -263,6 +260,150 @@ Each cluster has:
 - A unique ID
 - A representative question-answer pair (typically the first item in the cluster)
 - A list of source question-answer pairs that belong to the cluster
+
+## Understanding Parameters and Output Files
+
+### Key Parameters
+
+The tool uses several important parameters that appear in different contexts:
+
+1. **Clustering Parameters** (inputs to the clustering algorithms):
+   - **alpha**: Concentration parameter that controls how likely the algorithm is to create new clusters. Higher values lead to more clusters.
+     - Range: Typically 0.1 to 10.0
+     - Default: 1.0
+   - **sigma**: Discount parameter used only in the Pitman-Yor Process. Controls the power-law behavior of the cluster sizes.
+     - Range: 0.0 to 0.9 (must be less than 1)
+     - Default: 0.5
+     - Note: When sigma=0, Pitman-Yor reduces to Dirichlet Process
+
+2. **Power Law Parameters** (detected in the evaluation results):
+   - **alpha**: Power law exponent that describes how quickly the probability of finding larger clusters decreases.
+     - Typical values in natural phenomena: 2.0 to 3.0
+     - Note: This is different from the clustering alpha parameter
+   - **sigma_error**: Standard error of the power law alpha estimate, representing the uncertainty in the estimate.
+
+### Example Output Files
+
+#### Example CSV Output (`clusters_output_dp.csv`):
+
+```csv
+Text,Cluster_DP,Alpha,Sigma
+"What is the capital of France?",0,1.0,0.0
+"What city is the capital of France?",0,1.0,0.0
+"How tall is the Eiffel Tower?",1,1.0,0.0
+"What is the height of the Eiffel Tower?",1,1.0,0.0
+"Who was the first president of the United States?",2,1.0,0.0
+```
+
+#### Example JSON Output (`clusters_output_dp.json`):
+
+```json
+{
+  "clusters": [
+    {
+      "id": 1,
+      "representative": [
+        {
+          "question": "What is the capital of France?",
+          "answer": "Paris is the capital of France."
+        }
+      ],
+      "source": [
+        {
+          "question": "What is the capital of France?",
+          "answer": "Paris is the capital of France."
+        },
+        {
+          "question": "What city is the capital of France?",
+          "answer": "Paris is the capital city of France."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "representative": [
+        {
+          "question": "How tall is the Eiffel Tower?",
+          "answer": "The Eiffel Tower is 330 meters tall."
+        }
+      ],
+      "source": [
+        {
+          "question": "How tall is the Eiffel Tower?",
+          "answer": "The Eiffel Tower is 330 meters tall."
+        },
+        {
+          "question": "What is the height of the Eiffel Tower?",
+          "answer": "The Eiffel Tower stands at a height of 330 meters."
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "model_name": "DP",
+    "alpha": 1.0,
+    "sigma": 0.0
+  }
+}
+```
+
+#### Example Evaluation Report (excerpt from `evaluation_report.json`):
+
+```json
+{
+  "Dirichlet": {
+    "basic_metrics": {
+      "model_name": "Dirichlet",
+      "num_texts": 500,
+      "num_clusters": 42,
+      "alpha": 1.0,
+      "sigma": 0.0
+    },
+    "silhouette_score": 0.32,
+    "powerlaw_params": {
+      "alpha": 2.45,
+      "sigma_error": 0.18,
+      "xmin": 1.0,
+      "is_powerlaw": true
+    }
+  },
+  "Pitman-Yor": {
+    "basic_metrics": {
+      "model_name": "Pitman-Yor",
+      "num_texts": 500,
+      "num_clusters": 38,
+      "alpha": 1.0,
+      "sigma": 0.5
+    },
+    "silhouette_score": 0.38,
+    "powerlaw_params": {
+      "alpha": 2.21,
+      "sigma_error": 0.15,
+      "xmin": 1.0,
+      "is_powerlaw": true
+    }
+  }
+}
+```
+
+### Interpreting the Parameters
+
+- **Clustering alpha**: Higher values (e.g., 5.0) create more clusters, while lower values (e.g., 0.1) create fewer, larger clusters.
+- **Sigma**: When sigma=0, the Pitman-Yor Process behaves like the Dirichlet Process. As sigma increases toward 1, the cluster size distribution becomes more power-law-like.
+- **Power law alpha**: Values around 2.0 indicate a strong power-law behavior in the cluster sizes. The higher this value, the more rapidly the frequency of large clusters decreases.
+- **sigma_error**: Smaller values indicate more confidence in the power law alpha estimate.
+
+### Choosing Optimal Parameters
+
+The best parameters depend on your specific dataset and clustering goals:
+
+1. Start with the defaults (alpha=1.0, sigma=0.5)
+2. If you want more clusters, increase alpha
+3. If you want fewer clusters, decrease alpha
+4. To get a more power-law-like distribution, increase sigma (for PYP only)
+5. Evaluate the results using the evaluation metrics, especially silhouette score
+
+The evaluation dashboard will help you compare different parameter settings and choose the optimal configuration for your dataset.
 
 ## Performance Considerations
 
