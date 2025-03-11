@@ -4,15 +4,25 @@ build-backend = "poetry_dynamic_versioning.backend"
 
 [project]
 name = "qadst"
-description = "QA Dataset Toolkit for clustering and benchmarking"
+description = "Tool for clustering, analyzing, and benchmarking text data with advanced embeddings and statistical validation."
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/sergeyklay/qa-dataset-clustering"
-homepage = "https://github.com/sergeyklay/qa-dataset-clustering"
-documentation = "https://github.com/sergeyklay/qa-dataset-clustering"
 requires-python = ">=3.10, <4"
 authors = [{ name = "Serghei Iakovlev", email = "oss@serghei.pl" }]
 dynamic = ["dependencies", "version"]
+
+[project.urls]
+homepage = "https://github.com/sergeyklay/clusterium"
+repository = "https://github.com/sergeyklay/clusterium"
+documentation = "https://github.com/sergeyklay/clusterium"
+"Bug Tracker" = "https://github.com/sergeyklay/clusterium/issues"
+
+[project.scripts]
+qadst = "qadst.cli:main"
+
+[tool.poetry]
+requires-poetry = ">=2.0"
+packages = [{ include = "qadst" }]
 include = [
     { path = "tests", format = "sdist" },
     "INSTALL.md",
@@ -20,17 +30,7 @@ include = [
     "README.md",
     "USAGE.md",
 ]
-
-[tool.poetry]
-requires-poetry = ">=2.0"
-packages = [{ include = "qadst" }]
-version = "0.2.0"
-
-[tool.poetry.urls]
-"Bug Tracker" = "https://github.com/sergeyklay/qa-dataset-clustering/issues"
-
-[tool.poetry.scripts]
-qadst = "qadst.cli:main"
+version = "0.3.0"
 
 [tool.poetry.dependencies]
 click = "^8.1.8"
