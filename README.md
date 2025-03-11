@@ -9,10 +9,8 @@ A toolkit for clustering, analyzing, and benchmarking question-answer datasets u
 
 - **Dirichlet Process Clustering**: Implements the Dirichlet Process for text clustering
 - **Pitman-Yor Process Clustering**: Implements the Pitman-Yor Process for text clustering with improved performance
-- **Embedding Caching**: Efficiently caches text embeddings to speed up repeated runs
-- **CSV and JSON Output**: Saves clustering results in both CSV and JSON formats
+- **Evaluation**: Evaluates clustering results using a variety of metrics, including Silhouette Score, Davies-Bouldin Index, and Power-law Analysis
 - **Visualization**: Generates plots of cluster size distributions
-- **Power-law Analysis**: Validates if cluster distributions follow power-law using Clauset's method
 
 ## Installation
 
@@ -33,11 +31,15 @@ For detailed usage instructions, use cases, examples, and advanced configuration
 ### Quick Start
 
 ```bash
-# Basic usage
+# Run clustering
 qadst --input your_data.csv --output clusters.csv
 
-# Generate visualizations
-qadst evaluate --input input.csv --dp-clusters output_dp.csv --pyp-clusters _output_pyp.csv --plot
+# Evaluate clustering results and generate visualizations
+qadst evaluate \
+  --input input.csv \
+  --dp-clusters output_dp.csv \
+  --pyp-clusters output_pyp.csv \
+  --plot
 ```
 
 ### Python API Example

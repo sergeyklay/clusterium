@@ -18,14 +18,15 @@ Before installing qadst, ensure you have the following prerequisites:
    cd qa-dataset-clustering
    ```
 
-2. Install dependencies using Poetry:
+2. Create and activate the virtual environment:
    ```bash
-   poetry install
+   python -m venv .venv
+   source .venv/bin/activate
    ```
 
-3. Activate the virtual environment:
+3. Install dependencies using Poetry:
    ```bash
-   poetry shell
+   poetry install
    ```
 
 ## Verifying Installation
@@ -62,7 +63,7 @@ These dependencies will be automatically installed by Poetry.
 If you encounter any issues during installation:
 
 1. Ensure you have the correct Python version (3.10+)
-2. Make sure Poetry is properly installed
+2. Make sure Poetry is [properly installed](https://python-poetry.org/docs/#installing-with-the-official-installer)
 3. Check for any error messages during the installation process
 
 For more detailed help, please open an issue on the [GitHub repository](https://github.com/sergeyklay/qa-dataset-clustering/issues).
