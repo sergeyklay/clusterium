@@ -1,4 +1,12 @@
-"""QA Dataset Clustering Toolkit."""
+"""The top-level module for clusx.
+
+This module tracks the version of the package as the base
+package info used by various functions within the package.
+
+Refer to the `documentation <https://clusterium.readthedocs.io/>`_ for
+details on the use of this package.
+
+"""
 
 from .version import (
     __author__,

@@ -9,7 +9,6 @@ __pycache__
 /junit.xml
 
 # Project specific
-/dist
 /output
 /.cache
 
@@ -19,3 +18,6 @@ __pycache__
 
 # Distribution / packaging
 /dist
+
+# Documentation
+/docs/build

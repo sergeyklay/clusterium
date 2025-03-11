@@ -66,4 +66,4 @@ If you encounter any issues during installation:
 2. Make sure Poetry is [properly installed](https://python-poetry.org/docs/#installing-with-the-official-installer)
 3. Check for any error messages during the installation process
 
-For more detailed help, please open an issue on the [GitHub repository](https://github.com/sergeyklay/qa-dataset-clustering/issues).
+For more detailed help, please open an issue on the [GitHub repository](https://github.com/sergeyklay/clusterium/issues).

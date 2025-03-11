@@ -7,7 +7,7 @@ name = "clusx"
 description = "Tool for clustering, analyzing, and benchmarking text data with advanced embeddings and statistical validation."
 license = "MIT"
 readme = "README.md"
-requires-python = ">=3.10, <4"
+requires-python = ">=3.11,<4"
 authors = [{ name = "Serghei Iakovlev", email = "oss@serghei.pl" }]
 dynamic = ["dependencies", "version"]
 
@@ -54,6 +54,10 @@ pre-commit = "^4.1.0"
 [tool.poetry.group.testing.dependencies]
 coverage = { version = "^7.6.12", extras = ["toml"] }
 pytest = "^8.3.5"
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^8.2.3"
+sphinx-rtd-theme = "^3.0.2"
 
 [tool.poetry.requires-plugins]
 poetry-dynamic-versioning = { version = ">=1.0.0,<2.0.0", extras = ["plugin"] }
