@@ -119,33 +119,12 @@ def _plot_silhouette_scores(reports, ax):
         reports: Dictionary mapping model names to their evaluation reports
         ax: Matplotlib axes object to plot on
     """
-    models = []
-    scores = []
-    error_models = []
+    # Extract data from reports
+    models, scores, error_models, zero_score_models = _extract_silhouette_data(reports)
 
-    for model_name, report in reports.items():
-        if "silhouette_score" in report:
-            score = report["silhouette_score"]
-            if score != -1:  # Check for special error value
-                models.append(model_name)
-                scores.append(score)
-            else:
-                error_models.append(model_name)
-
-    if not models and not error_models:
-        ax.text(
-            0.5,
-            0.5,
-            "No silhouette scores available",
-            ha="center",
-            va="center",
-            fontsize=12,
-        )
-        return
-    elif not models and error_models:
-        message = "Silhouette scores could not be calculated\n"
-        message += "Reason: Some clusters have fewer than 2 samples"
-        ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=12)
+    # Handle case where no valid scores are available
+    if not models:
+        _show_silhouette_message(ax, error_models, zero_score_models)
         return
 
     # Generate colors for models
@@ -163,19 +142,87 @@ def _plot_silhouette_scores(reports, ax):
     for i, score in enumerate(scores):
         ax.text(i, score + 0.05, f"{score:.4f}", ha="center")
 
-    # If some models had errors, add a note
-    if error_models:
-        note = "Note: Scores not available for: " + ", ".join(error_models)
-        note += "\nReason: Clusters with <2 samples"
+    # If some models had errors or zero scores, add a note
+    if error_models or zero_score_models:
+        _add_silhouette_note(ax, error_models, zero_score_models)
+
+
+def _extract_silhouette_data(reports):
+    """Extract and categorize silhouette scores from reports."""
+    models = []
+    scores = []
+    error_models = []
+    zero_score_models = []
+
+    for model_name, report in reports.items():
+        if "silhouette_score" in report:
+            score = report["silhouette_score"]
+            if score == 0.0:
+                # A score of exactly 0.0 often indicates calculation issues
+                zero_score_models.append(model_name)
+            elif score != -1:  # Check for special error value
+                models.append(model_name)
+                scores.append(score)
+            else:
+                error_models.append(model_name)
+
+    return models, scores, error_models, zero_score_models
+
+
+def _show_silhouette_message(ax, error_models, zero_score_models):
+    """Display appropriate message when no valid silhouette scores are available."""
+    if error_models or zero_score_models:
+        # Create a more informative message about why scores couldn't be calculated
+        message = "Silhouette scores could not be properly calculated\n"
+
+        if zero_score_models:
+            message += "Models with score=0: " + ", ".join(zero_score_models) + "\n"
+
+        if error_models:
+            message += "Models with errors: " + ", ".join(error_models) + "\n"
+
+        message += "Reason: Clusters with <2 samples or calculation issues"
+
         ax.text(
             0.5,
-            -0.15,
-            note,
+            0.5,
+            message,
             ha="center",
-            fontsize=9,
-            transform=ax.transAxes,
-            bbox={"facecolor": "lightgray", "alpha": 0.5, "pad": 5},
+            va="center",
+            fontsize=11,
+            wrap=True,
+            bbox={"facecolor": "lightyellow", "alpha": 0.5, "pad": 5},
         )
+    else:
+        ax.text(
+            0.5,
+            0.5,
+            "No silhouette scores available",
+            ha="center",
+            va="center",
+            fontsize=12,
+        )
+
+
+def _add_silhouette_note(ax, error_models, zero_score_models):
+    """Add a note about models with errors or zero scores."""
+    note_lines = []
+    if zero_score_models:
+        note_lines.append(f"Models with score=0: {', '.join(zero_score_models)}")
+    if error_models:
+        note_lines.append(f"Models with errors: {', '.join(error_models)}")
+    note_lines.append("Reason: Clusters with <2 samples or calculation issues")
+
+    note = "\n".join(note_lines)
+    ax.text(
+        0.5,
+        -0.15,
+        note,
+        ha="center",
+        fontsize=9,
+        transform=ax.transAxes,
+        bbox={"facecolor": "lightyellow", "alpha": 0.5, "pad": 5},
+    )
 
 
 def _plot_similarity_metrics(reports, ax):
