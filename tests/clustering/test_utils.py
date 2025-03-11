@@ -69,10 +69,12 @@ def test_save_clusters_to_csv(tmp_path, sample_texts, sample_clusters):
         header = next(reader)
         rows = list(reader)
 
-    assert header == ["Text", "Cluster_DP"]
+    assert header == ["Text", "Cluster_DP", "Alpha", "Sigma"]
     assert len(rows) == 3
     assert rows[0][0] == "What is Python?"
     assert rows[0][1] == "0"
+    assert rows[0][2] == "1.0"  # Default alpha value
+    assert rows[0][3] == "0.0"  # Default sigma value
     assert rows[1][0] == "What is TensorFlow?"
     assert rows[1][1] == "1"
     assert rows[2][0] == "What is PyTorch?"
@@ -178,21 +180,28 @@ def test_get_embeddings(mock_dp_class):
 
 def test_load_cluster_assignments(cluster_assignments_csv):
     """Test basic functionality of load_cluster_assignments."""
-    clusters = load_cluster_assignments(str(cluster_assignments_csv))
+    clusters, params = load_cluster_assignments(str(cluster_assignments_csv))
 
     assert len(clusters) == 3
     assert clusters == [0, 1, 1]
+    assert isinstance(params, dict)
+    assert "alpha" in params
+    assert "sigma" in params
+    assert params["alpha"] == 1.0  # Default value
+    assert params["sigma"] == 0.0  # Default value
 
 
 def test_load_cluster_assignments_custom_column(cluster_assignments_custom_column_csv):
     """Test load_cluster_assignments with a custom cluster column name."""
-    # This test might need to be adjusted based on the actual implementation
-    # If the function doesn't support custom column names, this test should
-    # be removed
-    clusters = load_cluster_assignments(str(cluster_assignments_custom_column_csv))
+    clusters, params = load_cluster_assignments(
+        str(cluster_assignments_custom_column_csv)
+    )
 
     assert len(clusters) == 3
     assert clusters == [0, 1, 1]
+    assert isinstance(params, dict)
+    assert "alpha" in params
+    assert "sigma" in params
 
 
 def test_load_cluster_assignments_no_cluster_column(
