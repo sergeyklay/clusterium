@@ -4,6 +4,8 @@ Utility functions for data loading, saving, and visualization.
 
 import csv
 import json
+import os
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -43,7 +45,12 @@ def load_data_from_csv(
 
 
 def save_clusters_to_csv(
-    output_file: str, texts: List[str], clusters: List[int], model_name: str
+    output_file: str,
+    texts: List[str],
+    clusters: List[int],
+    model_name: str,
+    alpha: float = 1.0,
+    sigma: float = 0.0,
 ) -> None:
     """
     Save clustering results to a CSV file.
@@ -53,12 +60,15 @@ def save_clusters_to_csv(
         texts: List of text strings
         clusters: List of cluster assignments
         model_name: Name of the clustering model
+        alpha: Concentration parameter (default: 1.0)
+        sigma: Discount parameter (default: 0.0)
     """
     with open(output_file, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Text", f"Cluster_{model_name}"])
+        # Add alpha and sigma as metadata in the header
+        writer.writerow(["Text", f"Cluster_{model_name}", "Alpha", "Sigma"])
         for text, cluster in zip(texts, clusters):
-            writer.writerow([text, cluster])
+            writer.writerow([text, cluster, alpha, sigma])
     logger.info(f"Clustering results saved to {output_file}")
 
 
@@ -69,6 +79,8 @@ def save_clusters_to_json(
     model_name: str,
     data: Optional[List[Dict[str, Any]]] = None,
     answer_column: str = "answer",
+    alpha: float = 1.0,
+    sigma: float = 0.0,
 ) -> None:
     """
     Save clustering results to a JSON file.
@@ -80,6 +92,8 @@ def save_clusters_to_json(
         model_name: Name of the clustering model
         data: List of data rows containing answers (optional)
         answer_column: Column name containing the answers (default: "answer")
+        alpha: Concentration parameter (default: 1.0)
+        sigma: Discount parameter (default: 0.0)
     """
     cluster_groups = {}
     data_map = {}
@@ -96,7 +110,10 @@ def save_clusters_to_json(
             cluster_groups[cluster_id] = []
         cluster_groups[cluster_id].append(text)
 
-    clusters_json = {"clusters": []}
+    clusters_json = {
+        "clusters": [],
+        "metadata": {"model_name": model_name, "alpha": alpha, "sigma": sigma},
+    }
 
     for i, (cluster_id, cluster_texts) in enumerate(cluster_groups.items()):
         representative_text = cluster_texts[0]
@@ -169,15 +186,17 @@ def get_embeddings(texts: List[str], cache_provider) -> np.ndarray:
     return np.array(embeddings)
 
 
-def load_cluster_assignments(csv_path: str) -> List[int]:
+def load_cluster_assignments(csv_path: str) -> Tuple[List[int], Dict[str, float]]:
     """
-    Load cluster assignments from a CSV file.
+    Load cluster assignments and parameters from a CSV file.
 
     Args:
         csv_path: Path to the CSV file containing cluster assignments
 
     Returns:
-        List of cluster assignments
+        Tuple containing:
+            - List of cluster assignments
+            - Dictionary of parameters (alpha, sigma)
 
     Raises:
         ValueError: If no cluster column is found in the CSV file
@@ -191,12 +210,61 @@ def load_cluster_assignments(csv_path: str) -> List[int]:
             cluster_column = col
             break
 
-    if cluster_column is None:
-        logger.error(f"No cluster column found in {csv_path}")
-        logger.info(f"Available columns: {', '.join(df.columns)}")
+    if not cluster_column:
         raise ValueError(f"No cluster column found in {csv_path}")
 
+    # Extract cluster assignments
     cluster_assignments = df[cluster_column].tolist()
-    logger.info(f"Found {len(set(cluster_assignments))} clusters in {csv_path}")
 
-    return cluster_assignments
+    # Extract parameters from file content if available
+    params = {"alpha": 1.0, "sigma": 0.0}  # Default values
+
+    # Check if Alpha and Sigma columns exist in the CSV
+    if "Alpha" in df.columns and "Sigma" in df.columns:
+        # Use the first row's values (all rows should have the same values)
+        params["alpha"] = float(df["Alpha"].iloc[0])
+        params["sigma"] = float(df["Sigma"].iloc[0])
+    else:
+        # Fallback to extracting from filename if columns don't exist
+        # (for backward compatibility)
+        filename = os.path.basename(csv_path)
+
+        # Look for alpha in filename (e.g., alpha_1.0)
+        alpha_match = re.search(r"alpha[_-](\d+\.\d+)", filename)
+        if alpha_match:
+            params["alpha"] = float(alpha_match.group(1))
+
+        # Look for sigma in filename (e.g., sigma_0.5)
+        sigma_match = re.search(r"sigma[_-](\d+\.\d+)", filename)
+        if sigma_match:
+            params["sigma"] = float(sigma_match.group(1))
+
+    return cluster_assignments, params
+
+
+def load_parameters_from_json(json_path: str) -> Dict[str, float]:
+    """
+    Load clustering parameters from a JSON file.
+
+    Args:
+        json_path: Path to the JSON file containing clustering results
+
+    Returns:
+        Dictionary of parameters (alpha, sigma)
+    """
+    params = {"alpha": 1.0, "sigma": 0.0}  # Default values
+
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Check if metadata is available in the JSON
+        if "metadata" in data:
+            if "alpha" in data["metadata"]:
+                params["alpha"] = float(data["metadata"]["alpha"])
+            if "sigma" in data["metadata"]:
+                params["sigma"] = float(data["metadata"]["sigma"])
+    except Exception as e:
+        logger.warning(f"Error loading parameters from JSON: {e}")
+
+    return params

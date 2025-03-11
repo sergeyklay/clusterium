@@ -57,6 +57,16 @@ class ClusterEvaluator:
     This class provides methods to assess cluster quality using metrics like
     silhouette score, which measures how similar an object is to its own cluster
     compared to other clusters.
+
+    Note on parameters:
+    - alpha, sigma: Input parameters used in the clustering algorithms
+      (Dirichlet Process and Pitman-Yor Process)
+
+    - In detect_powerlaw_distribution():
+      - alpha: Output parameter representing the power law exponent
+      - sigma_error: Standard error of the power law alpha estimate
+
+    These parameters share names but represent different concepts.
     """
 
     def __init__(
@@ -65,6 +75,8 @@ class ClusterEvaluator:
         embeddings: np.ndarray,
         cluster_assignments: List[int],
         model_name: str,
+        alpha: float = 1.0,
+        sigma: float = 0.0,
     ):
         """
         Initialize the cluster evaluator.
@@ -74,12 +86,16 @@ class ClusterEvaluator:
             embeddings: Numpy array of embeddings for each text
             cluster_assignments: List of cluster IDs for each text
             model_name: Name of the clustering model (e.g., "DP", "PYP")
+            alpha: Concentration parameter (default: 1.0)
+            sigma: Discount parameter for Pitman-Yor Process (default: 0.0)
         """
         self.texts = texts
         self.embeddings = embeddings
         self.cluster_assignments = cluster_assignments
         self.model_name = model_name
-        self.unique_clusters = list(set(cluster_assignments))
+        self.alpha = alpha
+        self.sigma = sigma
+        self.unique_clusters = sorted(set(cluster_assignments))
 
         # Validate inputs
         if len(texts) != len(embeddings) or len(texts) != len(cluster_assignments):
@@ -210,7 +226,23 @@ class ClusterEvaluator:
             }
 
     def detect_powerlaw_distribution(self) -> Dict[str, Any]:
-        """Detect if cluster sizes follow a power-law distribution."""
+        """
+        Detect if cluster sizes follow a power-law distribution.
+
+        Note: The alpha parameter returned by this method is the power law exponent,
+        which is different from the alpha concentration parameter used in the
+        Dirichlet Process and Pitman-Yor Process clustering algorithms.
+
+        Similarly, the sigma_error parameter is the standard error of the power law
+        alpha estimate, not the sigma discount parameter used in Pitman-Yor Process.
+
+        Returns:
+            Dictionary containing:
+                - alpha: Power law exponent (not the clustering alpha parameter)
+                - sigma_error: Standard error of the alpha estimate
+                - xmin: Minimum x value for which the power law applies
+                - is_powerlaw: Boolean indicating if distribution follows a power law
+        """
         try:
             from collections import Counter
 
@@ -218,7 +250,7 @@ class ClusterEvaluator:
 
             sizes = list(Counter(self.cluster_assignments).values())
             if len(sizes) < 5:
-                return {"alpha": None, "is_powerlaw": False}
+                return {"alpha": None, "sigma_error": None, "is_powerlaw": False}
 
             fit = powerlaw.Fit(sizes, discrete=True)
             R, p = fit.distribution_compare(
@@ -230,11 +262,14 @@ class ClusterEvaluator:
 
             return {
                 "alpha": float(fit.alpha) if fit.alpha is not None else None,
+                "sigma_error": (
+                    float(fit.sigma) if hasattr(fit, "sigma") else None
+                ),  # Standard error of alpha
                 "xmin": float(fit.xmin) if fit.xmin is not None else None,
                 "is_powerlaw": is_powerlaw,
             }
         except Exception:
-            return {"alpha": None, "is_powerlaw": False}
+            return {"alpha": None, "sigma_error": None, "is_powerlaw": False}
 
     def find_outliers(self, n_neighbors: int = 5) -> Dict[str, float]:
         """
@@ -277,6 +312,13 @@ class ClusterEvaluator:
         """
         Generate a comprehensive evaluation report.
 
+        The report includes:
+        - basic_metrics: Contains clustering parameters (alpha, sigma) used as inputs
+          to the clustering algorithms
+        - powerlaw_params: Contains power law parameters (alpha, sigma_error) detected
+          in the cluster size distribution. Note that this alpha is different from
+          the clustering alpha parameter.
+
         Returns:
             Dictionary containing evaluation metrics
         """
@@ -294,6 +336,8 @@ class ClusterEvaluator:
                 "num_texts": len(self.texts),
                 "num_clusters": len(self.unique_clusters),
                 "cluster_size_distribution": cluster_size_distribution,
+                "alpha": self.alpha,
+                "sigma": self.sigma,
             },
             "silhouette_score": self.calculate_silhouette_score(),
             "similarity_metrics": self.calculate_similarity_metrics(),

@@ -36,8 +36,8 @@ For detailed usage instructions, use cases, examples, and advanced configuration
 # Basic usage
 qadst --input your_data.csv --output clusters.csv
 
-# Generate visualization
-qadst --input your_data.csv --plot
+# Generate visualizations
+qadst evaluate --input input.csv --dp-clusters output_dp.csv --pyp-clusters _output_pyp.csv --plot
 ```
 
 ### Python API Example

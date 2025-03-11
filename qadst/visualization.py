@@ -6,6 +6,7 @@ metrics.
 """
 
 import os
+import textwrap
 from collections import Counter
 from typing import Any, Dict
 
@@ -73,6 +74,13 @@ def _plot_cluster_size_distribution(reports, ax):
         # Use pre-computed cluster size distribution from basic_metrics
         cluster_size_dist = report["basic_metrics"][has_dist_key]
 
+        # Get clustering parameters
+        alpha = report["basic_metrics"].get("alpha", "N/A")
+        sigma = report["basic_metrics"].get("sigma", "N/A")
+
+        # Create label with model name and parameters
+        label = f"{model_name} (α={alpha}, σ={sigma})"
+
         # Convert string keys to integers and create a Counter
         size_frequency = Counter()
         for cluster_id, size in cluster_size_dist.items():
@@ -99,7 +107,7 @@ def _plot_cluster_size_distribution(reports, ax):
             valid_frequencies,
             marker="o",
             linestyle="--",
-            label=model_name,
+            label=label,
             color=color,
             alpha=0.7,
         )
@@ -303,11 +311,20 @@ def _plot_cluster_counts(reports, ax):
     """
     # Extract number of clusters
     models = []
+    model_labels = []
     num_clusters = []
 
     for model_name, report in reports.items():
         if "basic_metrics" in report and "num_clusters" in report["basic_metrics"]:
+            # Get clustering parameters
+            alpha = report["basic_metrics"].get("alpha", "N/A")
+            sigma = report["basic_metrics"].get("sigma", "N/A")
+
+            # Create label with model name and parameters
+            label = f"{model_name}\n(α={alpha}, σ={sigma})"
+
             models.append(model_name)
+            model_labels.append(label)
             num_clusters.append(report["basic_metrics"]["num_clusters"])
 
     if not models:
@@ -319,9 +336,10 @@ def _plot_cluster_counts(reports, ax):
     colors = [model_colors[model] for model in models]
 
     # Create bar chart
-    ax.bar(models, num_clusters, color=colors)
+    ax.bar(range(len(models)), num_clusters, color=colors)
+    ax.set_xticks(range(len(models)))
+    ax.set_xticklabels(model_labels)
     ax.set_title("Number of Clusters")
-    ax.set_xlabel("Clustering Model")
     ax.set_ylabel("Count")
 
     # Add value labels on top of bars
@@ -332,6 +350,14 @@ def _plot_cluster_counts(reports, ax):
 def _plot_powerlaw_fit(reports, ax):
     """
     Plot power-law fit for cluster size distributions.
+
+    Note: The alpha parameter displayed in this plot is the power law exponent,
+    which is different from the alpha concentration parameter used in the
+    Dirichlet Process and Pitman-Yor Process clustering algorithms.
+
+    Similarly, the sigma_error parameter (shown as ±) is the standard error of
+    the power law alpha estimate, not the sigma discount parameter used in
+    Pitman-Yor Process.
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
@@ -345,9 +371,12 @@ def _plot_powerlaw_fit(reports, ax):
 
         # Examples of powerlaw_params:
         #
-        #   {'alpha': 1.2941766512739343, 'xmin': 1.0, 'is_powerlaw': True}
-        #   {'alpha': 2.8547451299978364, 'xmin': 4.0, 'is_powerlaw': True}
+        #   {'alpha': 1.29, 'xmin': 1.0, 'is_powerlaw': True, 'sigma_error': 0.12}
+        #   {'alpha': 2.85, 'xmin': 4.0, 'is_powerlaw': True, 'sigma_error': 0.23}
         #
+        # Note: This 'alpha' is the power law exponent, not the clustering alpha.
+        # The 'sigma_error' is the standard error of this alpha estimate, not the
+        # sigma discount parameter used in Pitman-Yor.
         for model_name, report in reports.items():
             if "powerlaw_params" not in report or not report["powerlaw_params"].get(
                 "alpha"
@@ -375,9 +404,17 @@ def _plot_powerlaw_fit(reports, ax):
             # Get color for this model
             color = model_colors.get(model_name)
 
-            # Get power-law status
+            # Get power-law status and parameters
             is_powerlaw = report["powerlaw_params"].get("is_powerlaw", False)
             status = "follows power-law" if is_powerlaw else "non power-law"
+            alpha = report["powerlaw_params"].get("alpha")
+            sigma_error = report["powerlaw_params"].get("sigma_error")
+
+            # Create label with sigma_error if available
+            if sigma_error is not None:
+                param_label = f"α={alpha:.2f}±{sigma_error:.2f}"
+            else:
+                param_label = f"α={alpha:.2f}"
 
             fit = powerlaw.Fit(sizes, discrete=True)
 
@@ -389,7 +426,7 @@ def _plot_powerlaw_fit(reports, ax):
                 ax=ax,
                 color=color,
                 linestyle="--",
-                label=f"{model_name} (α={fit.alpha:.2f}, {status})",
+                label=f"{model_name} ({param_label}, {status})",
             )
 
         ax.set_title("Power-law Fit")
@@ -485,8 +522,8 @@ def visualize_evaluation_dashboard(
     # 1. Cluster size distribution (top-left)
     _plot_cluster_size_distribution(reports, axes[0, 0])
 
-    # 2. Silhouette score comparison (top-right)
-    _plot_silhouette_scores(reports, axes[0, 1])
+    # 2. Number of clusters (top-right)
+    _plot_cluster_counts(reports, axes[0, 1])
 
     # 3. Similarity metrics (middle-left)
     _plot_similarity_metrics(reports, axes[1, 0])
@@ -497,10 +534,44 @@ def visualize_evaluation_dashboard(
     # 5. Outlier distribution (bottom-left)
     _plot_outliers(reports, axes[2, 0])
 
-    # 6. Number of clusters (bottom-right)
-    _plot_cluster_counts(reports, axes[2, 1])
+    # 6. Silhouette score comparison (bottom-right)
+    _plot_silhouette_scores(reports, axes[2, 1])
 
     plt.tight_layout()
+
+    # Add a methodological note at the bottom of the figure
+    note = (
+        "Methodological note: α in clustering models (DP, PYP) represents the "
+        "concentration parameter controlling cluster formation propensity, while α "
+        "in power-law analysis denotes the scaling exponent of the cluster size "
+        "distribution. σ in PYP is the discount parameter governing power-law "
+        "behavior, whereas σ-error quantifies uncertainty in the power-law exponent "
+        "estimate."
+    )
+
+    # Manually wrap the text to ensure it fits within the figure width
+    wrapped_note = "\n".join(textwrap.wrap(note, width=100))
+
+    # Add some extra space at the bottom for the note
+    plt.subplots_adjust(bottom=0.08)
+
+    # Create text box with academic styling
+    fig.text(
+        0.05,
+        0.01,
+        wrapped_note,
+        ha="left",
+        va="bottom",
+        fontsize=9,
+        fontstyle="italic",
+        bbox=dict(
+            boxstyle="round",
+            facecolor="#f8f8f8",
+            edgecolor="#cccccc",
+            alpha=0.95,
+            pad=0.7,
+        ),
+    )
 
     # Save the figure
     plt.savefig(output_path)

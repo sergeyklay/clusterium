@@ -154,20 +154,36 @@ def cluster(
         pyp_output = os.path.join(
             output_dir, output_basename.replace(".csv", "_pyp.csv")
         )
-        save_clusters_to_csv(dp_output, texts, clusters_dp, "DP")
-        save_clusters_to_csv(pyp_output, texts, clusters_pyp, "PYP")
+        save_clusters_to_csv(
+            dp_output, texts, clusters_dp, "DP", alpha=alpha, sigma=0.0
+        )
+        save_clusters_to_csv(
+            pyp_output, texts, clusters_pyp, "PYP", alpha=alpha, sigma=sigma
+        )
 
         # Save JSON files
         dp_json = os.path.join(output_dir, output_basename.replace(".csv", "_dp.json"))
         pyp_json = os.path.join(
             output_dir, output_basename.replace(".csv", "_pyp.json")
         )
-        save_clusters_to_json(dp_json, texts, clusters_dp, "DP", data)
-        save_clusters_to_json(pyp_json, texts, clusters_pyp, "PYP", data)
+        save_clusters_to_json(
+            dp_json, texts, clusters_dp, "DP", data, alpha=alpha, sigma=0.0
+        )
+        save_clusters_to_json(
+            pyp_json, texts, clusters_pyp, "PYP", data, alpha=alpha, sigma=sigma
+        )
 
         # Save combined results
         qa_clusters_path = os.path.join(output_dir, "qa_clusters.json")
-        save_clusters_to_json(qa_clusters_path, texts, clusters_dp, "Combined", data)
+        save_clusters_to_json(
+            qa_clusters_path,
+            texts,
+            clusters_dp,
+            "Combined",
+            data,
+            alpha=alpha,
+            sigma=0.0,
+        )
         logger.info(f"Combined clusters saved to {qa_clusters_path}")
     except Exception as e:
         logger.exception(f"Error: {e}")
@@ -246,10 +262,10 @@ def evaluate(
 
         # Load cluster assignments
         logger.info(f"Loading DP cluster assignments from {dp_clusters}...")
-        dp_cluster_assignments = load_cluster_assignments(dp_clusters)
+        dp_cluster_assignments, dp_params = load_cluster_assignments(dp_clusters)
 
         logger.info(f"Loading PYP cluster assignments from {pyp_clusters}...")
-        pyp_cluster_assignments = load_cluster_assignments(pyp_clusters)
+        pyp_cluster_assignments, pyp_params = load_cluster_assignments(pyp_clusters)
 
         cache_provider = EmbeddingCache(cache_dir=cache_dir)
         embeddings = get_embeddings(texts, cache_provider)
@@ -257,14 +273,24 @@ def evaluate(
         # Evaluate DP clusters
         logger.info("Evaluating Dirichlet Process clustering...")
         dp_evaluator = ClusterEvaluator(
-            texts, embeddings, dp_cluster_assignments, "Dirichlet"
+            texts,
+            embeddings,
+            dp_cluster_assignments,
+            "Dirichlet",
+            alpha=dp_params["alpha"],
+            sigma=dp_params["sigma"],
         )
         dp_report = dp_evaluator.generate_report()
 
         # Evaluate PYP clusters
         logger.info("Evaluating Pitman-Yor Process clustering...")
         pyp_evaluator = ClusterEvaluator(
-            texts, embeddings, pyp_cluster_assignments, "Pitman-Yor"
+            texts,
+            embeddings,
+            pyp_cluster_assignments,
+            "Pitman-Yor",
+            alpha=pyp_params["alpha"],
+            sigma=pyp_params["sigma"],
         )
         pyp_report = pyp_evaluator.generate_report()
 
