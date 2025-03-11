@@ -61,6 +61,8 @@ class ClusterEvaluator:
     Note on parameters:
     - alpha, sigma: Input parameters used in the clustering algorithms
       (Dirichlet Process and Pitman-Yor Process)
+    - variance: Variance parameter for the likelihood model in clustering
+    - random_state: Random seed for reproducible evaluation
 
     - In detect_powerlaw_distribution():
       - alpha: Output parameter representing the power law exponent
@@ -77,6 +79,8 @@ class ClusterEvaluator:
         model_name: str,
         alpha: float = 1.0,
         sigma: float = 0.0,
+        variance: float = 0.1,
+        random_state: Union[int, None] = None,
     ):
         """
         Initialize the cluster evaluator.
@@ -88,6 +92,8 @@ class ClusterEvaluator:
             model_name: Name of the clustering model (e.g., "DP", "PYP")
             alpha: Concentration parameter (default: 1.0)
             sigma: Discount parameter for Pitman-Yor Process (default: 0.0)
+            variance: Variance parameter for likelihood model (default: 0.1)
+            random_state: Random seed for reproducible evaluation (default: None)
         """
         self.texts = texts
         self.embeddings = embeddings
@@ -95,7 +101,13 @@ class ClusterEvaluator:
         self.model_name = model_name
         self.alpha = alpha
         self.sigma = sigma
+        self.variance = variance
+        self.random_state = random_state
         self.unique_clusters = sorted(set(cluster_assignments))
+
+        # Set random state for reproducibility if provided
+        if random_state is not None:
+            np.random.seed(random_state)
 
         # Validate inputs
         if len(texts) != len(embeddings) or len(texts) != len(cluster_assignments):
@@ -157,129 +169,162 @@ class ClusterEvaluator:
 
     def calculate_similarity_metrics(self) -> Dict[str, Union[float, np.floating]]:
         """
-        Calculate intra-cluster and inter-cluster similarity metrics.
+        Calculate similarity metrics for the clusters.
+
+        This method computes:
+        - Intra-cluster similarity:
+          Average similarity between texts in the same cluster
+        - Inter-cluster similarity:
+          Average similarity between texts in different clusters
 
         Returns:
-            Dictionary containing similarity metrics
+            Dictionary with similarity metrics
         """
         try:
-            # Initialize containers for similarities
-            intra_cluster_sims = []
-            inter_cluster_sims = []
+            # Skip if we have too few samples
+            if len(self.embeddings) < 2:
+                logger.warning("Not enough samples to calculate similarity metrics")
+                return {
+                    "intra_cluster_similarity": 0.0,
+                    "inter_cluster_similarity": 0.0,
+                    "silhouette_like_score": 0.0,
+                }
 
-            # Calculate similarities for each cluster
-            for cluster_id in self.unique_clusters:
-                # Get indices for this cluster
-                cluster_indices = [
-                    i for i, c in enumerate(self.cluster_assignments) if c == cluster_id
-                ]
-                other_indices = [
-                    i for i, c in enumerate(self.cluster_assignments) if c != cluster_id
-                ]
+            # Calculate similarity matrix
+            similarity_matrix = cosine_similarity(self.embeddings)
 
-                if len(cluster_indices) <= 1:
-                    # Skip clusters with only one element (no intra-similarity)
-                    continue
+            # Initialize counters and sums
+            intra_cluster_sum = 0.0
+            intra_cluster_count = 0
+            inter_cluster_sum = 0.0
+            inter_cluster_count = 0
 
-                # Get embeddings for this cluster and others
-                cluster_embeds = self.embeddings[cluster_indices]
+            # Calculate intra-cluster and inter-cluster similarities
+            for i in range(len(self.embeddings)):
+                for j in range(i + 1, len(self.embeddings)):  # Only upper triangle
+                    if self.cluster_assignments[i] == self.cluster_assignments[j]:
+                        # Same cluster (intra-cluster)
+                        intra_cluster_sum += similarity_matrix[i, j]
+                        intra_cluster_count += 1
+                    else:
+                        # Different clusters (inter-cluster)
+                        inter_cluster_sum += similarity_matrix[i, j]
+                        inter_cluster_count += 1
 
-                # Calculate intra-cluster similarity (within cluster)
-                # Average of pairwise similarities within the cluster
-                similarities = cosine_similarity(cluster_embeds)
-                # Exclude self-similarities (diagonal)
-                np.fill_diagonal(similarities, 0)
-                # Average similarity
-                avg_sim = similarities.sum() / (similarities.size - len(similarities))
-                intra_cluster_sims.append(avg_sim)
+            # Calculate averages
+            if intra_cluster_count > 0:
+                intra_cluster_similarity = intra_cluster_sum / intra_cluster_count
+            else:
+                intra_cluster_similarity = 0.0
 
-                # Calculate inter-cluster similarity (between clusters)
-                if other_indices:
-                    other_embeds = self.embeddings[other_indices]
-                    # Average similarity between this cluster and all others
-                    inter_sim = np.mean(cosine_similarity(cluster_embeds, other_embeds))
-                    inter_cluster_sims.append(inter_sim)
+            if inter_cluster_count > 0:
+                inter_cluster_similarity = inter_cluster_sum / inter_cluster_count
+            else:
+                inter_cluster_similarity = 0.0
 
-            # Calculate overall metrics
-            metrics = {
-                "intra_cluster_mean": (
-                    np.mean(intra_cluster_sims) if intra_cluster_sims else 0.0
-                ),
-                "inter_cluster_mean": (
-                    np.mean(inter_cluster_sims) if inter_cluster_sims else 0.0
-                ),
-                "separation": (
-                    (np.mean(intra_cluster_sims) - np.mean(inter_cluster_sims))
-                    if (intra_cluster_sims and inter_cluster_sims)
-                    else 0.0
-                ),
+            # Calculate a silhouette-like score
+            silhouette_like = intra_cluster_similarity - inter_cluster_similarity
+
+            return {
+                "intra_cluster_similarity": float(intra_cluster_similarity),
+                "inter_cluster_similarity": float(inter_cluster_similarity),
+                "silhouette_like_score": float(silhouette_like),
             }
-
-            return metrics
 
         except Exception as e:
             logger.error(f"Error calculating similarity metrics: {e}")
             return {
-                "intra_cluster_mean": 0.0,
-                "inter_cluster_mean": 0.0,
-                "separation": 0.0,
+                "intra_cluster_similarity": 0.0,
+                "inter_cluster_similarity": 0.0,
+                "silhouette_like_score": 0.0,
             }
 
     def detect_powerlaw_distribution(self) -> Dict[str, Any]:
         """
-        Detect if cluster sizes follow a power-law distribution.
-
-        Note: The alpha parameter returned by this method is the power law exponent,
-        which is different from the alpha concentration parameter used in the
-        Dirichlet Process and Pitman-Yor Process clustering algorithms.
-
-        Similarly, the sigma_error parameter is the standard error of the power law
-        alpha estimate, not the sigma discount parameter used in Pitman-Yor Process.
+        Detect if the cluster size distribution follows a power-law.
 
         Returns:
-            Dictionary containing:
-                - alpha: Power law exponent (not the clustering alpha parameter)
+            Dictionary with power-law parameters:
+                - alpha: Power-law exponent
+                - xmin: Minimum value for which power-law holds
+                - is_powerlaw: Whether the distribution follows a power-law
                 - sigma_error: Standard error of the alpha estimate
-                - xmin: Minimum x value for which the power law applies
-                - is_powerlaw: Boolean indicating if distribution follows a power law
         """
         try:
-            from collections import Counter
+            # Get cluster sizes
+            cluster_sizes = []
+            for cluster_id in self.unique_clusters:
+                size = self.cluster_assignments.count(cluster_id)
+                cluster_sizes.append(size)
 
-            import powerlaw  # type: ignore
+            # Need at least a few clusters to detect power-law
+            if len(cluster_sizes) < 5:
+                logger.warning("Not enough clusters to detect power-law distribution")
+                return {
+                    "alpha": None,
+                    "xmin": None,
+                    "is_powerlaw": False,
+                    "sigma_error": None,
+                    "p_value": None,
+                }
 
-            sizes = list(Counter(self.cluster_assignments).values())
-            if len(sizes) < 5:
-                return {"alpha": None, "sigma_error": None, "is_powerlaw": False}
+            # Try to import powerlaw package
+            try:
+                import powerlaw
+            except ImportError:
+                logger.warning(
+                    "powerlaw package not installed, cannot detect power-law"
+                )
+                return {
+                    "alpha": None,
+                    "xmin": None,
+                    "is_powerlaw": False,
+                    "sigma_error": None,
+                    "p_value": None,
+                }
 
-            fit = powerlaw.Fit(sizes, discrete=True)
+            # Fit power-law to cluster size distribution
+            fit = powerlaw.Fit(cluster_sizes, discrete=True)
+
+            # Get power-law parameters
+            alpha = fit.alpha
+            xmin = fit.xmin
+            sigma = fit.sigma if hasattr(fit, "sigma") else 0.0
+
+            # Test if distribution follows power-law
+            # Compare to exponential distribution
             R, p = fit.distribution_compare(
                 "power_law", "exponential", normalized_ratio=True
             )
-
-            # Ensure is_powerlaw is a standard Python boolean
-            is_powerlaw = bool(R > 0 and p < 0.1)
+            is_powerlaw = R > 0 and p < 0.1  # Positive R means power_law is better
 
             return {
-                "alpha": float(fit.alpha) if fit.alpha is not None else None,
-                "sigma_error": (
-                    float(fit.sigma) if hasattr(fit, "sigma") else None
-                ),  # Standard error of alpha
-                "xmin": float(fit.xmin) if fit.xmin is not None else None,
-                "is_powerlaw": is_powerlaw,
+                "alpha": float(alpha) if alpha is not None else None,
+                "xmin": float(xmin) if xmin is not None else None,
+                "is_powerlaw": bool(is_powerlaw),
+                "sigma_error": float(sigma) if sigma is not None else None,
+                "p_value": float(p) if p is not None else None,
             }
-        except Exception:
-            return {"alpha": None, "sigma_error": None, "is_powerlaw": False}
+
+        except Exception as e:
+            logger.error(f"Error detecting power-law distribution: {e}")
+            return {
+                "alpha": None,
+                "xmin": None,
+                "is_powerlaw": False,
+                "sigma_error": None,
+                "p_value": None,
+            }
 
     def find_outliers(self, n_neighbors: int = 5) -> Dict[str, float]:
         """
-        Detect outliers using nearest neighbors approach.
+        Find potential outliers in each cluster using nearest neighbors.
 
         Args:
-            n_neighbors: Number of neighbors to consider
+            n_neighbors: Number of neighbors to consider (default: 5)
 
         Returns:
-            Dictionary mapping text indices to outlier scores
+            Dictionary with outlier metrics
         """
         try:
             # Skip if we have too few samples
@@ -300,7 +345,7 @@ class ClusterEvaluator:
             # Create dictionary of outlier scores
             result = {}
             for i, score in enumerate(outlier_scores):
-                result[i] = float(score)
+                result[str(i)] = float(score)
 
             return result
 
@@ -308,42 +353,51 @@ class ClusterEvaluator:
             logger.error(f"Error detecting outliers: {e}")
             return {}
 
+    def _get_cluster_sizes(self) -> Dict[str, int]:
+        """
+        Get the size distribution of clusters.
+
+        Returns:
+            Dictionary mapping cluster IDs to their sizes
+        """
+        cluster_sizes = {}
+        for cluster_id in self.unique_clusters:
+            cluster_sizes[str(cluster_id)] = self.cluster_assignments.count(cluster_id)
+        return cluster_sizes
+
     def generate_report(self) -> Dict[str, Any]:
         """
         Generate a comprehensive evaluation report.
 
-        The report includes:
-        - basic_metrics: Contains clustering parameters (alpha, sigma) used as inputs
-          to the clustering algorithms
-        - powerlaw_params: Contains power law parameters (alpha, sigma_error) detected
-          in the cluster size distribution. Note that this alpha is different from
-          the clustering alpha parameter.
-
         Returns:
-            Dictionary containing evaluation metrics
+            Dictionary containing all evaluation metrics and metadata
         """
-        # Convert cluster assignments to regular Python list to avoid NumPy types
-        cluster_assignments = [int(c) for c in self.cluster_assignments]
+        # Calculate all metrics
+        silhouette = self.calculate_silhouette_score()
+        similarity_metrics = self.calculate_similarity_metrics()
+        powerlaw_metrics = self.detect_powerlaw_distribution()
+        outliers = self.find_outliers()
 
-        # Create cluster size distribution using regular Python types
-        cluster_size_distribution = {}
-        for c in self.unique_clusters:
-            cluster_size_distribution[str(c)] = cluster_assignments.count(c)
-
+        # Compile the report
         report = {
-            "basic_metrics": {
-                "model_name": self.model_name,
-                "num_texts": len(self.texts),
-                "num_clusters": len(self.unique_clusters),
-                "cluster_size_distribution": cluster_size_distribution,
+            "model_name": self.model_name,
+            "parameters": {
                 "alpha": self.alpha,
                 "sigma": self.sigma,
+                "variance": self.variance,
+                "random_state": self.random_state,
             },
-            "silhouette_score": self.calculate_silhouette_score(),
-            "similarity_metrics": self.calculate_similarity_metrics(),
-            "powerlaw_params": self.detect_powerlaw_distribution(),
-            "outliers": self.find_outliers(),
-            "cluster_assignments": cluster_assignments,
+            "cluster_stats": {
+                "num_clusters": len(self.unique_clusters),
+                "num_texts": len(self.texts),
+                "cluster_sizes": self._get_cluster_sizes(),
+            },
+            "metrics": {
+                "silhouette_score": silhouette,
+                "similarity": similarity_metrics,
+                "powerlaw": powerlaw_metrics,
+                "outliers": outliers,
+            },
         }
 
         return report

@@ -51,6 +51,7 @@ def save_clusters_to_csv(
     model_name: str,
     alpha: float = 1.0,
     sigma: float = 0.0,
+    variance: float = 0.1,
 ) -> None:
     """
     Save clustering results to a CSV file.
@@ -62,13 +63,14 @@ def save_clusters_to_csv(
         model_name: Name of the clustering model
         alpha: Concentration parameter (default: 1.0)
         sigma: Discount parameter (default: 0.0)
+        variance: Variance parameter for likelihood model (default: 0.1)
     """
     with open(output_file, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
-        # Add alpha and sigma as metadata in the header
-        writer.writerow(["Text", f"Cluster_{model_name}", "Alpha", "Sigma"])
+        # Add parameters as metadata in the header
+        writer.writerow(["Text", f"Cluster_{model_name}", "Alpha", "Sigma", "Variance"])
         for text, cluster in zip(texts, clusters):
-            writer.writerow([text, cluster, alpha, sigma])
+            writer.writerow([text, cluster, alpha, sigma, variance])
     logger.info(f"Clustering results saved to {output_file}")
 
 
@@ -81,6 +83,7 @@ def save_clusters_to_json(
     answer_column: str = "answer",
     alpha: float = 1.0,
     sigma: float = 0.0,
+    variance: float = 0.1,
 ) -> None:
     """
     Save clustering results to a JSON file.
@@ -94,6 +97,7 @@ def save_clusters_to_json(
         answer_column: Column name containing the answers (default: "answer")
         alpha: Concentration parameter (default: 1.0)
         sigma: Discount parameter (default: 0.0)
+        variance: Variance parameter for likelihood model (default: 0.1)
     """
     cluster_groups = {}
     data_map = {}
@@ -112,7 +116,12 @@ def save_clusters_to_json(
 
     clusters_json = {
         "clusters": [],
-        "metadata": {"model_name": model_name, "alpha": alpha, "sigma": sigma},
+        "metadata": {
+            "model_name": model_name,
+            "alpha": alpha,
+            "sigma": sigma,
+            "variance": variance,
+        },
     }
 
     for i, (cluster_id, cluster_texts) in enumerate(cluster_groups.items()):
@@ -171,7 +180,10 @@ def get_embeddings(texts: List[str], cache_provider) -> np.ndarray:
     from qadst.clustering import DirichletProcess
 
     logger.info("Computing embeddings for evaluation...")
-    dp = DirichletProcess(alpha=1.0, cache=cache_provider)
+    # Use default parameters for embedding generation only
+    dp = DirichletProcess(
+        alpha=1.0, base_measure={"variance": 0.1}, cache=cache_provider
+    )
     embeddings = []
 
     for text in texts:
@@ -180,6 +192,9 @@ def get_embeddings(texts: List[str], cache_provider) -> np.ndarray:
         if hasattr(embedding, "cpu"):
             # It's a PyTorch tensor
             embedding = embedding.cpu().numpy()
+        elif hasattr(embedding, "numpy"):
+            # It's a tensor with numpy method
+            embedding = embedding.numpy()
         # If it's already a NumPy array, we can use it directly
         embeddings.append(embedding)
 
@@ -196,7 +211,7 @@ def load_cluster_assignments(csv_path: str) -> Tuple[List[int], Dict[str, float]
     Returns:
         Tuple containing:
             - List of cluster assignments
-            - Dictionary of parameters (alpha, sigma)
+            - Dictionary of parameters (alpha, sigma, variance)
 
     Raises:
         ValueError: If no cluster column is found in the CSV file
@@ -217,13 +232,15 @@ def load_cluster_assignments(csv_path: str) -> Tuple[List[int], Dict[str, float]
     cluster_assignments = df[cluster_column].tolist()
 
     # Extract parameters from file content if available
-    params = {"alpha": 1.0, "sigma": 0.0}  # Default values
+    params = {"alpha": 1.0, "sigma": 0.0, "variance": 0.1}  # Default values
 
-    # Check if Alpha and Sigma columns exist in the CSV
-    if "Alpha" in df.columns and "Sigma" in df.columns:
-        # Use the first row's values (all rows should have the same values)
+    # Check if parameter columns exist in the CSV
+    if "Alpha" in df.columns:
         params["alpha"] = float(df["Alpha"].iloc[0])
+    if "Sigma" in df.columns:
         params["sigma"] = float(df["Sigma"].iloc[0])
+    if "Variance" in df.columns:
+        params["variance"] = float(df["Variance"].iloc[0])
     else:
         # Fallback to extracting from filename if columns don't exist
         # (for backward compatibility)
@@ -238,6 +255,11 @@ def load_cluster_assignments(csv_path: str) -> Tuple[List[int], Dict[str, float]
         sigma_match = re.search(r"sigma[_-](\d+\.\d+)", filename)
         if sigma_match:
             params["sigma"] = float(sigma_match.group(1))
+
+        # Look for variance in filename (e.g., var_0.1)
+        var_match = re.search(r"var[_-](\d+\.\d+)", filename)
+        if var_match:
+            params["variance"] = float(var_match.group(1))
 
     return cluster_assignments, params
 

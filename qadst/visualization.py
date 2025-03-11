@@ -63,20 +63,19 @@ def _plot_cluster_size_distribution(reports, ax):
 
     for model_name, report in reports.items():
         # Check if we have the required data
-        has_metrics = "basic_metrics" in report
-        has_dist_key = "cluster_size_distribution"
-        has_distribution = has_metrics and has_dist_key in report["basic_metrics"]
+        has_cluster_stats = "cluster_stats" in report
+        has_sizes = has_cluster_stats and "cluster_sizes" in report["cluster_stats"]
 
-        if not has_distribution:
+        if not has_sizes:
             logger.warning(f"Skipping {model_name}: No cluster size distribution data")
             continue
 
-        # Use pre-computed cluster size distribution from basic_metrics
-        cluster_size_dist = report["basic_metrics"][has_dist_key]
+        # Use pre-computed cluster size distribution
+        cluster_size_dist = report["cluster_stats"]["cluster_sizes"]
 
         # Get clustering parameters
-        alpha = report["basic_metrics"].get("alpha", "N/A")
-        sigma = report["basic_metrics"].get("sigma", "N/A")
+        alpha = report["parameters"].get("alpha", "N/A")
+        sigma = report["parameters"].get("sigma", "N/A")
 
         # Create label with model name and parameters
         label = f"{model_name} (α={alpha}, σ={sigma})"
@@ -102,21 +101,37 @@ def _plot_cluster_size_distribution(reports, ax):
         color = model_colors.get(model_name)
 
         # Plot rank vs size
-        ax.loglog(
-            valid_sizes,
-            valid_frequencies,
-            marker="o",
-            linestyle="--",
-            label=label,
-            color=color,
-            alpha=0.7,
-        )
+        if valid_sizes and valid_frequencies:
+            ax.loglog(
+                valid_sizes,
+                valid_frequencies,
+                marker="o",
+                linestyle="--",
+                label=label,
+                color=color,
+                alpha=0.7,
+            )
+        else:
+            logger.warning(f"No valid cluster sizes for {model_name}")
 
     ax.set_title("Cluster Size Distribution (Log-Log Scale)")
     ax.set_xlabel("Cluster Size")
     ax.set_ylabel("Number of Clusters")
     ax.grid(True, which="both", ls="-", alpha=0.2)
     ax.legend()
+
+    # If no data was plotted, show a message
+    if not ax.get_lines():
+        ax.text(
+            0.5,
+            0.5,
+            "No cluster count data available",
+            ha="center",
+            va="center",
+            fontsize=12,
+        )
+        ax.set_xscale("linear")
+        ax.set_yscale("linear")
 
 
 def _plot_silhouette_scores(reports, ax):
@@ -163,8 +178,9 @@ def _extract_silhouette_data(reports):
     zero_score_models = []
 
     for model_name, report in reports.items():
-        if "silhouette_score" in report:
-            score = report["silhouette_score"]
+        # Check if we have metrics and silhouette score
+        if "metrics" in report and "silhouette_score" in report["metrics"]:
+            score = report["metrics"]["silhouette_score"]
             if score == 0.0:
                 # A score of exactly 0.0 often indicates calculation issues
                 zero_score_models.append(model_name)
@@ -246,211 +262,69 @@ def _plot_similarity_metrics(reports, ax):
     # Generate colors for models
     model_colors = get_model_colors(list(reports.keys()))
 
-    # Track models for legend
-    model_data = {}
-
     # Prepare data for grouped bar chart
-    for i, (model_name, report) in enumerate(reports.items()):
-        if "similarity_metrics" in report:
-            has_similarity_data = True
-            color = model_colors.get(model_name)
+    model_names = []
+    intra_values = []
+    inter_values = []
+    colors = []
 
-            # Get metrics
-            intra = report["similarity_metrics"].get("intra_cluster_mean", 0)
-            inter = report["similarity_metrics"].get("inter_cluster_mean", 0)
+    for model_name, report in reports.items():
+        # Check if we have similarity metrics
+        has_metrics = "metrics" in report and "similarity" in report["metrics"]
 
-            # Store for plotting
-            model_data[model_name] = {
-                "intra": intra,
-                "inter": inter,
-                "color": color,
-                "position": i,
-            }
+        if not has_metrics:
+            logger.warning(f"No similarity metrics for {model_name}")
+            continue
 
-    if has_similarity_data:
-        # Set up positions
-        x = np.arange(2)  # Two groups: intra and inter
-        width = 0.35
+        similarity_metrics = report["metrics"]["similarity"]
 
-        # Plot bars for each model
-        for model_name, data in model_data.items():
-            offset = data["position"] * width - (len(model_data) - 1) * width / 2
-            ax.bar(
-                x + offset,
-                [data["intra"], data["inter"]],
-                width,
-                label=model_name,
-                color=data["color"],
-            )
+        if not similarity_metrics:
+            logger.warning(f"Empty similarity metrics for {model_name}")
+            continue
 
-        # Set labels
-        ax.set_xticks(x)
-        ax.set_xticklabels(["Intra-cluster", "Inter-cluster"])
-        ax.legend()
-    else:
-        ax.text(
-            0.5,
-            0.5,
-            "Similarity metrics not available",
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-        )
+        # Extract metrics
+        intra_sim = similarity_metrics.get("intra_cluster_similarity", 0)
+        inter_sim = similarity_metrics.get("inter_cluster_similarity", 0)
 
+        # Store for plotting
+        model_names.append(model_name)
+        intra_values.append(intra_sim)
+        inter_values.append(inter_sim)
+        colors.append(model_colors.get(model_name))
+
+        has_similarity_data = True
+
+    if not has_similarity_data:
+        ax.text(0.5, 0.5, "Similarity metrics not available", ha="center", va="center")
+        return
+
+    # Set up positions for the bars
+    x = np.arange(2)  # Two groups: intra and inter
+    width = 0.8 / len(model_names)  # Width of each bar, adjusted for number of models
+
+    # Plot bars for each model
+    for i, (model, intra, inter, color) in enumerate(
+        zip(model_names, intra_values, inter_values, colors)
+    ):
+        # Calculate position offset for this model's bars
+        offset = i * width - (len(model_names) - 1) * width / 2
+
+        # Plot the bars
+        ax.bar(x[0] + offset, intra, width, label=model, color=color)
+        ax.bar(x[1] + offset, inter, width, color=color, alpha=1.0)
+
+    # Set labels
     ax.set_title("Similarity Comparison")
     ax.set_ylabel("Cosine Similarity")
+    ax.set_xticks(x)
+    ax.set_xticklabels(["Intra-cluster", "Inter-cluster"])
+    ax.set_ylim(0, 1)
+    ax.legend()
 
 
 def _plot_cluster_counts(reports, ax):
     """
-    Plot number of clusters for each model.
-
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
-    """
-    # Extract number of clusters
-    models = []
-    model_labels = []
-    num_clusters = []
-
-    for model_name, report in reports.items():
-        if "basic_metrics" in report and "num_clusters" in report["basic_metrics"]:
-            # Get clustering parameters
-            alpha = report["basic_metrics"].get("alpha", "N/A")
-            sigma = report["basic_metrics"].get("sigma", "N/A")
-
-            # Create label with model name and parameters
-            label = f"{model_name}\n(α={alpha}, σ={sigma})"
-
-            models.append(model_name)
-            model_labels.append(label)
-            num_clusters.append(report["basic_metrics"]["num_clusters"])
-
-    if not models:
-        ax.text(0.5, 0.5, "No cluster count data available", ha="center", va="center")
-        return
-
-    # Generate colors for models
-    model_colors = get_model_colors(models)
-    colors = [model_colors[model] for model in models]
-
-    # Create bar chart
-    ax.bar(range(len(models)), num_clusters, color=colors)
-    ax.set_xticks(range(len(models)))
-    ax.set_xticklabels(model_labels)
-    ax.set_title("Number of Clusters")
-    ax.set_ylabel("Count")
-
-    # Add value labels on top of bars
-    for i, count in enumerate(num_clusters):
-        ax.text(i, count + 0.5, str(count), ha="center")
-
-
-def _plot_powerlaw_fit(reports, ax):
-    """
-    Plot power-law fit for cluster size distributions.
-
-    Note: The alpha parameter displayed in this plot is the power law exponent,
-    which is different from the alpha concentration parameter used in the
-    Dirichlet Process and Pitman-Yor Process clustering algorithms.
-
-    Similarly, the sigma_error parameter (shown as ±) is the standard error of
-    the power law alpha estimate, not the sigma discount parameter used in
-    Pitman-Yor Process.
-
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
-    """
-    try:
-        import powerlaw  # type: ignore
-
-        # Generate colors for models
-        model_colors = get_model_colors(list(reports.keys()))
-
-        # Examples of powerlaw_params:
-        #
-        #   {'alpha': 1.29, 'xmin': 1.0, 'is_powerlaw': True, 'sigma_error': 0.12}
-        #   {'alpha': 2.85, 'xmin': 4.0, 'is_powerlaw': True, 'sigma_error': 0.23}
-        #
-        # Note: This 'alpha' is the power law exponent, not the clustering alpha.
-        # The 'sigma_error' is the standard error of this alpha estimate, not the
-        # sigma discount parameter used in Pitman-Yor.
-        for model_name, report in reports.items():
-            if "powerlaw_params" not in report or not report["powerlaw_params"].get(
-                "alpha"
-            ):
-                continue
-
-            # Check if we have the required data
-            has_metrics = "basic_metrics" in report
-            has_dist_key = "cluster_size_distribution"
-            has_distribution = has_metrics and has_dist_key in report["basic_metrics"]
-
-            if not has_distribution:
-                logger.warning(
-                    f"Skipping {model_name}: No cluster size distribution data"
-                )
-                continue
-
-            # Get cluster sizes from the distribution
-            cluster_dist = report["basic_metrics"]["cluster_size_distribution"]
-            sizes = list(cluster_dist.values())
-
-            if not sizes:
-                continue
-
-            # Get color for this model
-            color = model_colors.get(model_name)
-
-            # Get power-law status and parameters
-            is_powerlaw = report["powerlaw_params"].get("is_powerlaw", False)
-            status = "follows power-law" if is_powerlaw else "non power-law"
-            alpha = report["powerlaw_params"].get("alpha")
-            sigma_error = report["powerlaw_params"].get("sigma_error")
-
-            # Create label with sigma_error if available
-            if sigma_error is not None:
-                param_label = f"α={alpha:.2f}±{sigma_error:.2f}"
-            else:
-                param_label = f"α={alpha:.2f}"
-
-            fit = powerlaw.Fit(sizes, discrete=True)
-
-            # Plot the empirical PDF with the model's color
-            fit.plot_pdf(ax=ax, color=color, linewidth=2, label=f"{model_name} (data)")
-
-            # Plot the power-law fit with the same color but dashed line
-            fit.power_law.plot_pdf(
-                ax=ax,
-                color=color,
-                linestyle="--",
-                label=f"{model_name} ({param_label}, {status})",
-            )
-
-        ax.set_title("Power-law Fit")
-        ax.set_xlabel("Cluster Size")
-        ax.set_ylabel("Probability Density")
-        ax.legend(loc="lower left", fontsize=8)
-
-    except ImportError:
-        ax.text(
-            0.5,
-            0.5,
-            "powerlaw package not installed",
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-        )
-        logger.warning(
-            "powerlaw package not installed. Cannot visualize power-law fit."
-        )
-
-
-def _plot_outliers(reports, ax):
-    """
-    Plot outlier score distributions.
+    Plot the number of clusters for each model.
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
@@ -459,22 +333,169 @@ def _plot_outliers(reports, ax):
     # Generate colors for models
     model_colors = get_model_colors(list(reports.keys()))
 
-    has_outlier_data = False
+    models = []
+    counts = []
+    colors = []
 
     for model_name, report in reports.items():
-        if "outliers" not in report or not report["outliers"]:
+        if "cluster_stats" in report and "num_clusters" in report["cluster_stats"]:
+            models.append(model_name)
+            counts.append(report["cluster_stats"]["num_clusters"])
+            colors.append(model_colors.get(model_name))
+
+    if not models:
+        ax.text(0.5, 0.5, "No cluster count data available", ha="center", va="center")
+        return
+
+    ax.bar(models, counts, color=colors)
+    ax.set_title("Number of Clusters")
+    ax.set_xlabel("Model")
+    ax.set_ylabel("Count")
+
+    # Add value labels on top of bars
+    for i, count in enumerate(counts):
+        ax.text(i, count + 0.5, str(count), ha="center")
+
+
+def _plot_powerlaw_fit(reports, ax):
+    """
+    Plot power-law fit for cluster size distributions.
+
+    Args:
+        reports: Dictionary mapping model names to their evaluation reports
+        ax: Matplotlib axes object to plot on
+    """
+    has_powerlaw_data = False
+
+    # Generate colors for models
+    model_colors = get_model_colors(list(reports.keys()))
+
+    for model_name, report in reports.items():
+        # Check if we have powerlaw metrics
+        has_metrics = "metrics" in report and "powerlaw" in report["metrics"]
+
+        if not has_metrics:
+            logger.warning(f"No powerlaw metrics for {model_name}")
             continue
 
-        # Get outlier scores
-        outlier_scores = list(report["outliers"].values())
-        if not outlier_scores:
+        powerlaw_metrics = report["metrics"]["powerlaw"]
+
+        if not powerlaw_metrics:
+            logger.warning(f"Empty powerlaw metrics for {model_name}")
             continue
+
+        # Get parameters
+        alpha = powerlaw_metrics.get("alpha", None)
+        sigma = powerlaw_metrics.get("sigma_error", None)
+        xmin = powerlaw_metrics.get("xmin", None)
+
+        if alpha is None or xmin is None:
+            logger.warning(f"Missing powerlaw parameters for {model_name}")
+            continue
+
+        # Get cluster size distribution
+        if (
+            "cluster_stats" not in report
+            or "cluster_sizes" not in report["cluster_stats"]
+        ):
+            logger.warning(f"No cluster size distribution for {model_name}")
+            continue
+
+        cluster_sizes = report["cluster_stats"]["cluster_sizes"]
+
+        # Convert to frequency distribution
+        size_frequency = Counter(cluster_sizes.values())
+
+        # Convert to lists for plotting
+        sizes = sorted(size_frequency.keys())
+        frequencies = [size_frequency[size] for size in sizes]
+
+        # Filter out zeros for log scale
+        valid_indices = [
+            i for i, freq in enumerate(frequencies) if freq > 0 and sizes[i] > 0
+        ]
+        valid_sizes = [sizes[i] for i in valid_indices]
+        valid_frequencies = [frequencies[i] for i in valid_indices]
+
+        if not valid_sizes:
+            logger.warning(f"No valid sizes for powerlaw fit for {model_name}")
+            continue
+
+        # Plot empirical distribution
+        color = model_colors.get(model_name)
+        ax.loglog(
+            valid_sizes,
+            valid_frequencies,
+            "o",
+            color=color,
+            alpha=0.5,
+            label=f"{model_name} (data)",
+        )
+
+        # Generate power-law fit line
+        x = np.logspace(np.log10(xmin), np.log10(max(valid_sizes)), 50)
+        y = [
+            item ** (-alpha)
+            * valid_frequencies[valid_sizes.index(xmin)]
+            * (xmin**alpha)
+            for item in x
+        ]
+
+        # Plot fit line
+        ax.loglog(
+            x, y, "-", color=color, label=f"{model_name} (α={alpha:.2f}±{sigma:.2f})"
+        )
+
+        has_powerlaw_data = True
+
+    if not has_powerlaw_data:
+        ax.text(0.5, 0.5, "No power-law fit data available", ha="center", va="center")
+        ax.set_xscale("linear")
+        ax.set_yscale("linear")
+        return
+
+    ax.set_title("Power-law Fit")
+    ax.set_xlabel("Cluster Size")
+    ax.set_ylabel("Probability Density")
+    ax.grid(True, which="both", ls="-", alpha=0.2)
+    ax.legend()
+
+
+def _plot_outliers(reports, ax):
+    """
+    Plot outlier scores distribution.
+
+    Args:
+        reports: Dictionary mapping model names to their evaluation reports
+        ax: Matplotlib axes object to plot on
+    """
+    has_outlier_data = False
+
+    # Generate colors for models
+    model_colors = get_model_colors(list(reports.keys()))
+
+    for model_name, report in reports.items():
+        # Check if we have outlier metrics
+        has_metrics = "metrics" in report and "outliers" in report["metrics"]
+
+        if not has_metrics or not report["metrics"]["outliers"]:
+            logger.warning(f"No outlier metrics for {model_name}")
+            continue
+
+        outlier_scores = report["metrics"]["outliers"]
+
+        if not outlier_scores:
+            logger.warning(f"Empty outlier scores for {model_name}")
+            continue
+
+        # Extract scores
+        scores = list(outlier_scores.values())
+
+        # Plot histogram
+        color = model_colors.get(model_name)
+        ax.hist(scores, bins=20, alpha=1.0, label=model_name, color=color)
 
         has_outlier_data = True
-
-        # Plot histogram of outlier scores with full opacity
-        color = model_colors.get(model_name)
-        ax.hist(outlier_scores, bins=20, alpha=1.0, color=color, label=model_name)
 
     if not has_outlier_data:
         ax.text(0.5, 0.5, "No outlier data available", ha="center", va="center")

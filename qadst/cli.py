@@ -70,7 +70,7 @@ def cli():
 )
 @click.option(
     "--alpha",
-    default=1.0,
+    default=5.0,
     show_default=True,
     type=float,
     help="Concentration parameter",
@@ -81,6 +81,20 @@ def cli():
     show_default=True,
     type=float,
     help="Discount parameter for Pitman-Yor",
+)
+@click.option(
+    "--variance",
+    default=0.1,
+    show_default=True,
+    type=float,
+    help="Variance parameter for likelihood model",
+)
+@click.option(
+    "--random-seed",
+    default=None,
+    show_default=True,
+    type=int,
+    help="Random seed for reproducible clustering",
 )
 @click.option(
     "--cache-dir",
@@ -95,6 +109,8 @@ def cluster(
     output_dir: str,
     alpha: float,
     sigma: float,
+    variance: float,
+    random_seed: Optional[int],
     cache_dir: str,
 ) -> None:
     """Cluster text data using Dirichlet Process and Pitman-Yor Process."""
@@ -129,10 +145,18 @@ def cluster(
         # Create cache provider
         cache_provider = EmbeddingCache(cache_dir=cache_dir)
 
+        # Create base measure with variance
+        base_measure = {"variance": variance}
+
         # Perform Dirichlet Process clustering
         logger.info("Performing Dirichlet Process clustering...")
-        dp = DirichletProcess(alpha=alpha, base_measure=None, cache=cache_provider)
-        clusters_dp, _ = dp.fit(texts)
+        dp = DirichletProcess(
+            alpha=alpha,
+            base_measure=base_measure,
+            cache=cache_provider,
+            random_state=random_seed,
+        )
+        clusters_dp, cluster_params_dp = dp.fit(texts)
         logger.info(f"DP clustering complete. Found {len(set(clusters_dp))} clusters")
 
         # Perform Pitman-Yor Process clustering
@@ -140,10 +164,11 @@ def cluster(
         pyp = PitmanYorProcess(
             alpha=alpha,
             sigma=sigma,
-            base_measure=None,
+            base_measure=base_measure,
             cache=cache_provider,
+            random_state=random_seed,
         )
-        clusters_pyp, _ = pyp.fit(texts)
+        clusters_pyp, cluster_params_pyp = pyp.fit(texts)
         logger.info(f"PYP clustering complete. Found {len(set(clusters_pyp))} clusters")
 
         # Save results
@@ -155,10 +180,22 @@ def cluster(
             output_dir, output_basename.replace(".csv", "_pyp.csv")
         )
         save_clusters_to_csv(
-            dp_output, texts, clusters_dp, "DP", alpha=alpha, sigma=0.0
+            dp_output,
+            texts,
+            clusters_dp,
+            "DP",
+            alpha=alpha,
+            sigma=0.0,
+            variance=variance,
         )
         save_clusters_to_csv(
-            pyp_output, texts, clusters_pyp, "PYP", alpha=alpha, sigma=sigma
+            pyp_output,
+            texts,
+            clusters_pyp,
+            "PYP",
+            alpha=alpha,
+            sigma=sigma,
+            variance=variance,
         )
 
         # Save JSON files
@@ -167,10 +204,24 @@ def cluster(
             output_dir, output_basename.replace(".csv", "_pyp.json")
         )
         save_clusters_to_json(
-            dp_json, texts, clusters_dp, "DP", data, alpha=alpha, sigma=0.0
+            dp_json,
+            texts,
+            clusters_dp,
+            "DP",
+            data,
+            alpha=alpha,
+            sigma=0.0,
+            variance=variance,
         )
         save_clusters_to_json(
-            pyp_json, texts, clusters_pyp, "PYP", data, alpha=alpha, sigma=sigma
+            pyp_json,
+            texts,
+            clusters_pyp,
+            "PYP",
+            data,
+            alpha=alpha,
+            sigma=sigma,
+            variance=variance,
         )
 
         # Save combined results
@@ -183,6 +234,7 @@ def cluster(
             data,
             alpha=alpha,
             sigma=0.0,
+            variance=variance,
         )
         logger.info(f"Combined clusters saved to {qa_clusters_path}")
     except Exception as e:
@@ -223,6 +275,13 @@ def cluster(
     help="Generate evaluation plots",
 )
 @click.option(
+    "--random-seed",
+    default=None,
+    show_default=True,
+    type=int,
+    help="Random seed for reproducible evaluation",
+)
+@click.option(
     "--cache-dir",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default=CACHE_DIR,
@@ -235,6 +294,7 @@ def evaluate(
     pyp_clusters: str,
     output_dir: str,
     plot: bool,
+    random_seed: Optional[int],
     cache_dir: str,
 ) -> None:
     """Evaluate clustering results using established metrics."""
@@ -267,6 +327,7 @@ def evaluate(
         logger.info(f"Loading PYP cluster assignments from {pyp_clusters}...")
         pyp_cluster_assignments, pyp_params = load_cluster_assignments(pyp_clusters)
 
+        # Create cache provider with random seed for reproducibility
         cache_provider = EmbeddingCache(cache_dir=cache_dir)
         embeddings = get_embeddings(texts, cache_provider)
 
@@ -279,6 +340,8 @@ def evaluate(
             "Dirichlet",
             alpha=dp_params["alpha"],
             sigma=dp_params["sigma"],
+            variance=dp_params.get("variance", 0.1),
+            random_state=random_seed,
         )
         dp_report = dp_evaluator.generate_report()
 
@@ -291,6 +354,8 @@ def evaluate(
             "Pitman-Yor",
             alpha=pyp_params["alpha"],
             sigma=pyp_params["sigma"],
+            variance=pyp_params.get("variance", 0.1),
+            random_state=random_seed,
         )
         pyp_report = pyp_evaluator.generate_report()
 
