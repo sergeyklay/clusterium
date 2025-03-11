@@ -225,7 +225,7 @@ def cluster(
 )
 @click.option(
     "--plot",
-    type=click.Choice(["none", "silhouette"]),
+    type=click.Choice(["none", "silhouette", "dashboard"]),
     default="silhouette",
     show_default=True,
     help="Generate evaluation plots with specified type",
@@ -316,6 +316,10 @@ def evaluate(
                 from qadst.visualization import visualize_silhouette_score
 
                 visualize_silhouette_score(reports, output_dir)
+            elif plot == "dashboard":
+                from qadst.visualization import visualize_evaluation_dashboard
+
+                visualize_evaluation_dashboard(reports, output_dir)
 
         logger.info("Evaluation completed successfully")
 
