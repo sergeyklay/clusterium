@@ -69,13 +69,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv
-          key: venv-${{ runner.os }}-$${{ matrix.python }}-${{ hashFiles('**/poetry.lock') }}
+          key: venv-test-${{ runner.os }}-$${{ matrix.python }}-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
-            venv-${{ runner.os }}-${{ matrix.python }}-
+            venv-test-${{ runner.os }}-${{ matrix.python }}-
 
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --without=docs --no-root
 
       - name: Format code
         run: |
