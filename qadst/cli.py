@@ -83,13 +83,6 @@ def cli():
     help="Discount parameter for Pitman-Yor",
 )
 @click.option(
-    "--plot",
-    type=click.Choice(["none", "linear", "log-log"]),
-    default="none",
-    show_default=True,
-    help="Generate cluster distribution plots with specified scale",
-)
-@click.option(
     "--cache-dir",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default=CACHE_DIR,
@@ -102,7 +95,6 @@ def cluster(
     output_dir: str,
     alpha: float,
     sigma: float,
-    plot: str,
     cache_dir: str,
 ) -> None:
     """Cluster text data using Dirichlet Process and Pitman-Yor Process."""
@@ -140,7 +132,7 @@ def cluster(
         # Perform Dirichlet Process clustering
         logger.info("Performing Dirichlet Process clustering...")
         dp = DirichletProcess(alpha=alpha, base_measure=None, cache=cache_provider)
-        clusters_dp, params_dp = dp.fit(texts)
+        clusters_dp, _ = dp.fit(texts)
         logger.info(f"DP clustering complete. Found {len(set(clusters_dp))} clusters")
 
         # Perform Pitman-Yor Process clustering
@@ -151,7 +143,7 @@ def cluster(
             base_measure=None,
             cache=cache_provider,
         )
-        clusters_pyp, params_pyp = pyp.fit(texts)
+        clusters_pyp, _ = pyp.fit(texts)
         logger.info(f"PYP clustering complete. Found {len(set(clusters_pyp))} clusters")
 
         # Save results
@@ -177,21 +169,6 @@ def cluster(
         qa_clusters_path = os.path.join(output_dir, "qa_clusters.json")
         save_clusters_to_json(qa_clusters_path, texts, clusters_dp, "Combined", data)
         logger.info(f"Combined clusters saved to {qa_clusters_path}")
-
-        # Generate plot if requested
-        if plot != "none":
-            # Generate plots based on the selected type
-            from qadst.visualization import plot_cluster_distributions
-
-            if plot == "linear":
-                plot_cluster_distributions(
-                    clusters_dp, clusters_pyp, output_dir, "linear"
-                )
-            elif plot == "log-log":
-                plot_cluster_distributions(
-                    clusters_dp, clusters_pyp, output_dir, "log-log"
-                )
-
     except Exception as e:
         logger.exception(f"Error: {e}")
         raise click.ClickException(str(e))
