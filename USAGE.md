@@ -34,7 +34,6 @@ Available commands:
 | `--output-dir` | Directory to save output files | "output" |
 | `--alpha` | Concentration parameter for clustering | 1.0 |
 | `--sigma` | Discount parameter for Pitman-Yor Process | 0.5 |
-| `--plot` | Generate cluster distribution plots with specified scale: "none", "linear", or "log-log" | "none" |
 | `--cache-dir` | Directory to cache embeddings | ".cache" |
 
 ### Command Line Options for `evaluate`
