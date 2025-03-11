@@ -1,23 +1,23 @@
 # Usage Guide
 
-This document provides detailed instructions for using the QA Dataset Clustering Tool (qadst).
+This document provides detailed instructions for using the `clusx` package.
 
 ## Command Line Interface
 
-The `qadst` command-line tool provides a simple interface for clustering question-answer datasets.
+The `clusx` command-line tool provides a simple interface for clustering text data.
 
 ### Basic Usage
 
 ```bash
-qadst cluster --input your_data.csv --output clusters.csv
+clusx cluster --input your_data.csv --output clusters.csv
 ```
 
 ### Command Structure
 
-The `qadst` tool uses a command-based structure:
+The `clusx` tool uses a command-based structure:
 
 ```bash
-qadst [global-options] COMMAND [command-options]
+clusx [global-options] COMMAND [command-options]
 ```
 
 Available commands:
@@ -53,7 +53,7 @@ Available commands:
 #### Basic Clustering
 
 ```bash
-qadst cluster --input your_data.csv
+clusx cluster --input your_data.csv
 ```
 
 #### Specifying Column Names
@@ -61,7 +61,7 @@ qadst cluster --input your_data.csv
 If your CSV file has a different column name for questions:
 
 ```bash
-qadst cluster --input your_data.csv --column question_text --output clusters.csv
+clusx cluster --input your_data.csv --column question_text --output clusters.csv
 ```
 
 #### Adjusting Clustering Parameters
@@ -69,7 +69,7 @@ qadst cluster --input your_data.csv --column question_text --output clusters.csv
 Fine-tune the clustering by adjusting the alpha and sigma parameters:
 
 ```bash
-qadst cluster --input your_data.csv --alpha 0.5 --sigma 0.3
+clusx cluster --input your_data.csv --alpha 0.5 --sigma 0.3
 ```
 
 #### Generating Visualizations
@@ -78,10 +78,10 @@ Visualizations are generated using the `evaluate` command, not the `cluster` com
 
 ```bash
 # Generate evaluation dashboard with visualizations (default)
-qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv
+clusx evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv
 
 # Skip visualization generation
-qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --no-plot
+clusx evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --no-plot
 ```
 
 The evaluation dashboard includes visualizations of cluster size distributions, silhouette scores, similarity metrics, and power-law fits. These visualizations are saved as `evaluation_dashboard.png` in the output directory.
@@ -91,7 +91,7 @@ The evaluation dashboard includes visualizations of cluster size distributions, 
 Save all output files to a specific directory:
 
 ```bash
-qadst cluster --input your_data.csv --output-dir results
+clusx cluster --input your_data.csv --output-dir results
 ```
 
 #### Evaluating Clustering Results
@@ -100,10 +100,10 @@ After running clustering, you can evaluate the quality of the clusters:
 
 ```bash
 # Basic evaluation with interactive visualization dashboard
-qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv
+clusx evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv
 
 # Evaluation without visualizations
-qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --no-plot
+clusx evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --no-plot
 ```
 
 This will generate evaluation metrics and visualizations comparing the quality of the Dirichlet Process and Pitman-Yor Process clustering results. When `--plot` is enabled (the default), the visualization will be displayed interactively in a Matplotlib window. The visualization dashboard includes:
@@ -122,8 +122,8 @@ You can also use the clustering functionality directly in your Python code.
 ### Basic Usage
 
 ```python
-from qadst.clustering import DirichletProcess, PitmanYorProcess, EmbeddingCache
-from qadst.clustering.utils import load_data_from_csv, save_clusters_to_json
+from clusx.clustering import DirichletProcess, PitmanYorProcess, EmbeddingCache
+from clusx.clustering.utils import load_data_from_csv, save_clusters_to_json
 
 # Load data
 texts, data = load_data_from_csv("your_data.csv", column="question")
@@ -157,8 +157,8 @@ save_clusters_to_json("pyp_clusters.json", texts, clusters_pyp, "PYP", data)
 You can evaluate the quality of your clusters using the evaluation module:
 
 ```python
-from qadst.evaluation import ClusterEvaluator, save_evaluation_report
-from qadst.visualization import visualize_evaluation_dashboard
+from clusx.evaluation import ClusterEvaluator, save_evaluation_report
+from clusx.visualization import visualize_evaluation_dashboard
 import numpy as np
 
 # Get embeddings for evaluation
@@ -418,6 +418,6 @@ If you encounter issues:
 1. Check your input CSV file format
 2. Ensure you have sufficient memory for large datasets
 3. Try adjusting the alpha and sigma parameters for better clustering results
-4. Remember to use the correct command structure: `qadst cluster [options]` instead of just `qadst [options]`
+4. Remember to use the correct command structure: `clusx cluster [options]` instead of just `clusx [options]`
 
-For more help, please open an issue on the [GitHub repository](https://github.com/sergeyklay/qa-dataset-clustering/issues).
+For more help, please open an issue on the [GitHub repository](https://github.com/sergeyklay/clusterium/issues).

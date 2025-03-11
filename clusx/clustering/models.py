@@ -11,8 +11,8 @@ from sentence_transformers import SentenceTransformer
 from torch import Tensor
 from tqdm import tqdm
 
-from qadst.clustering.cache import EmbeddingCache
-from qadst.logging import get_logger
+from clusx.clustering.cache import EmbeddingCache
+from clusx.logging import get_logger
 
 logger = get_logger(__name__)
 

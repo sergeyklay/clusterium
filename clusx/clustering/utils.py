@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from qadst.logging import get_logger
+from clusx.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -177,7 +177,7 @@ def get_embeddings(texts: List[str], cache_provider) -> np.ndarray:
     Returns:
         Numpy array of embeddings
     """
-    from qadst.clustering import DirichletProcess
+    from clusx.clustering import DirichletProcess
 
     logger.info("Computing embeddings for evaluation...")
     # Use default parameters for embedding generation only

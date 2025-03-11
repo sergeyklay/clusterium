@@ -5,8 +5,8 @@ import tempfile
 
 import pytest
 
-from qadst.clustering.cache import EmbeddingCache
-from qadst.clustering.models import DirichletProcess, PitmanYorProcess
+from clusx.clustering.cache import EmbeddingCache
+from clusx.clustering.models import DirichletProcess, PitmanYorProcess
 
 
 @pytest.fixture

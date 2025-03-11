@@ -6,14 +6,14 @@ import numpy as np
 import pytest
 import torch
 
-from qadst.clustering.cache import EmbeddingCache
-from qadst.clustering.models import DirichletProcess, PitmanYorProcess
+from clusx.clustering.cache import EmbeddingCache
+from clusx.clustering.models import DirichletProcess, PitmanYorProcess
 
 
 @pytest.fixture
 def mock_sentence_transformer():
     """Create a mock SentenceTransformer."""
-    with patch("qadst.clustering.models.SentenceTransformer") as mock_st:
+    with patch("clusx.clustering.models.SentenceTransformer") as mock_st:
         mock_instance = MagicMock()
         mock_instance.encode.return_value = np.array([0.1, 0.2, 0.3, 0.4])
         mock_st.return_value = mock_instance
@@ -48,7 +48,7 @@ class TestDirichletProcess:
         assert dp.cache == mock_embedding_cache
         assert dp.similarity_metric == dp.cosine_similarity
 
-    @patch("qadst.clustering.models.SentenceTransformer")
+    @patch("clusx.clustering.models.SentenceTransformer")
     def test_get_embedding_new(self, mock_st, mock_embedding_cache):
         """Test getting a new embedding."""
         # Configure the mock
@@ -188,7 +188,7 @@ class TestPitmanYorProcess:
         assert pyp.similarity_metric == pyp.cosine_similarity
 
     @patch("numpy.random.choice")
-    @patch("qadst.clustering.models.cosine", return_value=0.2)  # 1 - 0.2 = 0.8
+    @patch("clusx.clustering.models.cosine", return_value=0.2)  # 1 - 0.2 = 0.8
     def test_assign_cluster_new(
         self, mock_cosine, mock_choice, mock_sentence_transformer
     ):
@@ -209,7 +209,7 @@ class TestPitmanYorProcess:
             assert 0 in pyp.cluster_params
 
     @patch("numpy.random.choice")
-    @patch("qadst.clustering.models.cosine", return_value=0.2)  # 1 - 0.2 = 0.8
+    @patch("clusx.clustering.models.cosine", return_value=0.2)  # 1 - 0.2 = 0.8
     def test_assign_cluster_existing(
         self, mock_cosine, mock_choice, mock_sentence_transformer
     ):

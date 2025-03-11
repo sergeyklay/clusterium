@@ -80,7 +80,7 @@ jobs:
           source $VENV
 
           isort --profile black --python-version auto ./
-          black . ./qadst ./tests
+          black . ./clusx ./tests
 
       - name: Show improperly formatted files
         run: git diff --color=always --exit-code
@@ -97,7 +97,7 @@ jobs:
           source $VENV
 
           coverage erase
-          coverage run -m pytest -v --junitxml=junit.xml -o junit_family=legacy ./qadst ./tests
+          coverage run -m pytest -v --junitxml=junit.xml -o junit_family=legacy ./clusx ./tests
 
           coverage combine
           coverage xml

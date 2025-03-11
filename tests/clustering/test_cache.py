@@ -7,7 +7,7 @@ from unittest.mock import mock_open, patch
 import pytest
 import torch
 
-from qadst.clustering.cache import EmbeddingCache
+from clusx.clustering.cache import EmbeddingCache
 
 
 @pytest.fixture

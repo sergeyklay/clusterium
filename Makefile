@@ -10,7 +10,7 @@ install:
 test:
 	@echo $(CS)Running tests for package: $(PKG_NAME)$(CE)
 	$(VENV_BIN)/coverage erase
-	$(VENV_BIN)/coverage run -m pytest $(PYTEST_FLAGS) ./qadst ./tests
+	$(VENV_BIN)/coverage run -m pytest $(PYTEST_FLAGS) ./clusx ./tests
 	@echo
 
 .PHONY: ccov
@@ -26,14 +26,14 @@ ccov:
 format:
 	@echo $(CS)Formatting code for package: $(PKG_NAME)$(CE)
 	$(VENV_BIN)/isort --profile black --python-version auto ./
-	$(VENV_BIN)/black . ./qadst ./tests
+	$(VENV_BIN)/black . ./clusx ./tests
 	@echo
 
 .PHONY: format-check
 format-check:
 	@echo $(CS)Checking formatting for package: $(PKG_NAME)$(CE)
 	$(VENV_BIN)/isort --check-only --profile black --python-version auto --diff ./
-	$(VENV_BIN)/black --check . ./qadst ./tests
+	$(VENV_BIN)/black --check . ./clusx ./tests
 	@echo
 
 .PHONY: lint

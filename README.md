@@ -1,7 +1,7 @@
-# QA Dataset Clustering Toolkit (qadst)
+# Clusterim
 
-[![CI](https://github.com/sergeyklay/qa-dataset-clustering/actions/workflows/ci.yml/badge.svg)](https://github.com/sergeyklay/qa-dataset-clustering/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/sergeyklay/qa-dataset-clustering/graph/badge.svg?token=T5d9KTXtqP)](https://codecov.io/gh/sergeyklay/qa-dataset-clustering)
+[![CI](https://github.com/sergeyklay/clusterium/actions/workflows/ci.yml/badge.svg)](https://github.com/sergeyklay/clusterium/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sergeyklay/clusterium/graph/badge.svg?token=T5d9KTXtqP)](https://codecov.io/gh/sergeyklay/clusterium)
 
 A toolkit for clustering, analyzing, and benchmarking question-answer datasets using state-of-the-art embedding models and clustering algorithms.
 
@@ -19,8 +19,8 @@ For detailed installation instructions, please see [INSTALL.md](INSTALL.md).
 ### Quick Start
 
 ```bash
-git clone https://github.com/sergeyklay/qa-dataset-clustering.git
-cd qa-dataset-clustering
+git clone https://github.com/sergeyklay/clusterium.git
+cd clusterium
 poetry install
 ```
 
@@ -32,10 +32,10 @@ For detailed usage instructions, use cases, examples, and advanced configuration
 
 ```bash
 # Run clustering
-qadst --input your_data.csv --output clusters.csv
+clusx --input your_data.csv --output clusters.csv
 
 # Evaluate clustering results and generate visualizations
-qadst evaluate \
+clusx evaluate \
   --input input.csv \
   --dp-clusters output_dp.csv \
   --pyp-clusters output_pyp.csv \
@@ -45,8 +45,8 @@ qadst evaluate \
 ### Python API Example
 
 ```python
-from qadst.clustering import DirichletProcess
-from qadst.clustering.utils import load_data_from_csv, save_clusters_to_json
+from clusx.clustering import DirichletProcess
+from clusx.clustering.utils import load_data_from_csv, save_clusters_to_json
 
 # Load data
 texts, data = load_data_from_csv("your_data.csv")
