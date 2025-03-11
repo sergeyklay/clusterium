@@ -258,17 +258,12 @@ def evaluate(
     )
 
     try:
-        # Create necessary directories
         os.makedirs(output_dir, exist_ok=True)
 
-        # Load data
         logger.info(f"Loading data from {input}, using column '{column}'...")
-        texts, data = load_data_from_csv(input, column)
+        texts, _ = load_data_from_csv(input, column)
 
         if not texts:
-            logger.error(
-                f"No data found in column '{column}'. Please check your CSV file."
-            )
             raise click.ClickException(f"No data found in column '{column}'")
 
         logger.info(f"Loaded {len(texts)} texts for evaluation")
@@ -280,10 +275,7 @@ def evaluate(
         logger.info(f"Loading PYP cluster assignments from {pyp_clusters}...")
         pyp_cluster_assignments = load_cluster_assignments(pyp_clusters)
 
-        # Create cache provider
         cache_provider = EmbeddingCache(cache_dir=cache_dir)
-
-        # Get embeddings
         embeddings = get_embeddings(texts, cache_provider)
 
         # Evaluate DP clusters
@@ -322,9 +314,7 @@ def evaluate(
                 visualize_evaluation_dashboard(reports, output_dir)
 
         logger.info("Evaluation completed successfully")
-
     except Exception as e:
-        logger.exception(f"Error: {e}")
         raise click.ClickException(str(e))
 
 

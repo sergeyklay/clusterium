@@ -359,7 +359,6 @@ def save_evaluation_report(
     Returns:
         Path to the saved report file
     """
-    os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, filename)
 
     try:
