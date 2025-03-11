@@ -69,12 +69,13 @@ def test_save_clusters_to_csv(tmp_path, sample_texts, sample_clusters):
         header = next(reader)
         rows = list(reader)
 
-    assert header == ["Text", "Cluster_DP", "Alpha", "Sigma"]
+    assert header == ["Text", "Cluster_DP", "Alpha", "Sigma", "Variance"]
     assert len(rows) == 3
     assert rows[0][0] == "What is Python?"
     assert rows[0][1] == "0"
     assert rows[0][2] == "1.0"  # Default alpha value
     assert rows[0][3] == "0.0"  # Default sigma value
+    assert rows[0][4] == "0.1"  # Default variance value
     assert rows[1][0] == "What is TensorFlow?"
     assert rows[1][1] == "1"
     assert rows[2][0] == "What is PyTorch?"

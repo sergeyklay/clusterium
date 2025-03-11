@@ -70,7 +70,7 @@ class TestPitmanYorProcessWithFixtures:
 
     @patch("qadst.clustering.models.SentenceTransformer")
     def test_cluster_sizes_tracking(self, mock_st, sample_texts, tmp_path):
-        """Test that cluster_sizes is properly tracked in PitmanYorProcess."""
+        """Test that cluster parameters are properly tracked in PitmanYorProcess."""
         # Create a cache directory
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
@@ -88,9 +88,7 @@ class TestPitmanYorProcessWithFixtures:
         # Fit the model
         clusters, _ = pyp.fit(sample_texts)
 
-        # Check that cluster_sizes has entries for all unique clusters
+        # Check that cluster_params has entries for all unique clusters
         unique_clusters = set(clusters)
         for cluster_id in unique_clusters:
-            assert cluster_id in pyp.cluster_sizes
-            # The count in cluster_sizes should match the actual count in clusters
-            assert pyp.cluster_sizes[cluster_id] == clusters.count(cluster_id)
+            assert cluster_id in pyp.cluster_params

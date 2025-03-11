@@ -14,7 +14,6 @@ from qadst.clustering.models import DirichletProcess, PitmanYorProcess
 def mock_sentence_transformer():
     """Create a mock SentenceTransformer."""
     with patch("qadst.clustering.models.SentenceTransformer") as mock_st:
-        # Configure the mock to return a fixed embedding when encode is called
         mock_instance = MagicMock()
         mock_instance.encode.return_value = np.array([0.1, 0.2, 0.3, 0.4])
         mock_st.return_value = mock_instance
@@ -45,9 +44,9 @@ class TestDirichletProcess:
 
         assert dp.alpha == 1.0
         assert dp.clusters == []
-        assert dp.cluster_params == []
+        assert isinstance(dp.cluster_params, dict)
         assert dp.cache == mock_embedding_cache
-        assert dp.similarity_metric == dp.bert_similarity
+        assert dp.similarity_metric == dp.cosine_similarity
 
     @patch("qadst.clustering.models.SentenceTransformer")
     def test_get_embedding_new(self, mock_st, mock_embedding_cache):
@@ -91,55 +90,67 @@ class TestDirichletProcess:
 
         mock_embedding_cache.save_cache.assert_called_once()
 
-    def test_bert_similarity(self, mock_sentence_transformer):
-        """Test the bert_similarity method."""
+    def test_cosine_similarity(self, mock_sentence_transformer):
+        """Test the cosine_similarity method."""
         dp = DirichletProcess(alpha=1.0)
 
         # Create two embeddings with known cosine similarity
-        text_embedding = np.array([1.0, 0.0, 0.0, 0.0])
-        cluster_embedding = np.array([0.0, 1.0, 0.0, 0.0])
+        text_embedding = torch.tensor([1.0, 0.0, 0.0, 0.0])
+        cluster_embedding = torch.tensor([0.0, 1.0, 0.0, 0.0])
 
-        # Patch the get_embedding method to return the text_embedding
-        with patch.object(dp, "get_embedding", return_value=text_embedding):
-            similarity = dp.bert_similarity("test text", cluster_embedding)
+        # Calculate similarity directly
+        similarity = dp.cosine_similarity(text_embedding, cluster_embedding)
 
-            # Cosine similarity between orthogonal vectors is 0, so 1 - 0 = 1
-            assert similarity == 0.0
+        # Cosine similarity between orthogonal vectors is 0, so 1 - 0 = 0
+        assert similarity == 0.0
 
     @patch("numpy.random.choice")
     def test_assign_cluster_new(self, mock_choice, mock_sentence_transformer):
         """Test assigning a text to a new cluster."""
         # Configure the mock to choose a new cluster
-        mock_choice.return_value = 0  # This will be the index of the new cluster
-
         dp = DirichletProcess(alpha=1.0)
-        # Empty cluster params means any choice will create a new cluster
 
-        sample_embedding = torch.tensor([0.1, 0.2, 0.3, 0.4])
-        with patch.object(dp, "sample_new_cluster", return_value=sample_embedding):
-            dp.assign_cluster("test text")
+        # For the first point, no need to mock random_state.choice
+        # as the first point always creates a new cluster
+
+        sample_embedding = np.array([0.1, 0.2, 0.3, 0.4])
+        with patch.object(dp, "get_embedding", return_value=sample_embedding):
+            cluster_id = dp.assign_cluster("test text")
 
             assert len(dp.clusters) == 1
             assert len(dp.cluster_params) == 1
             assert dp.clusters[0] == 0
-            assert torch.equal(dp.cluster_params[0], sample_embedding)
+            assert cluster_id == 0
+            # Check that the embedding is stored in cluster_params
+            assert 0 in dp.cluster_params
 
     @patch("numpy.random.choice")
     def test_assign_cluster_existing(self, mock_choice, mock_sentence_transformer):
         """Test assigning a text to an existing cluster."""
         dp = DirichletProcess(alpha=1.0)
 
-        # Add a cluster parameter
-        dp.cluster_params.append(torch.tensor([0.1, 0.2, 0.3, 0.4]))
+        # Add a cluster parameter with numpy array
+        sample_embedding = np.array([0.1, 0.2, 0.3, 0.4])
+        dp.cluster_params[0] = {"mean": sample_embedding, "count": 1}
+        dp.clusters.append(0)
 
         # Configure the mock to choose the existing cluster
-        mock_choice.return_value = 0
+        # We need to mock the random_state.choice method,
+        # not numpy.random.choice directly
+        dp.random_state = MagicMock()
+        dp.random_state.choice.return_value = 0  # Return index 0 (existing cluster)
 
-        dp.assign_cluster("test text")
+        # Use numpy array for the test embedding
+        test_embedding = np.array([0.5, 0.6, 0.7, 0.8])
+        with patch.object(dp, "get_embedding", return_value=test_embedding):
+            cluster_id = dp.assign_cluster("test text")
 
-        assert len(dp.clusters) == 1
-        assert len(dp.cluster_params) == 1
-        assert dp.clusters[0] == 0
+            assert len(dp.clusters) == 2
+            assert len(dp.cluster_params) == 1
+            assert dp.clusters[0] == 0
+            assert dp.clusters[1] == 0
+            assert cluster_id == 0
+            assert dp.cluster_params[0]["count"] == 2  # Count should be incremented
 
     def test_fit(self, mock_sentence_transformer):
         """Test the fit method."""
@@ -172,10 +183,9 @@ class TestPitmanYorProcess:
         assert pyp.alpha == 1.0
         assert pyp.sigma == 0.5
         assert pyp.clusters == []
-        assert pyp.cluster_params == []
+        assert isinstance(pyp.cluster_params, dict)
         assert pyp.cache == mock_embedding_cache
-        assert pyp.similarity_metric == pyp.bert_similarity
-        assert pyp.cluster_sizes == {}
+        assert pyp.similarity_metric == pyp.cosine_similarity
 
     @patch("numpy.random.choice")
     @patch("qadst.clustering.models.cosine", return_value=0.2)  # 1 - 0.2 = 0.8
@@ -183,21 +193,20 @@ class TestPitmanYorProcess:
         self, mock_cosine, mock_choice, mock_sentence_transformer
     ):
         """Test assigning a text to a new cluster in PitmanYorProcess."""
-        # Configure the mock to choose a new cluster
-        mock_choice.return_value = 0  # This will be the index of the new cluster
-
         pyp = PitmanYorProcess(alpha=1.0, sigma=0.5)
-        # Empty cluster params means any choice will create a new cluster
 
-        sample_embedding = torch.tensor([0.1, 0.2, 0.3, 0.4])
+        # For the first point, no need to mock random_state.choice
+        # as the first point always creates a new cluster
+
+        sample_embedding = np.array([0.1, 0.2, 0.3, 0.4])
         with patch.object(pyp, "get_embedding", return_value=sample_embedding):
-            pyp.assign_cluster("test text")
+            cluster_id = pyp.assign_cluster("test text")
 
             assert len(pyp.clusters) == 1
             assert len(pyp.cluster_params) == 1
             assert pyp.clusters[0] == 0
-            assert torch.equal(pyp.cluster_params[0], sample_embedding)
-            assert pyp.cluster_sizes == {0: 1}
+            assert cluster_id == 0
+            assert 0 in pyp.cluster_params
 
     @patch("numpy.random.choice")
     @patch("qadst.clustering.models.cosine", return_value=0.2)  # 1 - 0.2 = 0.8
@@ -207,22 +216,26 @@ class TestPitmanYorProcess:
         """Test assigning a text to an existing cluster in PitmanYorProcess."""
         pyp = PitmanYorProcess(alpha=1.0, sigma=0.5)
 
-        # Add a cluster parameter and update cluster_sizes
-        pyp.cluster_params.append(torch.tensor([0.1, 0.2, 0.3, 0.4]))
+        # Add a cluster parameter with numpy array
+        sample_embedding = np.array([0.1, 0.2, 0.3, 0.4])
+        pyp.cluster_params[0] = {"mean": sample_embedding, "count": 1}
         pyp.clusters.append(0)
-        pyp.cluster_sizes = {0: 1}
 
         # Configure the mock to choose the existing cluster
-        mock_choice.return_value = 0
+        # We need to mock the random_state.choice method
+        pyp.random_state = MagicMock()
+        pyp.random_state.choice.return_value = 0  # Return index 0 (existing cluster)
 
-        sample_embedding = torch.tensor([0.5, 0.6, 0.7, 0.8])
-        with patch.object(pyp, "get_embedding", return_value=sample_embedding):
-            pyp.assign_cluster("test text")
+        # Use numpy array for the test embedding
+        test_embedding = np.array([0.5, 0.6, 0.7, 0.8])
+        with patch.object(pyp, "get_embedding", return_value=test_embedding):
+            cluster_id = pyp.assign_cluster("test text")
 
             assert len(pyp.clusters) == 2
             assert len(pyp.cluster_params) == 1
             assert pyp.clusters == [0, 0]
-            assert pyp.cluster_sizes == {0: 2}
+            assert cluster_id == 0
+            assert pyp.cluster_params[0]["count"] == 2  # Count should be incremented
 
     def test_fit(self, mock_sentence_transformer):
         """Test the fit method of PitmanYorProcess."""
