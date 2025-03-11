@@ -201,11 +201,10 @@ def cluster(
     required=True,
 )
 @click.option(
-    "--plot",
-    type=click.Choice(["none", "silhouette", "dashboard"]),
-    default="silhouette",
+    "--plot/--no-plot",
+    default=True,
     show_default=True,
-    help="Generate evaluation plots with specified type",
+    help="Generate evaluation plots",
 )
 @click.option(
     "--cache-dir",
@@ -219,7 +218,7 @@ def evaluate(
     dp_clusters: str,
     pyp_clusters: str,
     output_dir: str,
-    plot: str,
+    plot: bool,
     cache_dir: str,
 ) -> None:
     """Evaluate clustering results using established metrics."""
@@ -276,20 +275,18 @@ def evaluate(
 
         save_evaluation_report(reports, output_dir)
 
-        # Visualize results based on plot option
-        if plot != "none":
-            logger.info(f"Generating {plot} visualization...")
+        if plot:
+            from qadst.visualization import visualize_evaluation_dashboard
 
-            if plot == "silhouette":
-                from qadst.visualization import visualize_silhouette_score
+            # Generate the dashboard visualization
+            click.echo("Generating evaluation dashboard...")
+            dashboard_path = visualize_evaluation_dashboard(
+                reports, output_dir, show_plot=True
+            )
+            click.echo(f"Visualization saved to: {dashboard_path}")
+            click.echo("Close the plot window to continue.")
 
-                visualize_silhouette_score(reports, output_dir)
-            elif plot == "dashboard":
-                from qadst.visualization import visualize_evaluation_dashboard
-
-                visualize_evaluation_dashboard(reports, output_dir)
-
-        logger.info("Evaluation completed successfully")
+        click.echo("Evaluation complete.")
     except Exception as e:
         raise click.ClickException(str(e))
 

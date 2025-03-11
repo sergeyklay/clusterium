@@ -44,7 +44,7 @@ Available commands:
 | `--column` | Column name to use for clustering | "question" |
 | `--dp-clusters` | Path to Dirichlet Process clustering results CSV (required) | - |
 | `--pyp-clusters` | Path to Pitman-Yor Process clustering results CSV (required) | - |
-| `--plot` | Generate evaluation plots: "none", "silhouette", or "dashboard" | "silhouette" |
+| `--plot` | Generate evaluation plots | True |
 | `--output-dir` | Directory to save output files | "output" |
 | `--cache-dir` | Directory to cache embeddings | ".cache" |
 
@@ -99,17 +99,14 @@ qadst cluster --input your_data.csv --output-dir results
 After running clustering, you can evaluate the quality of the clusters:
 
 ```bash
-# Basic evaluation with silhouette score visualization
+# Basic evaluation with interactive visualization dashboard
 qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv
 
-# Evaluation with comprehensive dashboard visualization
-qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --plot dashboard
-
 # Evaluation without visualizations
-qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --plot none
+qadst evaluate --input your_data.csv --dp-clusters output/clusters_output_dp.csv --pyp-clusters output/clusters_output_pyp.csv --no-plot
 ```
 
-This will generate evaluation metrics and visualizations comparing the quality of the Dirichlet Process and Pitman-Yor Process clustering results. The dashboard visualization includes:
+This will generate evaluation metrics and visualizations comparing the quality of the Dirichlet Process and Pitman-Yor Process clustering results. When `--plot` is enabled (the default), the visualization will be displayed interactively in a Matplotlib window. The visualization dashboard includes:
 
 1. Cluster size distribution (log-log scale)
 2. Silhouette score comparison
