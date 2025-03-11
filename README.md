@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/sergeyklay/clusterium/actions/workflows/ci.yml/badge.svg)](https://github.com/sergeyklay/clusterium/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/sergeyklay/clusterium/graph/badge.svg?token=T5d9KTXtqP)](https://codecov.io/gh/sergeyklay/clusterium)
+[![Documentation Status](https://readthedocs.org/projects/clusterium/badge/?version=latest)](https://clusterium.readthedocs.io/en/latest/?badge=latest)
 
 A toolkit for clustering, analyzing, and benchmarking text data using state-of-the-art embedding models and clustering algorithms.
 
@@ -14,7 +15,7 @@ A toolkit for clustering, analyzing, and benchmarking text data using state-of-t
 
 ## Installation
 
-For detailed installation instructions, please see [INSTALL.md](INSTALL.md).
+For detailed installation instructions, please see the [Installation Guide](https://clusterium.readthedocs.io/en/latest/installation.html).
 
 ### Quick Start
 
@@ -26,7 +27,7 @@ poetry install
 
 ## Usage
 
-For detailed usage instructions, use cases, examples, and advanced configuration options, please see [USAGE.md](USAGE.md).
+For detailed usage instructions, use cases, examples, and advanced configuration options, please see the [Usage Guide](https://clusterium.readthedocs.io/en/latest/usage.html).
 
 ### Quick Start
 
@@ -59,6 +60,10 @@ clusters, params = dp.fit(texts)
 # Save results
 save_clusters_to_json("clusters.json", texts, clusters, "DP", data)
 ```
+
+## Documentation
+
+Full documentation is available at [https://clusterium.readthedocs.io/](https://clusterium.readthedocs.io/).
 
 ## License
 
