@@ -9,7 +9,7 @@ The `clusx` command-line tool provides a simple interface for clustering text da
 ### Basic Usage
 
 ```bash
-clusx cluster --input your_data.csv --output clusters.csv
+clusx cluster --input your_data.csv --column your_column --output clusters.csv
 ```
 
 ### Command Structure
@@ -53,7 +53,7 @@ Available commands:
 #### Basic Clustering
 
 ```bash
-clusx cluster --input your_data.csv
+clusx cluster --input your_data.csv --column your_column --output clusters.csv
 ```
 
 #### Specifying Column Names
