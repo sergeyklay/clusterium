@@ -110,7 +110,6 @@ def visualize_silhouette_score(
     Returns:
         Path to the saved visualization file
     """
-    os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, filename)
 
     # Extract silhouette scores
@@ -161,8 +160,6 @@ def plot_cluster_distributions(
     Returns:
         Path to the saved plot file
     """
-    os.makedirs(output_dir, exist_ok=True)
-
     log_scale = plot_type == "log-log"
     filename = (
         "cluster_distribution_log.png" if log_scale else "cluster_distribution.png"
@@ -502,7 +499,6 @@ def visualize_evaluation_dashboard(
     Returns:
         Path to the saved visualization file
     """
-    os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, filename)
 
     # Create figure with 3x2 grid
