@@ -94,6 +94,15 @@ jobs:
           # Run flake8 and show results in CI
           flake8 ./
 
+      - name: Load sentence_transformer cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.models
+          key: models-${{ runner.os }}-${{ matrix.python }}-${{ hashFiles('./poetry.lock') }}
+          restore-keys: |
+            models-${{ runner.os }}-${{ matrix.python }}-
+            models-${{ runner.os }}-
+
       - name: Run tests with coverage
         run: |
           source $VENV
@@ -105,6 +114,8 @@ jobs:
 
           coverage combine
           coverage xml
+        env:
+          SENTENCE_TRANSFORMERS_HOME: ~/.models
 
       - name: Upload test results to Codecov
         uses: codecov/test-results-action@v1
