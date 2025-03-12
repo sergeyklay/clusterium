@@ -61,6 +61,65 @@ After installation, the ``clusx`` command will be available from the command lin
    # Verify installation
    clusx --version
 
+Installing from GitHub Releases
+-------------------------------
+
+Another way to install package is to download it from GitHub Releases page:
+
+1. Visit the `GitHub Releases page <https://github.com/sergeyklay/clusterium/releases>`_
+2. Download the desired release artifacts (both ``.whl`` and/or ``.tar.gz`` files)
+3. Download the corresponding checksum files (``SHA256SUMS``, ``SHA512SUMS``, or ``MD5SUMS``)
+4. Verify the integrity of the downloaded files:
+
+   .. code-block:: bash
+
+      # Verify with SHA256 (recommended)
+      sha256sum -c SHA256SUMS
+
+5. Install the verified package:
+
+   .. code-block:: bash
+
+      # Create and activate a virtual environment (recommended)
+      python -m venv .venv
+      source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+      # Install from the downloaded wheel file
+      pip install clusx-x.y.z-py3-none-any.whl
+
+      # Or install from the source distribution
+      pip install clusx-x.y.z.tar.gz
+
+This approach provides an additional layer of security by allowing you to verify the package integrity before installation.
+
+Example workflow:
+
+.. code-block:: bash
+
+   # Create a directory for the download
+   mkdir clusx-download && cd clusx-download
+
+   # Download the latest release artifacts and checksums (replace X.Y.Z with the actual version)
+   # You can use wget or curl
+   wget https://github.com/sergeyklay/clusterium/releases/download/X.Y.Z/clusx-X.Y.Z-py3-none-any.whl
+   wget https://github.com/sergeyklay/clusterium/releases/download/X.Y.Z/clusx-X.Y.Z.tar.gz
+   wget https://github.com/sergeyklay/clusterium/releases/download/X.Y.Z/SHA256SUMS
+
+   # Verify the integrity of the downloaded files
+   sha256sum -c SHA256SUMS
+
+   # Create and activate a virtual environment
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+   # Install the verified package (choose one)
+   pip install clusx-X.Y.Z-py3-none-any.whl  # Wheel file (recommended)
+   # OR
+   pip install clusx-X.Y.Z.tar.gz  # Source distribution
+
+   # Verify the installation
+   clusx --version
+
 Installing the Development Version
 ----------------------------------
 
@@ -106,12 +165,11 @@ If you plan to contribute to the project or need to modify the code, follow thes
       poetry install
 
 Installation Options with Poetry
-================================
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Poetry allows for flexible installation options based on your specific needs:
 
-Full Development Environment
-----------------------------
+**Full Development Environment**
 
 To install all dependency groups, including development tools, testing frameworks, and documentation generators:
 
@@ -119,8 +177,7 @@ To install all dependency groups, including development tools, testing framework
 
    poetry install --with dev,testing,docs
 
-Production Installation
------------------------
+**Production Installation**
 
 For production environments where you only need the core functionality:
 
@@ -128,8 +185,7 @@ For production environments where you only need the core functionality:
 
    poetry install --without dev,testing,docs
 
-Custom Installation
--------------------
+**Custom Installation**
 
 You can customize which dependency groups to include:
 
