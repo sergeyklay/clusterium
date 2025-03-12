@@ -19,6 +19,7 @@ def sample_texts() -> list[str]:
     ]
 
 
+@pytest.mark.integration
 def test_fit_with_real_data_dp(sample_texts: list[str]):
     """Test fitting the model with real data."""
     dp = DirichletProcess(alpha=1.0)
@@ -27,6 +28,7 @@ def test_fit_with_real_data_dp(sample_texts: list[str]):
     assert len(clusters) == len(sample_texts)
 
 
+@pytest.mark.integration
 def test_fit_with_real_data_pyp(sample_texts: list[str]):
     """Test fitting the model with real data."""
     pyp = PitmanYorProcess(alpha=1.0, sigma=0.5)
@@ -35,6 +37,7 @@ def test_fit_with_real_data_pyp(sample_texts: list[str]):
     assert len(clusters) == len(sample_texts)
 
 
+@pytest.mark.integration
 def test_compare_pyp_dp(sample_texts: list[str]):
     """Compare PitmanYorProcess with DirichletProcess."""
     dp = DirichletProcess(alpha=1.0)

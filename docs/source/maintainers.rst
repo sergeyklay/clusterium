@@ -108,10 +108,13 @@ Or manually with Poetry:
 
 .. code-block:: bash
 
-   poetry run coverage erase
-   poetry run coverage run -m pytest ./clusx ./tests
-   poetry run coverage combine
-   poetry run coverage report
+   coverage erase
+
+   coverage run -m pytest -m "not integration" ./clusx ./tests
+   coverage run -m pytest -m integration ./clusx ./tests
+
+   coverage combine
+   coverage report
 
 Generate Coverage Reports
 -------------------------
@@ -129,10 +132,10 @@ Without ``make``, use these Poetry commands:
 .. code-block:: bash
 
    mkdir -p coverage/html coverage/xml coverage/lcov
-   poetry run coverage combine || true
-   poetry run coverage report
-   poetry run coverage html -d coverage/html
-   poetry run coverage xml -o coverage/xml/coverage.xml
+   coverage combine || true
+   coverage report
+   coverage html -d coverage/html
+   coverage xml -o coverage/xml/coverage.xml
 
 CI Workflow
 -----------
@@ -278,15 +281,15 @@ Or manually with Poetry:
 .. code-block:: bash
 
    # Format code (equivalent to make format)
-   poetry run isort --profile black --python-version auto ./
-   poetry run black . ./clusx ./tests
+   isort --profile black --python-version auto ./
+   black . ./clusx ./tests
 
    # Check formatting without changes (equivalent to make format-check)
-   poetry run isort --check-only --profile black --python-version auto --diff ./
-   poetry run black --check . ./clusx ./tests
+   isort --check-only --profile black --python-version auto --diff ./
+   black --check . ./clusx ./tests
 
    # Run linters (equivalent to make lint)
-   poetry run flake8 ./
+   flake8 ./
 
 Pre-commit Hooks
 ----------------
@@ -457,10 +460,11 @@ Common Development Issues
    .. code-block:: bash
 
       # Run tests with verbose output
-      poetry run pytest -v ./clusx ./tests
+      pytest -vvv -m "not integration" ./clusx ./tests
+      pytest -vvv -m integration ./clusx ./tests
 
       # Run a specific test
-      poetry run pytest -v ./tests/test_specific_file.py::test_specific_function
+      pytest -vvv ./tests/test_specific_file.py::test_specific_function
 
 5. **Cleaning build artifacts without make:**
 
