@@ -60,12 +60,12 @@ ifneq ($(TERM),)
 	CS = "${GREEN}~~~ "
 	CE = " ~~~${RESET}"
 
-	PYTEST_FLAGS ?= -v --junitxml=junit.xml -o junit_family=legacy --color=yes
+	PYTEST_FLAGS ?= --color=yes
 else
 	CS = "~~~ "
 	CE = " ~~~"
 
-	PYTEST_FLAGS ?= -v --junitxml=junit.xml -o junit_family=legacy
+	PYTEST_FLAGS ?=
 endif
 
 # Python environment setup

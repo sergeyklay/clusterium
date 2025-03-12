@@ -10,7 +10,7 @@ install:
 test:
 	@echo $(CS)Running tests for package: $(PKG_NAME)$(CE)
 	$(VENV_BIN)/coverage erase
-	$(VENV_BIN)/coverage run -m pytest $(PYTEST_FLAGS) ./clusx ./tests
+	$(VENV_BIN)/coverage run -m pytest -m "not integration" $(PYTEST_FLAGS) ./clusx ./tests
 	@echo
 
 .PHONY: ccov
