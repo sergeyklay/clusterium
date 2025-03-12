@@ -13,6 +13,11 @@ Improved Documentation
 
 * Amend project documentation.
 
+Trivial/Internal Changes
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Improve cascading metadata resolution in :mod:`clusx.version` module.
+
 0.3.3 - 2025-03-12
 ------------------
 
