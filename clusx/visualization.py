@@ -25,6 +25,12 @@ def get_model_colors(model_names):
     """Generate consistent colors for models using academically popular colormaps.
 
     Uses 'Set1' and 'tab10' colormaps which are standard in academic publications.
+
+    Args:
+        model_names: List of model names to generate colors for
+
+    Returns:
+        Dictionary mapping model names to their assigned colors
     """
     num_models = len(model_names)
 

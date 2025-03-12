@@ -1,9 +1,11 @@
 """Version information.
 
 Provides package metadata through a cascading resolution strategy:
-1. Installed package metadata (via importlib.metadata)
-2. pyproject.toml (for development environments)
+
+1. Installed package metadata (via :mod:`importlib.metadata`)
+2. :file:`pyproject.toml` (for development environments)
 3. Fallback defaults
+
 """
 
 import importlib
