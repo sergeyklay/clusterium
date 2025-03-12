@@ -17,7 +17,6 @@ __pycache__
 
 # Project specific
 /output
-/.cache
 /.poetry
 
 *.csv

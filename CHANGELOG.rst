@@ -24,6 +24,8 @@ Trivial/Internal Changes
 
 * Improve cascading metadata resolution in :mod:`clusx.version` module.
 * Refactor type hints to use built-in types.
+* Remove embedding cache functionality as it is not helpful for the current implementation.
+  It will be re-implemented in the future.
 
 0.3.3 - 2025-03-12
 ------------------

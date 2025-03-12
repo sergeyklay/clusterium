@@ -20,7 +20,6 @@ exclude =
     .poetry,
     .pytest_cache,
     .venv,
-    .cache,
     dist,
     coverage,
 

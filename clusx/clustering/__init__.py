@@ -6,7 +6,6 @@ for clustering text data.
 
 """
 
-from .cache import EmbeddingCache
 from .models import DirichletProcess, PitmanYorProcess
 
-__all__ = ["DirichletProcess", "PitmanYorProcess", "EmbeddingCache"]
+__all__ = ["DirichletProcess", "PitmanYorProcess"]

@@ -14,8 +14,6 @@ from tqdm import tqdm
 
 from clusx.logging import get_logger
 
-from .cache import EmbeddingCache
-
 logger = get_logger(__name__)
 
 
@@ -35,7 +33,6 @@ class DirichletProcess:
         cluster_params (dict): Dictionary of cluster parameters for each cluster.
             Contains 'mean' (centroid) and 'count' (number of points).
         model: Sentence transformer model used for text embeddings.
-        cache (EmbeddingCache): Optional cache for storing text embeddings.
         random_state (numpy.random.RandomState): Random state for reproducibility.
     """
 
@@ -44,7 +41,6 @@ class DirichletProcess:
         alpha: float,
         base_measure: Optional[dict] = None,
         similarity_metric: Optional[Callable[[Tensor, Tensor], float]] = None,
-        cache: Optional[EmbeddingCache] = None,
         random_state: Optional[int] = None,
     ):
         """
@@ -57,8 +53,6 @@ class DirichletProcess:
                 Should contain 'variance' key for the likelihood model.
             similarity_metric (Optional[Callable]): Function to compute similarity
                 between embeddings. If None, uses cosine_similarity.
-            cache (Optional[EmbeddingCache]): Cache for storing text embeddings.
-                Helps avoid redundant embedding computations.
             random_state (Optional[int]): Random seed for reproducibility.
         """
         self.alpha = alpha
@@ -75,10 +69,6 @@ class DirichletProcess:
         )
         self.embedding_dim = None  # Will be set on first embedding
 
-        self.cache = cache
-        if self.cache:
-            self.cache.load_cache()
-
         # For reproducibility
         self.random_state = np.random.RandomState(random_state)
 
@@ -87,7 +77,7 @@ class DirichletProcess:
 
     def get_embedding(self, text: str) -> Tensor:
         """
-        Get the embedding for a text, using cache if available.
+        Get the embedding for a text.
 
         Args:
             text (str): The text to embed.
@@ -99,19 +89,6 @@ class DirichletProcess:
         if text in self.text_embeddings:
             return self.text_embeddings[text]
 
-        # Try to get from cache first
-        if self.cache and text in self.cache:
-            embedding = self.cache.get(text)
-            if embedding is not None:
-                self.text_embeddings[text] = embedding
-
-                # Set embedding dimension if not set
-                if self.embedding_dim is None:
-                    self.embedding_dim = len(embedding)
-
-                return embedding
-
-        # Generate new embedding
         embedding = self.model.encode(text)
 
         # Set embedding dimension if not set
@@ -121,19 +98,7 @@ class DirichletProcess:
         # Store in session cache
         self.text_embeddings[text] = embedding
 
-        # Store in persistent cache if provider available
-        if self.cache:
-            self.cache.set(text, embedding)
-
         return embedding
-
-    def save_embedding_cache(self):
-        """
-        Save the embedding cache to disk if a cache provider is available.
-        This helps preserve embeddings between runs for faster processing.
-        """
-        if self.cache:
-            self.cache.save_cache()
 
     def cosine_similarity(self, embedding1: Tensor, embedding2: Tensor) -> float:
         """
@@ -368,8 +333,6 @@ class DirichletProcess:
         for text in tqdm(texts, desc="Clustering"):
             self.assign_cluster(text)
 
-        self.save_embedding_cache()
-
         return self.clusters, self.cluster_params
 
 
@@ -394,7 +357,6 @@ class PitmanYorProcess(DirichletProcess):
         clusters (list[int]): List of cluster assignments for each processed text.
         cluster_params (dict): Dictionary of cluster parameters for each cluster.
         model: Sentence transformer model used for text embeddings.
-        cache (EmbeddingCache): Optional cache for storing text embeddings.
     """
 
     def __init__(
@@ -403,7 +365,6 @@ class PitmanYorProcess(DirichletProcess):
         sigma: float,
         base_measure: Optional[dict] = None,
         similarity_metric: Optional[Callable[[Tensor, Tensor], float]] = None,
-        cache: Optional[EmbeddingCache] = None,
         random_state: Optional[int] = None,
     ):
         """
@@ -419,11 +380,9 @@ class PitmanYorProcess(DirichletProcess):
                 Should contain 'variance' key for the likelihood model.
             similarity_metric (Optional[Callable]): Function to compute similarity
                 between embeddings. If None, uses cosine_similarity.
-            cache (Optional[EmbeddingCache]): Cache for storing text embeddings.
-                Helps avoid redundant embedding computations.
             random_state (Optional[int]): Random seed for reproducibility.
         """
-        super().__init__(alpha, base_measure, similarity_metric, cache, random_state)
+        super().__init__(alpha, base_measure, similarity_metric, random_state)
 
         # Validate sigma is in [0, 1)
         if not (0 <= sigma < 1):
@@ -604,5 +563,4 @@ class PitmanYorProcess(DirichletProcess):
             ):
                 self.assign_cluster(text)
 
-        self.save_embedding_cache()
         return self.clusters, self.cluster_params

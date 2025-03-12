@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 import torch
 
-from clusx.clustering.cache import EmbeddingCache
 from clusx.clustering.models import DirichletProcess, PitmanYorProcess
 
 
@@ -21,15 +20,6 @@ def mock_sentence_transformer():
 
 
 @pytest.fixture
-def mock_embedding_cache():
-    """Create a mock EmbeddingCache."""
-    mock_cache = MagicMock(spec=EmbeddingCache)
-    mock_cache.__contains__.return_value = False
-    mock_cache.get.return_value = None
-    return mock_cache
-
-
-@pytest.fixture
 def sample_embedding():
     """Return a sample embedding tensor."""
     return torch.tensor([0.1, 0.2, 0.3, 0.4])
@@ -38,80 +28,42 @@ def sample_embedding():
 class TestDirichletProcess:
     """Tests for the DirichletProcess class."""
 
-    def test_init(self, mock_embedding_cache):
+    def test_init(self):
         """Test initialization of DirichletProcess."""
-        dp = DirichletProcess(alpha=1.0, cache=mock_embedding_cache)
+        dp = DirichletProcess(alpha=1.0)
 
         assert dp.alpha == 1.0
         assert dp.clusters == []
         assert isinstance(dp.cluster_params, dict)
-        assert dp.cache == mock_embedding_cache
         assert dp.similarity_metric == dp.cosine_similarity
 
     @patch("clusx.clustering.models.SentenceTransformer")
-    def test_get_embedding_new(self, mock_st, mock_embedding_cache):
+    def test_get_embedding_new(self, mock_st):
         """Test getting a new embedding."""
-        # Configure the mock
         mock_instance = MagicMock()
         mock_instance.encode.return_value = np.array([0.1, 0.2, 0.3, 0.4])
         mock_st.return_value = mock_instance
 
-        dp = DirichletProcess(alpha=1.0, cache=mock_embedding_cache)
+        dp = DirichletProcess(alpha=1.0)
         embedding = dp.get_embedding("test text")
 
-        # Verify the model was called to encode the text
         mock_instance.encode.assert_called_once_with("test text")
-        # Verify the cache was checked
-        mock_embedding_cache.__contains__.assert_called_once()
-        # Verify the embedding was stored in cache
-        mock_embedding_cache.set.assert_called_once()
-
         assert np.array_equal(embedding, np.array([0.1, 0.2, 0.3, 0.4]))
 
-    def test_get_embedding_from_cache(self, mock_embedding_cache, sample_embedding):
-        """Test getting an embedding from cache."""
-        # Configure the mock to return an embedding
-        mock_embedding_cache.__contains__.return_value = True
-        mock_embedding_cache.get.return_value = sample_embedding
-
-        dp = DirichletProcess(alpha=1.0, cache=mock_embedding_cache)
-        embedding = dp.get_embedding("test text")
-
-        # Verify the cache was checked
-        mock_embedding_cache.__contains__.assert_called_once()
-        mock_embedding_cache.get.assert_called_once()
-
-        assert torch.equal(embedding, sample_embedding)
-
-    def test_save_embedding_cache(self, mock_embedding_cache):
-        """Test saving the embedding cache."""
-        dp = DirichletProcess(alpha=1.0, cache=mock_embedding_cache)
-        dp.save_embedding_cache()
-
-        mock_embedding_cache.save_cache.assert_called_once()
-
-    def test_cosine_similarity(self, mock_sentence_transformer):
+    def test_cosine_similarity(self):
         """Test the cosine_similarity method."""
         dp = DirichletProcess(alpha=1.0)
 
-        # Create two embeddings with known cosine similarity
         text_embedding = torch.tensor([1.0, 0.0, 0.0, 0.0])
         cluster_embedding = torch.tensor([0.0, 1.0, 0.0, 0.0])
-
-        # Calculate similarity directly
         similarity = dp.cosine_similarity(text_embedding, cluster_embedding)
 
-        # Cosine similarity between orthogonal vectors is 0, so 1 - 0 = 0
         assert similarity == 0.0
 
     @patch("numpy.random.choice")
     def test_assign_cluster_new(self, mock_choice, mock_sentence_transformer):
         """Test assigning a text to a new cluster."""
-        # Configure the mock to choose a new cluster
         dp = DirichletProcess(alpha=1.0)
-
-        # For the first point, no need to mock random_state.choice
-        # as the first point always creates a new cluster
 
         sample_embedding = np.array([0.1, 0.2, 0.3, 0.4])
         with patch.object(dp, "get_embedding", return_value=sample_embedding):
@@ -176,15 +128,14 @@ class TestDirichletProcess:
 class TestPitmanYorProcess:
     """Tests for the PitmanYorProcess class."""
 
-    def test_init(self, mock_embedding_cache):
+    def test_init(self):
         """Test initialization of PitmanYorProcess."""
-        pyp = PitmanYorProcess(alpha=1.0, sigma=0.5, cache=mock_embedding_cache)
+        pyp = PitmanYorProcess(alpha=1.0, sigma=0.5)
 
         assert pyp.alpha == 1.0
         assert pyp.sigma == 0.5
         assert pyp.clusters == []
         assert isinstance(pyp.cluster_params, dict)
-        assert pyp.cache == mock_embedding_cache
         assert pyp.similarity_metric == pyp.cosine_similarity
 
     @patch("numpy.random.choice")

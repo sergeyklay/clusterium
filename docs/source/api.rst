@@ -60,13 +60,6 @@ The ``visualization`` module
 The ``clustering`` module
 =========================
 
-The ``cache`` module
----------------------
-
-.. automodule:: clusx.clustering.cache
-    :members:
-    :no-undoc-members:
-
 The ``models`` module
 ---------------------
 

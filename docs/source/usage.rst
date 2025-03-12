@@ -41,26 +41,23 @@ Command Line Options for ``cluster``
      - Description
      - Default
    * - ``--input``
-     - Path to input CSV file (required)
+     - Path to input file (text or CSV) (required)
      -
    * - ``--column``
-     - Column name to use for clustering
-     - ``question``
+     - Column name to use for clustering (required for CSV files)
+     - None
    * - ``--output``
-     - Output CSV file path
+     - Output file path
      - ``clusters_output.csv``
    * - ``--output-dir``
      - Directory to save output files
      - ``output``
    * - ``--alpha``
      - Concentration parameter for clustering
-     - 1.0
+     - 5.0
    * - ``--sigma``
      - Discount parameter for Pitman-Yor Process
      - 0.5
-   * - ``--cache-dir``
-     - Directory to cache embeddings
-     - ``.cache``
 
 Command Line Options for ``evaluate``
 -------------------------------------
@@ -73,11 +70,11 @@ Command Line Options for ``evaluate``
      - Description
      - Default
    * - ``--input``
-     - Path to input CSV file (required)
+     - Path to input file (text or CSV) (required)
      -
    * - ``--column``
-     - Column name to use for clustering
-     - ``question``
+     - Column name to use for clustering (required for CSV files)
+     - None
    * - ``--dp-clusters``
      - Path to Dirichlet Process clustering results CSV (required)
      -
@@ -90,9 +87,6 @@ Command Line Options for ``evaluate``
    * - ``--output-dir``
      - Directory to save output files
      - ``output``
-   * - ``--cache-dir``
-     - Directory to cache embeddings
-     - ``.cache``
 
 Examples
 ========
@@ -194,7 +188,7 @@ Each cluster contains:
 
 * A unique ID
 * A representative text (typically the first item in the cluster)
-* A list of source texts that belong to the cluster
+* A list of member texts that belong to the cluster
 * Metadata with clustering parameters
 
 **Example CSV Output**
@@ -351,7 +345,7 @@ To interpret evaluation results and improve clustering performance, it's importa
      * Higher values (e.g., 5.0) create more clusters
      * Lower values (e.g., 0.1) create fewer, larger clusters
      * Range: Typically 0.1 to 10.0
-     * Default: 1.0
+     * Default: 5.0
 
    * **sigma**: Discount parameter used only in the Pitman-Yor Process.
      * Controls the power-law behavior of the cluster sizes
@@ -406,7 +400,7 @@ Basic Usage
    cache = EmbeddingCache(cache_dir=".cache")
 
    # Perform Dirichlet Process clustering
-   dp = DirichletProcess(alpha=1.0, cache=cache)
+   dp = DirichletProcess(alpha=1.0)
    clusters, params = dp.fit(texts)
 
    # Save results
@@ -420,7 +414,7 @@ The Pitman-Yor Process often produces better clustering results for text data:
 .. code-block:: python
 
    # Perform Pitman-Yor Process clustering
-   pyp = PitmanYorProcess(alpha=1.0, sigma=0.5, cache=cache)
+   pyp = PitmanYorProcess(alpha=1.0, sigma=0.5)
    clusters_pyp, params_pyp = pyp.fit(texts)
 
    # Save results
@@ -473,8 +467,8 @@ You can customize various aspects of the clustering process:
 .. code-block:: python
 
    # Custom alpha and sigma values
-   dp = DirichletProcess(alpha=0.5, cache=cache)
-   pyp = PitmanYorProcess(alpha=0.5, sigma=0.3, cache=cache)
+   dp = DirichletProcess(alpha=0.5)
+   pyp = PitmanYorProcess(alpha=0.5, sigma=0.3)
 
    # Custom embedding model (advanced)
    from sentence_transformers import SentenceTransformer
@@ -488,7 +482,6 @@ You can customize various aspects of the clustering process:
 Performance Considerations
 ==========================
 
-* **Caching**: Embeddings are cached to speed up repeated runs. Use the ``--cache-dir`` option to specify a cache directory.
 * **Memory Usage**: Large datasets may require significant memory, especially for the embedding model.
 * **Processing Time**: The clustering process can be time-consuming for large datasets. The Pitman-Yor Process is typically faster than the Dirichlet Process.
 
