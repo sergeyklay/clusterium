@@ -22,14 +22,13 @@ def get_metadata() -> Dict[str, str]:
     resolvers = [
         _get_installed_metadata,
         _get_pyproject_metadata,
-        _get_fallback_metadata,
     ]
 
     for resolver in resolvers:
         if metadata := resolver():
             return metadata
 
-    return _get_fallback_metadata()  # Should never reach here, but just in case
+    return _get_fallback_metadata()
 
 
 def _get_installed_metadata() -> Optional[Dict[str, str]]:
@@ -37,12 +36,12 @@ def _get_installed_metadata() -> Optional[Dict[str, str]]:
     try:
         pkg_meta = importlib.metadata.metadata("clusx")
         return {
-            "version": pkg_meta["Version"],
-            "description": pkg_meta["Summary"],
-            "license": pkg_meta["License"],
-            "author": pkg_meta["Author"],
-            "author_email": pkg_meta["Author-email"],
-            "url": pkg_meta["Home-page"],
+            "version": pkg_meta.get("Version", "0.0.0+dev"),
+            "description": pkg_meta.get("Summary", "Clusterium"),
+            "license": pkg_meta.get("License", "MIT"),
+            "author": pkg_meta.get("Author", "Serghei Iakovlev"),
+            "author_email": pkg_meta.get("Author-email", "oss@serghei.pl"),
+            "url": pkg_meta.get("Home-page", "https://clusterium.readthedocs.io"),
         }
     except (importlib.metadata.PackageNotFoundError, KeyError):
         return None
@@ -57,6 +56,7 @@ def _get_pyproject_metadata() -> Optional[Dict[str, str]]:
     project = pyproject_data.get("project", {})
     poetry = pyproject_data.get("tool", {}).get("poetry", {})
     authors = project.get("authors", [])
+    urls = project.get("urls", {})
     author_info = authors[0] if authors else {}
 
     return {
@@ -65,9 +65,7 @@ def _get_pyproject_metadata() -> Optional[Dict[str, str]]:
         "license": project.get("license", "MIT"),
         "author": author_info.get("name", "Serghei Iakovlev"),
         "author_email": author_info.get("email", "oss@serghei.pl"),
-        "url": project.get("urls", {}).get(
-            "homepage", "https://clusterium.readthedocs.io"
-        ),
+        "url": urls.get("homepage", "https://clusterium.readthedocs.io"),
     }
 
 
