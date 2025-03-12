@@ -151,7 +151,16 @@ Visualizations are generated using the ``evaluate`` command, not the ``cluster``
       --pyp-clusters output/clusters_output_pyp.csv \
       --no-plot
 
-The evaluation dashboard includes visualizations of cluster size distributions, silhouette scores, similarity metrics, and power-law fits. These visualizations are saved as ``evaluation_dashboard.png`` in the output directory.
+The evaluation dashboard includes visualizations of cluster size distributions,
+silhouette scores, similarity metrics, and power-law fits. These visualizations
+are saved as ``evaluation_dashboard.png`` in the output directory.
+
+The visualization dashboard will look like this:
+
+.. image:: _static/evaluation_dashboard_v1.png
+   :alt: Evaluation Dashboard Example
+   :width: 100%
+
 
 Specifying Output Directory
 ---------------------------

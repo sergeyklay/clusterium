@@ -21,8 +21,6 @@ __pycache__
 /.poetry
 
 *.csv
-*.json
-*.png
 
 # Distribution / packaging
 /dist
