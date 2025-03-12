@@ -20,12 +20,44 @@ Should you have any question, any remark, or if you find a bug, or if there is
 something you can't do with the Clusterium, please
 `open an issue <https://github.com/sergeyklay/clusterium/issues>`_.
 
+Full Table of Contents
+======================
+
+The User Guide
+--------------
+
+This part of the documentation, which is mostly prose, begins with some
+background information about Clusterium, then focuses on step-by-step
+instructions for getting the most out of Clusterium.
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents
 
    installation
    usage
+
+The API Documentation / Guide
+-----------------------------
+
+If you are looking for information on a specific function, class, or method,
+this part of the documentation is for you.
+
+.. toctree::
+   :maxdepth: 3
+
+   api
+
+The Contributor Guide
+---------------------
+
+If you want to contribute to the project, this part of the documentation is for
+you.
+
+.. toctree::
+   :maxdepth: 3
+
+   contributing
+   license
 
 Project Information
 ===================
@@ -42,7 +74,7 @@ If you'd like to contribute to Clusterium you're most welcome!
    :maxdepth: 1
 
    maintainers
-   license
+
 
 Indices and tables
 ==================

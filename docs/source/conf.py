@@ -3,10 +3,10 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath("../../clusx/"))
+sys.path.insert(0, str(Path("..", "..", "clusx").resolve()))
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -20,10 +20,24 @@ release = "0.3.1"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.coverage",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.napoleon",
+]
 
+# Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 exclude_patterns = []
+
+
+# -- Options for intersphinx -------------------------------------------------
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "sphinx": ("https://www.sphinx-doc.org/en/master", None),
+}
 
 
 # -- Options for HTML output -------------------------------------------------

@@ -34,7 +34,7 @@ class DirichletProcess:
             Contains 'mean' (centroid) and 'count' (number of points).
         model: Sentence transformer model used for text embeddings.
         cache (EmbeddingCache): Optional cache for storing text embeddings.
-        random_state (np.random.RandomState): Random state for reproducibility.
+        random_state (numpy.random.RandomState): Random state for reproducibility.
     """
 
     def __init__(
