@@ -8,7 +8,7 @@ metrics.
 import os
 import textwrap
 from collections import Counter
-from typing import Any, Dict
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 plt.style.use("default")
 
 
-def get_model_colors(model_names):
+def get_model_colors(model_names: list[str]) -> dict[str, Any]:
     """Generate consistent colors for models using academically popular colormaps.
 
     Uses 'Set1' and 'tab10' colormaps which are standard in academic publications.
@@ -514,7 +514,7 @@ def _plot_outliers(reports, ax):
 
 
 def visualize_evaluation_dashboard(
-    reports: Dict[str, Dict[str, Any]],
+    reports: dict[str, dict[str, Any]],
     output_dir: str,
     filename: str = "evaluation_dashboard.png",
     show_plot: bool = False,

@@ -17,6 +17,7 @@ Trivial/Internal Changes
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Improve cascading metadata resolution in :mod:`clusx.version` module.
+* Refactor type hints to use built-in types.
 
 0.3.3 - 2025-03-12
 ------------------

@@ -6,7 +6,7 @@ import csv
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 def load_data_from_csv(
     csv_file: str, column: str = "question", answer_column: str = "answer"
-) -> Tuple[List[str], List[Dict[str, str]]]:
+) -> tuple[list[str], list[dict[str, str]]]:
     """
     Load text data from a CSV file.
 
@@ -28,7 +28,7 @@ def load_data_from_csv(
         answer_column: Column name containing the answers (default: "answer")
 
     Returns:
-        typing.Tuple: A tuple containing (texts, data_rows)
+        tuple[list[str], list[dict[str, str]]]: A tuple containing (texts, data_rows)
     """
     texts = []
     data = []  # Store full data including answers
@@ -46,8 +46,8 @@ def load_data_from_csv(
 
 def save_clusters_to_csv(
     output_file: str,
-    texts: List[str],
-    clusters: List[int],
+    texts: list[str],
+    clusters: list[int],
     model_name: str,
     alpha: float = 1.0,
     sigma: float = 0.0,
@@ -76,10 +76,10 @@ def save_clusters_to_csv(
 
 def save_clusters_to_json(
     output_file: str,
-    texts: List[str],
-    clusters: List[int],
+    texts: list[str],
+    clusters: list[int],
     model_name: str,
-    data: Optional[List[Dict[str, Any]]] = None,
+    data: Optional[list[dict[str, Any]]] = None,
     answer_column: str = "answer",
     alpha: float = 1.0,
     sigma: float = 0.0,
@@ -152,7 +152,7 @@ def save_clusters_to_json(
 
         # Add sources with their real answers if available
         for text in cluster_texts:
-            answer = f"Answer for question in cluster {i+1}"
+            answer = f"Answer for question in cluster {i + 1}"
             if data_map and text in data_map and answer_column in data_map[text]:
                 answer = data_map[text][answer_column]
 
@@ -166,7 +166,7 @@ def save_clusters_to_json(
     logger.info(f"JSON clusters saved to {output_file}")
 
 
-def get_embeddings(texts: List[str], cache_provider) -> np.ndarray:
+def get_embeddings(texts: list[str], cache_provider) -> np.ndarray:
     """
     Get embeddings for a list of texts.
 
@@ -201,7 +201,7 @@ def get_embeddings(texts: List[str], cache_provider) -> np.ndarray:
     return np.array(embeddings)
 
 
-def load_cluster_assignments(csv_path: str) -> Tuple[List[int], Dict[str, float]]:
+def load_cluster_assignments(csv_path: str) -> tuple[list[int], dict[str, float]]:
     """
     Load cluster assignments and parameters from a CSV file.
 
@@ -209,7 +209,7 @@ def load_cluster_assignments(csv_path: str) -> Tuple[List[int], Dict[str, float]
         csv_path: Path to the CSV file containing cluster assignments
 
     Returns:
-        typing.Tuple[typing.List[int], typing.Dict[str, float]]: A tuple containing:
+        tuple[list[int], dict[str, float]]: A tuple containing:
             - List of cluster assignments
             - Dictionary of parameters (alpha, sigma, variance)
 
@@ -264,7 +264,7 @@ def load_cluster_assignments(csv_path: str) -> Tuple[List[int], Dict[str, float]
     return cluster_assignments, params
 
 
-def load_parameters_from_json(json_path: str) -> Dict[str, float]:
+def load_parameters_from_json(json_path: str) -> dict[str, float]:
     """
     Load clustering parameters from a JSON file.
 
@@ -272,7 +272,7 @@ def load_parameters_from_json(json_path: str) -> Dict[str, float]:
         json_path: Path to the JSON file containing clustering results
 
     Returns:
-        typing.Dict[str, float]: A dictionary of parameters (alpha, sigma)
+        dict[str, float]: A dictionary of parameters (alpha, sigma)
     """
     params = {"alpha": 1.0, "sigma": 0.0}  # Default values
 
