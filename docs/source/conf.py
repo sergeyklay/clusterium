@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath("../../clusx/"))
 project = "Clusterium"
 author = "Serghei Iakovlev"
 copyright = f"2025, {author}"
-release = "0.3.0"
+release = "0.3.1"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
