@@ -65,6 +65,7 @@ The ``models`` module
 
 .. automodule:: clusx.clustering.models
     :members:
+    :special-members:
     :no-undoc-members:
 
 The ``utils`` module
