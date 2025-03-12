@@ -50,6 +50,7 @@ The project includes several make commands to streamline development:
    make format            # Format code using black and isort
    make format-check      # Check code formatting
    make lint              # Run linters
+   make docs              # Test and build documentation
    make clean             # Remove build artifacts and directories
 
 Testing the Project
@@ -144,18 +145,24 @@ Install documentation dependencies:
 
    poetry install --with docs
 
-Build the documentation using the docs Makefile:
+Build the documentation using the ``Makefile`` from the root directory:
 
 .. code-block:: bash
 
-   cd docs
-   make html
+   make docs
 
 Or build directly with sphinx:
 
 .. code-block:: bash
 
-   sphinx-build --nitpicky --show-traceback --fail-on-warning --builder html docs/source docs/build/html
+   python -m sphinx \
+      --jobs auto \
+      --builder html \
+      --nitpicky \
+      --show-traceback \
+      --fail-on-warning \
+      --doctree-dir docs/build/doctrees \
+      docs/source docs/build/html
 
 View the documentation:
 
@@ -170,7 +177,7 @@ View the documentation:
 Other Documentation Formats
 ---------------------------
 
-The docs Makefile supports various output formats:
+The docs ``Makefile`` supports various output formats:
 
 .. code-block:: bash
 
