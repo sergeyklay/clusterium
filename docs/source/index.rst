@@ -31,6 +31,17 @@ instructions for getting the most out of Clusterium.
    installation
    usage
 
+The Community Guide
+-------------------
+
+This part of the documentation, which is mostly prose, details the
+Clusterium ecosystem and community.
+
+.. toctree::
+   :maxdepth: 2
+
+   changelog
+
 The API Documentation / Guide
 -----------------------------
 
