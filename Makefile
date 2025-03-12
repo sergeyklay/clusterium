@@ -50,6 +50,12 @@ clean:
 	$(RM) ./coverage
 	@echo
 
+.PHONY: docs
+docs: CONTRIBUTING.rst README.rst
+	@echo $(CS)Building documentation for package: $(PKG_NAME)$(CE)
+	$(VENV_PYTHON) -m doctest CONTRIBUTING.rst README.rst
+	$(VENV_PYTHON) -m sphinx --jobs auto --builder html --nitpicky --show-traceback --fail-on-warning --doctree-dir docs/build/doctrees docs/source docs/build/html
+
 $(VENV_PYTHON): $(VENV_ROOT)
 	@echo
 
@@ -81,6 +87,7 @@ help:
 	@echo "  $(TARGET)format$(RESET)       $(DESCRIPTION)Format code in $(PKG_NAME)$(RESET)"
 	@echo "  $(TARGET)format-check$(RESET) $(DESCRIPTION)Check code formatting in $(PKG_NAME)$(RESET)"
 	@echo "  $(TARGET)lint$(RESET)         $(DESCRIPTION)Run linters in $(PKG_NAME)$(RESET)"
+	@echo "  $(TARGET)docs$(RESET)         $(DESCRIPTION)Build documentation for $(PKG_NAME)$(RESET)"
 	@echo "  $(TARGET)clean$(RESET)        $(DESCRIPTION)Remove build and tests artefacts and directories$(RESET)"
 	@echo
 	@echo '$(SECTION)Virtualenv:$(RESET)'
