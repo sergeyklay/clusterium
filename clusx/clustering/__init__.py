@@ -6,7 +6,7 @@ for clustering text data.
 
 """
 
-from clusx.clustering.cache import EmbeddingCache
-from clusx.clustering.models import DirichletProcess, PitmanYorProcess
+from .cache import EmbeddingCache
+from .models import DirichletProcess, PitmanYorProcess
 
 __all__ = ["DirichletProcess", "PitmanYorProcess", "EmbeddingCache"]

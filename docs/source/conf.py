@@ -11,7 +11,6 @@ sys.path.insert(0, str(Path("..", "..", "clusx").resolve()))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-
 project = "Clusterium"
 author = "Serghei Iakovlev"
 copyright = f"2025, {author}"
@@ -31,14 +30,13 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = []
 
-
 # -- Options for intersphinx -------------------------------------------------
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "sphinx": ("https://www.sphinx-doc.org/en/master", None),
+    "torch": ("https://pytorch.org/docs/stable/", None),
 }
-
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

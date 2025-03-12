@@ -28,7 +28,7 @@ def load_data_from_csv(
         answer_column: Column name containing the answers (default: "answer")
 
     Returns:
-        Tuple containing (texts, data_rows)
+        typing.Tuple: A tuple containing (texts, data_rows)
     """
     texts = []
     data = []  # Store full data including answers
@@ -209,7 +209,7 @@ def load_cluster_assignments(csv_path: str) -> Tuple[List[int], Dict[str, float]
         csv_path: Path to the CSV file containing cluster assignments
 
     Returns:
-        Tuple containing:
+        typing.Tuple[typing.List[int], typing.Dict[str, float]]: A tuple containing:
             - List of cluster assignments
             - Dictionary of parameters (alpha, sigma, variance)
 
@@ -272,7 +272,7 @@ def load_parameters_from_json(json_path: str) -> Dict[str, float]:
         json_path: Path to the JSON file containing clustering results
 
     Returns:
-        Dictionary of parameters (alpha, sigma)
+        typing.Dict[str, float]: A dictionary of parameters (alpha, sigma)
     """
     params = {"alpha": 1.0, "sigma": 0.0}  # Default values
 

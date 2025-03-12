@@ -11,8 +11,9 @@ from sentence_transformers import SentenceTransformer
 from torch import Tensor
 from tqdm import tqdm
 
-from clusx.clustering.cache import EmbeddingCache
 from clusx.logging import get_logger
+
+from .cache import EmbeddingCache
 
 logger = get_logger(__name__)
 
@@ -91,7 +92,7 @@ class DirichletProcess:
             text (str): The text to embed.
 
         Returns:
-            Tensor: The embedding vector for the text.
+            torch.Tensor: The embedding vector for the text.
         """
         # Check if already computed in this session
         if text in self.text_embeddings:
@@ -138,8 +139,8 @@ class DirichletProcess:
         Calculate cosine similarity between two embeddings.
 
         Args:
-            embedding1 (Tensor): First embedding.
-            embedding2 (Tensor): Second embedding.
+            embedding1 (torch.Tensor): First embedding.
+            embedding2 (torch.Tensor): Second embedding.
 
         Returns:
             float: Similarity score between 0 and 1, where 1 means identical.
@@ -154,7 +155,7 @@ class DirichletProcess:
         This implements a multivariate Gaussian likelihood in the embedding space.
 
         Args:
-            embedding (Tensor): The embedding to evaluate.
+            embedding (torch.Tensor): The embedding to evaluate.
             cluster_id (int): The cluster ID.
 
         Returns:
@@ -186,7 +187,7 @@ class DirichletProcess:
         Calculate log likelihood of an embedding under the base measure.
 
         Args:
-            embedding (Tensor): The embedding to evaluate.
+            embedding (torch.Tensor): The embedding to evaluate.
 
         Returns:
             float: Log likelihood of the embedding under the base measure.
@@ -350,10 +351,10 @@ class DirichletProcess:
         using Bayesian inference with the Chinese Restaurant Process prior.
 
         Args:
-            texts (List[str]): List of text strings to cluster.
+            texts (typing.List[str]): List of text strings to cluster.
 
         Returns:
-            Tuple[List[int], Dict]: A tuple containing:
+            typing.Tuple[typing.List[int], typing.Dict]: A tuple containing:
                 - List of cluster assignments for each text
                 - Dictionary of cluster parameters
         """
@@ -578,10 +579,10 @@ class PitmanYorProcess(DirichletProcess):
         using Bayesian inference with the Pitman-Yor Process prior.
 
         Args:
-            texts (List[str]): List of text strings to cluster.
+            texts (typing.List[str]): List of text strings to cluster.
 
         Returns:
-            Tuple[List[int], Dict]: A tuple containing:
+            typing.Tuple[typing.List[int], typing.Dict]: A tuple containing:
                 - List of cluster assignments for each text
                 - Dictionary of cluster parameters
         """

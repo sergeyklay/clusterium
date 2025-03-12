@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colormaps
 
-from clusx.logging import get_logger
+from .logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -523,6 +523,7 @@ def visualize_evaluation_dashboard(
     Generate a comprehensive dashboard visualization of evaluation metrics.
 
     This creates a 3x2 grid of plots showing:
+
     1. Cluster size distribution (log-log scale)
     2. Silhouette score comparison
     3. Similarity metrics comparison

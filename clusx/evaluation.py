@@ -16,7 +16,7 @@ from sklearn.metrics import silhouette_score
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 
-from clusx.logging import get_logger
+from .logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -131,6 +131,7 @@ class ClusterEvaluator:
 
         The silhouette score measures how similar an object is to its own cluster
         compared to other clusters. The score ranges from -1 to 1, where:
+
         - A high value (close to 1) indicates the object is well matched to its cluster
         - A value near 0 indicates the object is on or very close to the decision
           boundary
@@ -249,7 +250,7 @@ class ClusterEvaluator:
         Detect if the cluster size distribution follows a power-law.
 
         Returns:
-            Dictionary with power-law parameters:
+            typing.Dict: A dictionary with power-law parameters:
                 - alpha: Power-law exponent
                 - xmin: Minimum value for which power-law holds
                 - is_powerlaw: Whether the distribution follows a power-law

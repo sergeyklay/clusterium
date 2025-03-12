@@ -13,8 +13,8 @@ from typing import Optional
 
 import click
 
-from clusx.logging import get_logger, setup_logging
-from clusx.version import __copyright__, __version__
+from .logging import get_logger, setup_logging
+from .version import __copyright__, __version__
 
 logger = get_logger(__name__)
 
@@ -115,12 +115,12 @@ def cluster(
     cache_dir: str,
 ) -> None:
     """Cluster text data using Dirichlet Process and Pitman-Yor Process."""
-    from clusx.clustering import (
+    from .clustering import (
         DirichletProcess,
         EmbeddingCache,
         PitmanYorProcess,
     )
-    from clusx.clustering.utils import (
+    from .clustering.utils import (
         load_data_from_csv,
         save_clusters_to_csv,
         save_clusters_to_json,
@@ -299,13 +299,13 @@ def evaluate(
     cache_dir: str,
 ) -> None:
     """Evaluate clustering results using established metrics."""
-    from clusx.clustering import EmbeddingCache
-    from clusx.clustering.utils import (
+    from .clustering import EmbeddingCache
+    from .clustering.utils import (
         get_embeddings,
         load_cluster_assignments,
         load_data_from_csv,
     )
-    from clusx.evaluation import (
+    from .evaluation import (
         ClusterEvaluator,
         save_evaluation_report,
     )
@@ -368,7 +368,7 @@ def evaluate(
         save_evaluation_report(reports, output_dir)
 
         if plot:
-            from clusx.visualization import visualize_evaluation_dashboard
+            from .visualization import visualize_evaluation_dashboard
 
             # Generate the dashboard visualization
             click.echo("Generating evaluation dashboard...")
