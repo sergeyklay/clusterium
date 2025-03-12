@@ -150,7 +150,6 @@ def cluster(
         # Create base measure with variance
         base_measure = {"variance": variance}
 
-        # Perform Dirichlet Process clustering
         logger.info("Performing Dirichlet Process clustering...")
         dp = DirichletProcess(
             alpha=alpha,
@@ -158,10 +157,9 @@ def cluster(
             cache=cache_provider,
             random_state=random_seed,
         )
-        clusters_dp, cluster_params_dp = dp.fit(texts)
+        clusters_dp, _ = dp.fit(texts)
         logger.info(f"DP clustering complete. Found {len(set(clusters_dp))} clusters")
 
-        # Perform Pitman-Yor Process clustering
         logger.info("Performing Pitman-Yor Process clustering...")
         pyp = PitmanYorProcess(
             alpha=alpha,
@@ -170,7 +168,7 @@ def cluster(
             cache=cache_provider,
             random_state=random_seed,
         )
-        clusters_pyp, cluster_params_pyp = pyp.fit(texts)
+        clusters_pyp, _ = pyp.fit(texts)
         logger.info(f"PYP clustering complete. Found {len(set(clusters_pyp))} clusters")
 
         # Save results
@@ -225,20 +223,6 @@ def cluster(
             sigma=sigma,
             variance=variance,
         )
-
-        # Save combined results
-        qa_clusters_path = os.path.join(output_dir, "qa_clusters.json")
-        save_clusters_to_json(
-            qa_clusters_path,
-            texts,
-            clusters_dp,
-            "Combined",
-            data,
-            alpha=alpha,
-            sigma=0.0,
-            variance=variance,
-        )
-        logger.info(f"Combined clusters saved to {qa_clusters_path}")
     except Exception as e:
         logger.exception(f"Error: {e}")
         raise click.ClickException(str(e))

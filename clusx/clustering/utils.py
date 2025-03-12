@@ -136,7 +136,7 @@ def save_clusters_to_json(
         ):
             representative_answer = data_map[representative_text][answer_column]
         else:
-            representative_answer = f"Answer for cluster {i+1} using {model_name}"
+            representative_answer = f"Answer for cluster {i + 1} using {model_name}"
 
         # Create the cluster object
         cluster_obj = {
