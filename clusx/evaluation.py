@@ -9,7 +9,7 @@ cluster validation in the context of text data clustering.
 
 import json
 import os
-from typing import Any, Dict, List, Union
+from typing import Any, Union
 
 import numpy as np
 from sklearn.metrics import silhouette_score
@@ -77,9 +77,9 @@ class ClusterEvaluator:
 
     def __init__(
         self,
-        texts: List[str],
+        texts: list[str],
         embeddings: np.ndarray,
-        cluster_assignments: List[int],
+        cluster_assignments: list[int],
         model_name: str,
         alpha: float = 1.0,
         sigma: float = 0.0,
@@ -172,7 +172,7 @@ class ClusterEvaluator:
             logger.error(f"Error calculating silhouette score: {e}")
             return 0.0
 
-    def calculate_similarity_metrics(self) -> Dict[str, Union[float, np.floating]]:
+    def calculate_similarity_metrics(self) -> dict[str, Union[float, np.floating]]:
         """
         Calculate similarity metrics for the clusters.
 
@@ -184,7 +184,7 @@ class ClusterEvaluator:
           Average similarity between texts in different clusters
 
         Returns:
-            Dictionary with similarity metrics
+            dict[str, Union[float, numpy.floating]]: Dictionary with similarity metrics
         """
         try:
             # Skip if we have too few samples
@@ -245,12 +245,12 @@ class ClusterEvaluator:
                 "silhouette_like_score": 0.0,
             }
 
-    def detect_powerlaw_distribution(self) -> Dict[str, Any]:
+    def detect_powerlaw_distribution(self) -> dict[str, Any]:
         """
         Detect if the cluster size distribution follows a power-law.
 
         Returns:
-            typing.Dict: A dictionary with power-law parameters:
+            dict[str, Any]: A dictionary with power-law parameters:
                 - alpha: Power-law exponent
                 - xmin: Minimum value for which power-law holds
                 - is_powerlaw: Whether the distribution follows a power-law
@@ -322,7 +322,7 @@ class ClusterEvaluator:
                 "p_value": None,
             }
 
-    def find_outliers(self, n_neighbors: int = 5) -> Dict[str, float]:
+    def find_outliers(self, n_neighbors: int = 5) -> dict[str, float]:
         """
         Find potential outliers in each cluster using nearest neighbors.
 
@@ -330,7 +330,7 @@ class ClusterEvaluator:
             n_neighbors: Number of neighbors to consider (default: 5)
 
         Returns:
-            Dictionary with outlier metrics
+            dict[str, float]: Dictionary with outlier metrics
         """
         try:
             # Skip if we have too few samples
@@ -359,24 +359,24 @@ class ClusterEvaluator:
             logger.error(f"Error detecting outliers: {e}")
             return {}
 
-    def _get_cluster_sizes(self) -> Dict[str, int]:
+    def _get_cluster_sizes(self) -> dict[str, int]:
         """
         Get the size distribution of clusters.
 
         Returns:
-            Dictionary mapping cluster IDs to their sizes
+            dict[str, int]: Dictionary mapping cluster IDs to their sizes
         """
         cluster_sizes = {}
         for cluster_id in self.unique_clusters:
             cluster_sizes[str(cluster_id)] = self.cluster_assignments.count(cluster_id)
         return cluster_sizes
 
-    def generate_report(self) -> Dict[str, Any]:
+    def generate_report(self) -> dict[str, Any]:
         """
         Generate a comprehensive evaluation report.
 
         Returns:
-            Dictionary containing all evaluation metrics and metadata
+            dict[str, Any]: Dictionary containing all evaluation metrics and metadata
         """
         # Calculate all metrics
         silhouette = self.calculate_silhouette_score()
@@ -409,7 +409,7 @@ class ClusterEvaluator:
         return report
 
 
-def _sanitize_for_json(obj):
+def _sanitize_for_json(obj: Any) -> Any:
     """Convert NumPy types to Python types for JSON serialization."""
     if isinstance(obj, dict):
         return {k: _sanitize_for_json(v) for k, v in obj.items()}
@@ -423,7 +423,7 @@ def _sanitize_for_json(obj):
         return obj
 
 
-def _debug_json_error(report):
+def _debug_json_error(report: dict[str, Any]) -> None:
     """Debug JSON serialization errors by identifying problematic values."""
     for model_name, model_report in report.items():
         try:
@@ -438,7 +438,7 @@ def _debug_json_error(report):
                     logger.error(f"Problem with key: {key}, value type: {type(value)}")
 
 
-def _create_simplified_report(report):
+def _create_simplified_report(report: dict[str, Any]) -> dict[str, Any]:
     """Create a simplified version of the report with only basic metrics."""
     simplified_report = {}
     for model_name, model_report in report.items():
@@ -450,7 +450,7 @@ def _create_simplified_report(report):
 
 
 def save_evaluation_report(
-    report: Dict[str, Any], output_dir: str, filename: str = "evaluation_report.json"
+    report: dict[str, Any], output_dir: str, filename: str = "evaluation_report.json"
 ) -> str:
     """
     Save the evaluation report to a JSON file.
@@ -461,7 +461,7 @@ def save_evaluation_report(
         filename: Name of the output file
 
     Returns:
-        Path to the saved report file
+        str: Path to the saved report file
     """
     output_path = os.path.join(output_dir, filename)
 

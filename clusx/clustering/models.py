@@ -2,7 +2,8 @@
 Clustering models for text data using Dirichlet Process and Pitman-Yor Process.
 """
 
-from typing import Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Optional
 
 import numpy as np
 from scipy.spatial.distance import cosine
@@ -41,7 +42,7 @@ class DirichletProcess:
     def __init__(
         self,
         alpha: float,
-        base_measure: Optional[Dict] = None,
+        base_measure: Optional[dict] = None,
         similarity_metric: Optional[Callable[[Tensor, Tensor], float]] = None,
         cache: Optional[EmbeddingCache] = None,
         random_state: Optional[int] = None,
@@ -52,7 +53,7 @@ class DirichletProcess:
         Args:
             alpha (float): Concentration parameter for new cluster creation.
                 Higher values lead to more clusters.
-            base_measure (Optional[Dict]): Base measure parameters for the DP.
+            base_measure (Optional[dict]): Base measure parameters for the DP.
                 Should contain 'variance' key for the likelihood model.
             similarity_metric (Optional[Callable]): Function to compute similarity
                 between embeddings. If None, uses cosine_similarity.
@@ -67,7 +68,7 @@ class DirichletProcess:
         else:
             self.base_measure = base_measure
         self.clusters: list[int] = []
-        self.cluster_params: Dict[int, Dict] = {}
+        self.cluster_params: dict[int, dict] = {}
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
         self.similarity_metric = (
             similarity_metric if similarity_metric else self.cosine_similarity
@@ -82,7 +83,7 @@ class DirichletProcess:
         self.random_state = np.random.RandomState(random_state)
 
         # For tracking processed texts and their embeddings
-        self.text_embeddings: Dict[str, Tensor] = {}
+        self.text_embeddings: dict[str, Tensor] = {}
 
     def get_embedding(self, text: str) -> Tensor:
         """
@@ -343,7 +344,7 @@ class DirichletProcess:
 
         return chosen_cluster_id
 
-    def fit(self, texts: List[str]) -> Tuple[List[int], Dict]:
+    def fit(self, texts: list[str]) -> tuple[list[int], dict]:
         """
         Train the Dirichlet Process model on the given text data.
 
@@ -351,10 +352,10 @@ class DirichletProcess:
         using Bayesian inference with the Chinese Restaurant Process prior.
 
         Args:
-            texts (typing.List[str]): List of text strings to cluster.
+            texts (list[str]): List of text strings to cluster.
 
         Returns:
-            typing.Tuple[typing.List[int], typing.Dict]: A tuple containing:
+            tuple[list[int], dict]: A tuple containing:
                 - List of cluster assignments for each text
                 - Dictionary of cluster parameters
         """
@@ -400,7 +401,7 @@ class PitmanYorProcess(DirichletProcess):
         self,
         alpha: float,
         sigma: float,
-        base_measure: Optional[Dict] = None,
+        base_measure: Optional[dict] = None,
         similarity_metric: Optional[Callable[[Tensor, Tensor], float]] = None,
         cache: Optional[EmbeddingCache] = None,
         random_state: Optional[int] = None,
@@ -414,7 +415,7 @@ class PitmanYorProcess(DirichletProcess):
             sigma (float): Discount parameter controlling power-law behavior.
                 Should be in range [0, 1). Higher values create more heavy-tailed
                 distributions.
-            base_measure (Optional[Dict]): Base measure parameters for the PYP.
+            base_measure (Optional[dict]): Base measure parameters for the PYP.
                 Should contain 'variance' key for the likelihood model.
             similarity_metric (Optional[Callable]): Function to compute similarity
                 between embeddings. If None, uses cosine_similarity.
@@ -571,7 +572,7 @@ class PitmanYorProcess(DirichletProcess):
 
         return chosen_cluster_id
 
-    def fit(self, texts: List[str]) -> Tuple[List[int], Dict]:
+    def fit(self, texts: list[str]) -> tuple[list[int], dict]:
         """
         Train the Pitman-Yor Process model on the given text data.
 
@@ -579,10 +580,10 @@ class PitmanYorProcess(DirichletProcess):
         using Bayesian inference with the Pitman-Yor Process prior.
 
         Args:
-            texts (typing.List[str]): List of text strings to cluster.
+            texts (list[str]): List of text strings to cluster.
 
         Returns:
-            typing.Tuple[typing.List[int], typing.Dict]: A tuple containing:
+            tuple[list[int], dict]: A tuple containing:
                 - List of cluster assignments for each text
                 - Dictionary of cluster parameters
         """
