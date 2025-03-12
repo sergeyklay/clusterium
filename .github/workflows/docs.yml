@@ -46,9 +46,12 @@ jobs:
           restore-keys: |
             venv-docs-${{ runner.os }}-${{ matrix.python }}-
 
-      - name: Install dependencies
+      - name: Install dependencies for docs
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --only=docs --no-root
+
+      - name: Install root package
+        run: poetry install --no-interaction --only-root
 
       - name: Build and test package documentation
         run: |
