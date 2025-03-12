@@ -69,6 +69,14 @@ jobs:
       - name: Build source distribution
         run: poetry build
 
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-build-${{ runner.os }}-$${{ matrix.python }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            pip-build-${{ runner.os }}-
+
       - name: Test package installation
         run: |
           pip install dist/*.whl
