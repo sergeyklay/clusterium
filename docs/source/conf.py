@@ -8,13 +8,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path("..", "..", "clusx").resolve()))
 
+from clusx import __author__, __copyright__, __version__
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "Clusterium"
-author = "Serghei Iakovlev"
-copyright = f"2025, {author}"
-release = "0.3.1"
+author = __author__
+copyright = __copyright__
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -24,6 +26,7 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -43,3 +46,15 @@ intersphinx_mapping = {
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+
+# If false, no module index is generated.
+html_domain_indices = True
+
+# If false, no index is generated.
+html_use_index = True
+
+# If true, the index is split into individual pages for each letter.
+html_split_index = False
+
+# Output file base name for HTML help builder.
+htmlhelp_basename = "clusterium-doc"
