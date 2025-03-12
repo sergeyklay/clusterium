@@ -8,6 +8,7 @@ functionality based on user commands.
 """
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Optional
 
@@ -24,8 +25,8 @@ OUTPUT_DIR = BASE_DIR / "output"
 CACHE_DIR = BASE_DIR / ".cache"
 
 
-def common_options(func):
-    """Common options for all commands."""
+def common_options(func: Callable) -> Callable:
+    """Common options for all clusx CLI commands."""
     func = click.option(
         "--output-dir",
         type=click.Path(exists=True, file_okay=False, dir_okay=True),
@@ -385,13 +386,13 @@ def evaluate(
 
 def main(args: Optional[list[str]] = None) -> int:
     """
-    Main entry point for the CLI.
+    Main entry point for the clusx CLI.
 
     Args:
-        args: Command line arguments (uses sys.argv if None)
+        args: Command line arguments (uses :py:data:`sys.argv` if None)
 
     Returns:
-        Exit code (0 for success, non-zero for errors)
+        int: Exit code (0 for success, non-zero for errors)
     """
     # Set up logging
     setup_logging()
