@@ -15,6 +15,10 @@ jobs:
     name: Build docs
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      pull-requests: write
+
     # The maximum number of minutes to let a workflow run
     # before GitHub automatically cancels it. Default: 360
     timeout-minutes: 30
@@ -48,7 +52,7 @@ jobs:
 
       - name: Install dependencies for docs
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --only=docs --no-root
+        run: poetry install --no-interaction --without=dev --without=testing --no-root
 
       - name: Install root package
         run: poetry install --no-interaction --only-root
