@@ -154,6 +154,27 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true
 
+      - name: Generate checksums
+        run: |
+          cd dist
+
+          find . -type f -not -name "*.asc" -not -name "*SUMS*" -not -name "CHECKSUMS*" | sort | xargs sha256sum > SHA256SUMS
+          sed -i 's/\.\///g' SHA256SUMS
+
+          find . -type f -not -name "*.asc" -not -name "*SUMS*" -not -name "CHECKSUMS*" | sort | xargs sha512sum > SHA512SUMS
+          sed -i 's/\.\///g' SHA512SUMS
+
+          find . -type f -not -name "*.asc" -not -name "*SUMS*" -not -name "CHECKSUMS*" | sort | xargs md5sum > MD5SUMS
+          sed -i 's/\.\///g' MD5SUMS
+
+      - name: Verify checksums
+        run: |
+          cd dist
+
+          sha256sum -c SHA256SUMS
+          sha512sum -c SHA512SUMS
+          md5sum -c MD5SUMS
+
       - name: Upload release artifacts
         uses: alexellis/upload-assets@0.4.1
         env:

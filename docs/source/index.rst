@@ -6,6 +6,9 @@ Documentation
    :start-after: -teaser-begin-
    :end-before: -teaser-end-
 
+Overview
+========
+
 .. include:: ../../README.rst
    :start-after: -overview-begin-
    :end-before: -overview-end-

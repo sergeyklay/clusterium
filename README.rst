@@ -13,7 +13,7 @@ Clusterium is a toolkit for clustering, analyzing, and benchmarking text data us
 .. -overview-begin-
 
 Features
-========
+--------
 
 - **Dirichlet Process Clustering**: Implements the Dirichlet Process for text clustering
 - **Pitman-Yor Process Clustering**: Implements the Pitman-Yor Process for text clustering with improved performance
@@ -21,7 +21,7 @@ Features
 - **Visualization**: Generates plots of cluster size distributions
 
 Quick Start
-===========
+-----------
 
 .. code-block:: bash
 
