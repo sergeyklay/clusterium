@@ -94,12 +94,14 @@ jobs:
           # Run flake8 and show results in CI
           flake8 ./
 
-      - name: Run unit tests with coverage
+      - name: Run tests with coverage
         run: |
           source $VENV
 
           coverage erase
-          coverage run -m pytest -v --junitxml=junit.xml -o junit_family=legacy ./clusx ./tests
+
+          coverage run -m pytest -m "not integration" ./clusx ./tests
+          coverage run -m pytest -m integration ./clusx ./tests
 
           coverage combine
           coverage xml
