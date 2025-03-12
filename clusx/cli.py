@@ -143,8 +143,8 @@ def cluster(
 
         logger.info("Performing Pitman-Yor Process clustering...")
         pyp = PitmanYorProcess(
-            alpha=alpha,
-            sigma=sigma,
+            alpha=float(alpha),
+            sigma=float(sigma),
             base_measure=base_measure,
             random_state=random_seed,
         )
@@ -173,8 +173,8 @@ def cluster(
             texts,
             clusters_pyp,
             "PYP",
-            alpha=alpha,
-            sigma=sigma,
+            alpha=float(alpha),
+            sigma=float(sigma),
             variance=variance,
         )
 
@@ -188,7 +188,7 @@ def cluster(
             texts,
             clusters_dp,
             "DP",
-            alpha=alpha,
+            alpha=float(alpha),
             sigma=0.0,
             variance=variance,
         )
@@ -197,8 +197,8 @@ def cluster(
             texts,
             clusters_pyp,
             "PYP",
-            alpha=alpha,
-            sigma=sigma,
+            alpha=float(alpha),
+            sigma=float(sigma),
             variance=variance,
         )
     except Exception as err:

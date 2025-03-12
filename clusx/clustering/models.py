@@ -39,6 +39,7 @@ class DirichletProcess:
     def __init__(
         self,
         alpha: float,
+        sigma: float = 0.0,
         base_measure: Optional[dict] = None,
         similarity_metric: Optional[Callable[[Tensor, Tensor], float]] = None,
         random_state: Optional[int] = None,
@@ -49,6 +50,9 @@ class DirichletProcess:
         Args:
             alpha (float): Concentration parameter for new cluster creation.
                 Higher values lead to more clusters.
+            sigma (float): Discount parameter. Set to 0.0 and not used for Dirichlet
+                Process, but declared to allow proper inheritance by Pitman-Yor
+                Process.
             base_measure (Optional[dict]): Base measure parameters for the DP.
                 Should contain 'variance' key for the likelihood model.
             similarity_metric (Optional[Callable]): Function to compute similarity
@@ -367,8 +371,6 @@ class PitmanYorProcess(DirichletProcess):
     Attributes:
         alpha (float): Concentration parameter inherited from DirichletProcess.
         sigma (float): Discount parameter controlling power-law behavior.
-            Should be in range [0, 1). Higher values create more heavy-tailed
-            distributions.
         clusters (list[int]): List of cluster assignments for each processed text.
         cluster_params (dict): Dictionary of cluster parameters for each cluster.
         model: Sentence transformer model used for text embeddings.
@@ -389,19 +391,24 @@ class PitmanYorProcess(DirichletProcess):
             alpha (float): Concentration parameter that controls the propensity to
                 create new clusters. Higher values lead to more clusters.
             sigma (float): Discount parameter controlling power-law behavior.
-                Should be in range [0, 1). Higher values create more heavy-tailed
-                distributions.
+                Must satisfy: 0.0 ≤ sigma < 1.0. Higher values create more heavy-tailed
+                distributions. When sigma = 0, it becomes the Dirichlet process which
+                is irrelevant for this implementation.
             base_measure (Optional[dict]): Base measure parameters for the PYP.
                 Should contain 'variance' key for the likelihood model.
             similarity_metric (Optional[Callable]): Function to compute similarity
                 between embeddings. If None, uses cosine_similarity.
             random_state (Optional[int]): Random seed for reproducibility.
-        """
-        super().__init__(alpha, base_measure, similarity_metric, random_state)
 
-        # Validate sigma is in [0, 1)
-        if not (0 <= sigma < 1):
-            raise ValueError(f"Discount parameter sigma must be in [0, 1), got {sigma}")
+        Raises:
+            ValueError: If sigma not satisfies 0.0 ≤ sigma < 1.0 rule.
+        """
+        super().__init__(alpha, 0.0, base_measure, similarity_metric, random_state)
+
+        if sigma < 0.0 or sigma >= 1.0:
+            raise ValueError(
+                f"Discount parameter sigma must satisfy: 0.0 ≤ sigma < 1.0, got {sigma}"
+            )
 
         self.sigma = sigma
 
