@@ -6,7 +6,9 @@ Clusterium
 
 .. -teaser-begin-
 
-Clusterium is a toolkit for clustering, analyzing, and benchmarking text data using state-of-the-art embedding models and clustering algorithms.
+Clusterium is a Bayesian nonparametric toolkit for text clustering, analysis,
+and benchmarking that leverages state-of-the-art embedding models and statistical
+validation techniques.
 
 .. -teaser-end-
 
@@ -73,7 +75,7 @@ Clusterium is released under the `MIT License <https://choosealicense.com/licens
 its documentation lives at `Read the Docs <https://clusterium.readthedocs.io/>`_,
 the code on `GitHub <https://github.com/sergeyklay/clusterium>`_,
 and the latest release on `PyPI <https://pypi.org/project/clusterium/>`_.
-It’s rigorously tested on Python 3.11+.
+It's rigorously tested on Python 3.11+.
 
 If you'd like to contribute to Clusterium you're most welcome!
 

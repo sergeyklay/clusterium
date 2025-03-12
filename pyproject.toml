@@ -4,7 +4,7 @@ build-backend = "poetry_dynamic_versioning.backend"
 
 [project]
 name = "clusx"
-description = "Tool for clustering, analyzing, and benchmarking text data with advanced embeddings and statistical validation."
+description = "Bayesian nonparametric toolkit for text clustering, analysis, and benchmarking with advanced embedding models and statistical validation."
 license = "MIT"
 readme = "README.rst"
 requires-python = ">=3.11,<4"

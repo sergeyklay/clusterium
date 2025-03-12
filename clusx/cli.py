@@ -36,7 +36,7 @@ def common_options(func: Callable) -> Callable:
     return func
 
 
-@click.group(help="QA Dataset Clustering Toolkit")
+@click.group(help="Text Clustering Toolkit for Bayesian Nonparametric Analysis")
 @click.version_option(
     version=__version__,
     prog_name="clusx",
@@ -46,11 +46,11 @@ This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.""",
 )
 def cli():
-    """QA Dataset Toolkit for clustering and benchmarking."""
+    """Text Clustering Toolkit for statistical analysis and benchmarking."""
     pass
 
 
-@cli.command(help="Cluster text data using Dirichlet Process and Pitman-Yor Process")
+@cli.command(help="Cluster text data using various Bayesian nonparametric methods")
 @common_options
 @click.option(
     "--input",
