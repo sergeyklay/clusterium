@@ -6,7 +6,7 @@ build-backend = "poetry_dynamic_versioning.backend"
 name = "clusx"
 description = "Tool for clustering, analyzing, and benchmarking text data with advanced embeddings and statistical validation."
 license = "MIT"
-readme = "README.md"
+readme = "README.rst"
 requires-python = ">=3.11,<4"
 authors = [{ name = "Serghei Iakovlev", email = "oss@serghei.pl" }]
 dynamic = ["classifiers", "dependencies", "version"]
@@ -39,7 +39,8 @@ packages = [{ include = "clusx" }]
 include = [
     { path = "tests", format = "sdist" },
     "LICENSE",
-    "README.md",
+    "CONTRIBUTING.rst",
+    "README.rst",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
