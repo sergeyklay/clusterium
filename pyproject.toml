@@ -100,7 +100,7 @@ vcs = "git"
 # Disable the local version part (the part after +) for PyPI compatibility
 pattern = "^(?P<base>\\d+\\.\\d+\\.\\d+)$"
 # Only include metadata for non-tagged versions
-format-jinja = "{% if distance == 0 %}{{ base }}{% else %}{{ base }}.post{{ distance }}{% endif %}"
+format-jinja = "{% if distance == 0 %}{{ base }}{% else %}{{ base }}.dev{{ distance }}{% endif %}"
 
 [tool.black]
 line-length = 88

@@ -2,8 +2,8 @@ name: CD
 
 on:
   push:
-    branches-ignore:
-      - 'dependabot/**'
+    branches:
+      - main
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
   pull_request:
@@ -37,6 +37,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up Python ${{ matrix.python }}
         id: setup-python
@@ -77,9 +78,20 @@ jobs:
           restore-keys: |
             pip-build-${{ runner.os }}-
 
-      - name: Test package installation
+      - name: Verify package
         run: |
+          pip install twine
+          twine check dist/*
+          # Install the package and check version
           pip install dist/*.whl
+          PKG_VERSION=$(python -c "import importlib.metadata; print(importlib.metadata.version('clusx'))")
+          echo "Package version: $PKG_VERSION"
+          # Verify version is PyPI-compatible
+          if [[ "$PKG_VERSION" == *"+"* ]]; then
+            echo "Error: Version contains '+' which is not allowed by PyPI"
+            exit 1
+          fi
+          # Show version for verification
           clusx --version
 
       - name: Upload Build Artifacts
@@ -87,14 +99,16 @@ jobs:
         with:
           name: dist
           path: dist/clusx-*.*
+          retention-days: 7
 
-  upload_pypi:
-    name: Upload to PyPI
+  upload_test_pypi:
+    name: Upload to Test PyPI
     runs-on: ubuntu-latest
 
     needs: [build]
 
-    environment: pypi
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    environment: test-pypi
 
     permissions:
       id-token: write
@@ -107,17 +121,35 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Publish package distributions to Test PyPI
+      - name: Publish to Test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
           verbose: true
 
+  upload_pypi:
+    name: Upload to PyPI
+    runs-on: ubuntu-latest
 
-      - name: Publish package distributions to PyPI
+    needs: [build]
+
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    environment: production-pypi
+
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           repository-url: https://pypi.org/legacy/
