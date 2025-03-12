@@ -103,6 +103,12 @@ pattern = "^(?P<base>\\d+\\.\\d+\\.\\d+)$"
 # Only include metadata for non-tagged versions
 format-jinja = "{% if distance == 0 %}{{ base }}{% else %}{{ base }}.dev{{ distance }}{% endif %}"
 
+[tool.pytest.ini_options]
+addopts = "--verbose --durations=25 --junitxml=junit.xml -o junit_family=legacy"
+markers = [
+    "integration: integration tests"
+]
+
 [tool.black]
 line-length = 88
 target-version = ["py312"]
