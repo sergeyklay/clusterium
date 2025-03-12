@@ -110,7 +110,6 @@ def cluster(
     """Cluster text data using Dirichlet Process and Pitman-Yor Process."""
     from .clustering import (
         DirichletProcess,
-        EmbeddingCache,
         PitmanYorProcess,
     )
     from .clustering.utils import (
