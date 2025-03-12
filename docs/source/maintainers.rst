@@ -2,12 +2,16 @@
 Maintainers' Guide
 ==================
 
-This document outlines essential guidelines for maintaining the Clusterium project. It provides instructions for testing, building, and deploying the package, as well as managing CI workflows.
+This document outlines essential guidelines for maintaining the Clusterium project.
+It provides instructions for testing, building, and deploying the package, as well
+as managing CI workflows.
 
 Overview
 ========
 
-The Clusterium project is managed via Poetry and adheres to modern Python packaging standards. This guide assumes familiarity with GitHub Actions, Poetry, and common Python development workflows.
+The Clusterium project is managed via Poetry and adheres to modern Python packaging
+standards. This guide assumes familiarity with GitHub Actions, Poetry, and common Python
+development workflows.
 
 Key configurations:
 
@@ -18,10 +22,27 @@ Key configurations:
 * **Testing Tools:** ``pytest``, ``coverage``
 * **Linting Tools:** ``black``, ``flake8``, ``isort``
 
+.. note::
+
+   While the project provides a Makefile to simplify common development tasks,
+   all operations can also be performed using direct commands without requiring
+   the ``make`` program. This guide includes both Makefile commands and their
+   direct command equivalents.
+
 Development Environment
 =======================
 
 The project provides a Makefile to simplify common development tasks.
+
+Prerequisites
+-------------
+
+To use the provided Makefile commands, you need to have the ``make`` program installed on your system:
+
+* **Linux/macOS**: Usually pre-installed or available through package managers (``apt-get install make``, ``brew install make``)
+* **Windows**: Available through tools like MSYS2, MinGW, Cygwin, or Windows Subsystem for Linux (WSL)
+
+If you don't have ``make`` installed or prefer not to use it, equivalent direct commands are provided throughout this guide.
 
 Setting Up
 ----------
@@ -33,6 +54,14 @@ Clone the repository and install dependencies:
    git clone https://github.com/sergeyklay/clusterium.git
    cd clusterium
    make install
+
+If you don't have ``make`` installed, you can use the equivalent Poetry command:
+
+.. code-block:: bash
+
+   git clone https://github.com/sergeyklay/clusterium.git
+   cd clusterium
+   poetry install
 
 This will install the package and all its dependencies using Poetry.
 
@@ -52,6 +81,8 @@ The project includes several make commands to streamline development:
    make lint              # Run linters
    make docs              # Test and build documentation
    make clean             # Remove build artifacts and directories
+
+For each make command, equivalent direct commands are provided in the relevant sections below.
 
 Testing the Project
 ===================
@@ -86,6 +117,16 @@ Generate HTML, XML, and LCOV coverage reports:
    make ccov
 
 This will create reports in the ``coverage/`` directory with subdirectories for each format.
+
+Without ``make``, use these Poetry commands:
+
+.. code-block:: bash
+
+   mkdir -p coverage/html coverage/xml coverage/lcov
+   poetry run coverage combine || true
+   poetry run coverage report
+   poetry run coverage html -d coverage/html
+   poetry run coverage xml -o coverage/xml/coverage.xml
 
 CI Workflow
 -----------
@@ -155,6 +196,10 @@ Or build directly with sphinx:
 
 .. code-block:: bash
 
+   # Test documentation files
+   python -m doctest CONTRIBUTING.rst README.rst
+
+   # Build HTML documentation
    python -m sphinx \
       --jobs auto \
       --builder html \
@@ -186,6 +231,21 @@ The docs ``Makefile`` supports various output formats:
    make man       # Build man pages
    make clean     # Clean build directory
 
+Without ``make``, use these sphinx-build commands:
+
+.. code-block:: bash
+
+   cd docs
+
+   # Build EPUB documentation
+   sphinx-build -b epub source build/epub
+
+   # Build man pages
+   sphinx-build -b man source build/man
+
+   # Clean build directory
+   rm -rf build/
+
 CI Workflow
 -----------
 
@@ -211,8 +271,15 @@ Or manually with Poetry:
 
 .. code-block:: bash
 
+   # Format code (equivalent to make format)
    poetry run isort --profile black --python-version auto ./
    poetry run black . ./clusx ./tests
+
+   # Check formatting without changes (equivalent to make format-check)
+   poetry run isort --check-only --profile black --python-version auto --diff ./
+   poetry run black --check . ./clusx ./tests
+
+   # Run linters (equivalent to make lint)
    poetry run flake8 ./
 
 Pre-commit Hooks
@@ -389,4 +456,15 @@ Common Development Issues
       # Run a specific test
       poetry run pytest -v ./tests/test_specific_file.py::test_specific_function
 
-For more detailed help, please open an issue on the `GitHub repository <https://github.com/sergeyklay/clusterium/issues>`_.
+5. **Cleaning build artifacts without make:**
+
+   .. code-block:: bash
+
+      # Remove Python cache files
+      find ./ -name '__pycache__' -delete -o -name '*.pyc' -delete
+
+      # Remove pytest cache
+      rm -rf ./.pytest_cache
+
+      # Remove coverage reports
+      rm -rf ./coverage

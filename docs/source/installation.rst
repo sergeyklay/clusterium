@@ -306,8 +306,3 @@ If you encounter dependency conflicts:
    poetry self update
    poetry lock --no-update
    poetry install
-
-Getting Help
-------------
-
-For more detailed help, please open an issue on the `GitHub repository <https://github.com/sergeyklay/clusterium/issues>`_.

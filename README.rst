@@ -85,8 +85,8 @@ Support
 =======
 
 Should you have any question, any remark, or if you find a bug, or if there is
-something you can't do with the Clusterium,
-`please open an issue <https://github.com/sergeyklay/clusterium>`_.
+something you can't do with the Clusterium, please
+`open an issue <https://github.com/sergeyklay/clusterium/issues>`_.
 
 .. -support-end-
 
