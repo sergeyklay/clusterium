@@ -165,14 +165,12 @@ def test_get_embeddings(mock_dp_class):
     mock_embedding = np.array([0.1, 0.2, 0.3])
     mock_dp.get_embedding.return_value = mock_embedding
 
-    mock_cache = MagicMock()
     texts = ["What is Python?", "What is TensorFlow?"]
 
-    embeddings = get_embeddings(texts, mock_cache)
+    embeddings = get_embeddings(texts)
 
     assert mock_dp_class.called
     assert mock_dp_class.call_args[1]["alpha"] == 1.0
-    assert mock_dp_class.call_args[1]["cache"] == mock_cache
     assert mock_dp.get_embedding.call_count == 2
     assert len(embeddings) == 2
     assert np.array_equal(embeddings[0], mock_embedding)

@@ -52,7 +52,7 @@
 			"--statistics",
 			"--show-source",
 			"--exclude",
-			"__pycache__,.poetry,.pytest_cache,.venv,.cache,dist,coverage",
+			"__pycache__,.poetry,.pytest_cache,.venv,dist,coverage",
 			"--ignore",
 			"E203,E701,E402"
 		]

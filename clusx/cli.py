@@ -22,7 +22,6 @@ logger = get_logger(__name__)
 # Set up paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = BASE_DIR / "output"
-CACHE_DIR = BASE_DIR / ".cache"
 
 
 def common_options(func: Callable) -> Callable:
@@ -98,12 +97,6 @@ def cli():
     type=int,
     help="Random seed for reproducible clustering",
 )
-@click.option(
-    "--cache-dir",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=CACHE_DIR,
-    help="Directory to cache embeddings  [default: ./.cache]",
-)
 def cluster(
     input: str,
     column: str,
@@ -113,7 +106,6 @@ def cluster(
     sigma: float,
     variance: float,
     random_seed: Optional[int],
-    cache_dir: str,
 ) -> None:
     """Cluster text data using Dirichlet Process and Pitman-Yor Process."""
     from .clustering import (
@@ -128,8 +120,6 @@ def cluster(
     )
 
     try:
-        # Create necessary directories
-        os.makedirs(cache_dir, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
 
         # Load data
@@ -144,17 +134,12 @@ def cluster(
 
         logger.info(f"Loaded {len(texts)} texts for clustering")
 
-        # Create cache provider
-        cache_provider = EmbeddingCache(cache_dir=cache_dir)
-
-        # Create base measure with variance
         base_measure = {"variance": variance}
 
         logger.info("Performing Dirichlet Process clustering...")
         dp = DirichletProcess(
             alpha=alpha,
             base_measure=base_measure,
-            cache=cache_provider,
             random_state=random_seed,
         )
         clusters_dp, _ = dp.fit(texts)
@@ -165,7 +150,6 @@ def cluster(
             alpha=alpha,
             sigma=sigma,
             base_measure=base_measure,
-            cache=cache_provider,
             random_state=random_seed,
         )
         clusters_pyp, _ = pyp.fit(texts)
@@ -267,12 +251,6 @@ def cluster(
     type=int,
     help="Random seed for reproducible evaluation",
 )
-@click.option(
-    "--cache-dir",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=CACHE_DIR,
-    help="Directory to cache embeddings  [default: ./.cache]",
-)
 def evaluate(
     input: str,
     column: str,
@@ -281,10 +259,8 @@ def evaluate(
     output_dir: str,
     plot: bool,
     random_seed: Optional[int],
-    cache_dir: str,
 ) -> None:
     """Evaluate clustering results using established metrics."""
-    from .clustering import EmbeddingCache
     from .clustering.utils import (
         get_embeddings,
         load_cluster_assignments,
@@ -313,9 +289,7 @@ def evaluate(
         logger.info(f"Loading PYP cluster assignments from {pyp_clusters}...")
         pyp_cluster_assignments, pyp_params = load_cluster_assignments(pyp_clusters)
 
-        # Create cache provider with random seed for reproducibility
-        cache_provider = EmbeddingCache(cache_dir=cache_dir)
-        embeddings = get_embeddings(texts, cache_provider)
+        embeddings = get_embeddings(texts)
 
         # Evaluate DP clusters
         logger.info("Evaluating Dirichlet Process clustering...")
