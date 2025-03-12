@@ -143,7 +143,7 @@ To save all output files to a specific directory, use the ``--output-dir`` optio
       --output-dir results
 
 Understanding Output Files
--------------------------
+--------------------------
 
 The clustering process generates several output files that contain the clustering results:
 
@@ -275,38 +275,71 @@ for further analysis or integration with other tools. Example evaluation report
 
    {
      "Dirichlet": {
-       "basic_metrics": {
-         "model_name": "Dirichlet",
-         "num_texts": 500,
-         "num_clusters": 42,
+       "model_name": "Dirichlet",
+       "parameters": {
          "alpha": 1.0,
-         "sigma": 0.0
+         "sigma": 0.0,
+         "variance": 0.1,
+         "random_state": 42
        },
-       "silhouette_score": 0.32,
-       "powerlaw_params": {
-         "alpha": 2.45,
-         "sigma_error": 0.18,
-         "xmin": 1.0,
-         "is_powerlaw": true
+       "cluster_stats": {
+         "num_clusters": 481,
+         "num_texts": 6936,
+         "cluster_sizes": {   },
+         "metrics": {
+           "silhouette_score": 0.0,
+           "similarity": {
+             "intra_cluster_similarity": 0.18722277879714966,
+             "inter_cluster_similarity": 0.18465441465377808,
+             "silhouette_like_score": 0.002568364143371582
+           },
+           "powerlaw": {
+             "alpha": 1.5285000160194153,
+             "xmin": 3.0,
+             "is_powerlaw": true,
+             "sigma_error": 0.06658474334671548,
+             "p_value": 1.2813607153252966e-05
+           },
+           "outliers": {   }
+         }
        }
      },
      "Pitman-Yor": {
-       "basic_metrics": {
-         "model_name": "Pitman-Yor",
-         "num_texts": 500,
-         "num_clusters": 38,
+       "model_name": "Pitman-Yor",
+       "parameters": {
          "alpha": 1.0,
-         "sigma": 0.5
+         "sigma": 0.5,
+         "variance": 0.1,
+         "random_state": 42
        },
-       "silhouette_score": 0.38,
-       "powerlaw_params": {
-         "alpha": 2.21,
-         "sigma_error": 0.15,
-         "xmin": 1.0,
-         "is_powerlaw": true
+       "cluster_stats": {
+         "num_clusters": 6921,
+         "num_texts": 6936,
+         "cluster_sizes": {   }
+       },
+       "metrics": {
+         "silhouette_score": 0.0,
+         "similarity": {
+           "intra_cluster_similarity": 0.6593601107597351,
+           "inter_cluster_similarity": 0.183600515127182,
+           "silhouette_like_score": 0.4757595956325531
+         },
+         "powerlaw": {
+           "alpha": 4.158122129400297,
+           "xmin": 2.0,
+           "is_powerlaw": false,
+           "sigma_error": 0.8440436424146337,
+           "p_value": 0.11200832634274878
+         },
+         "outliers": {   }
        }
      }
    }
+
+
+``cluster_sizes`` and ``outliers`` are empty in the example above in sake of
+brevity. In real-world datasets, they will contain the actual cluster sizes and
+outliers.
 
 **Understanding Clustering Parameters**
 
