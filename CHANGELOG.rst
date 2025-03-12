@@ -8,10 +8,16 @@ releases, in reverse chronological order.
 0.4.0 - 2025-XX-XX
 ------------------
 
+Improvements
+^^^^^^^^^^^^
+
+* The resulted JSON output file no longer created as it was identical to the
+  Dirichlet Process JSON output file.
+
 Improved Documentation
 ^^^^^^^^^^^^^^^^^^^^^^
 
-* Amend project documentation.
+* Amend and improve usage documentation.
 
 Trivial/Internal Changes
 ^^^^^^^^^^^^^^^^^^^^^^^^
