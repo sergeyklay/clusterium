@@ -520,5 +520,3 @@ If you encounter issues:
 2. Ensure you have sufficient memory for large datasets
 3. Try adjusting the alpha and sigma parameters for better clustering results
 4. Remember to use the correct command structure: ``clusx cluster [options]`` instead of just ``clusx [options]``
-
-For more detailed help, please open an issue on the `GitHub repository <https://github.com/sergeyklay/clusterium/issues>`_.
