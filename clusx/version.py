@@ -13,11 +13,11 @@ import importlib.metadata
 import importlib.util
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 @lru_cache(maxsize=1)
-def get_metadata() -> Dict[str, str]:
+def get_metadata() -> dict[str, str]:
     """Retrieve package metadata using a cascading resolution strategy."""
     resolvers = [
         _get_installed_metadata,
@@ -31,7 +31,7 @@ def get_metadata() -> Dict[str, str]:
     return _get_fallback_metadata()
 
 
-def _get_installed_metadata() -> Optional[Dict[str, str]]:
+def _get_installed_metadata() -> Optional[dict[str, str]]:
     """Get metadata from installed package."""
     try:
         pkg_meta = importlib.metadata.metadata("clusx")
@@ -47,7 +47,7 @@ def _get_installed_metadata() -> Optional[Dict[str, str]]:
         return None
 
 
-def _get_pyproject_metadata() -> Optional[Dict[str, str]]:
+def _get_pyproject_metadata() -> Optional[dict[str, str]]:
     """Get metadata from pyproject.toml."""
     pyproject_data = _find_and_parse_pyproject()
     if not pyproject_data:
@@ -69,7 +69,7 @@ def _get_pyproject_metadata() -> Optional[Dict[str, str]]:
     }
 
 
-def _get_fallback_metadata() -> Dict[str, str]:
+def _get_fallback_metadata() -> dict[str, str]:
     """Get fallback metadata values."""
     return {
         "version": "0.0.0+dev",
@@ -81,7 +81,7 @@ def _get_fallback_metadata() -> Dict[str, str]:
     }
 
 
-def _find_and_parse_pyproject() -> Optional[Dict[str, Any]]:
+def _find_and_parse_pyproject() -> Optional[dict[str, Any]]:
     """Find and parse pyproject.toml file."""
     # Traverse up from current directory to find pyproject.toml
     current_dir = Path(__file__).parent
@@ -98,7 +98,7 @@ def _find_and_parse_pyproject() -> Optional[Dict[str, Any]]:
     return None
 
 
-def _parse_toml(path: Path) -> Optional[Dict[str, Any]]:
+def _parse_toml(path: Path) -> Optional[dict[str, Any]]:
     """Parse TOML file with appropriate parser."""
     # Try stdlib tomllib (Python 3.11+) first, then fallback to tomli
     for module_name in ("tomllib", "tomli"):
