@@ -10,7 +10,7 @@ from scipy.spatial.distance import cosine
 from scipy.special import logsumexp
 from sentence_transformers import SentenceTransformer
 from torch import Tensor
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from clusx.logging import get_logger
 
@@ -89,7 +89,7 @@ class DirichletProcess:
         if text in self.text_embeddings:
             return self.text_embeddings[text]
 
-        embedding = self.model.encode(text)
+        embedding = self.model.encode(text, show_progress_bar=False)
 
         # Set embedding dimension if not set
         if self.embedding_dim is None:
@@ -311,10 +311,14 @@ class DirichletProcess:
 
     def fit(self, texts: list[str]) -> tuple[list[int], dict]:
         """
-        Train the Dirichlet Process model on the given text data.
+        Train the clustering model on the given text data.
 
         This method processes each text in the input list, assigning it to a cluster
-        using Bayesian inference with the Chinese Restaurant Process prior.
+        using Bayesian inference. For DirichletProcess, it uses the Chinese Restaurant
+        Process prior. For PitmanYorProcess, it uses the Pitman-Yor Process prior.
+
+        The method automatically detects which model is being used based on the class
+        and applies the appropriate clustering algorithm.
 
         Args:
             texts (list[str]): List of text strings to cluster.
@@ -324,14 +328,25 @@ class DirichletProcess:
                 - List of cluster assignments for each text
                 - Dictionary of cluster parameters
         """
-        logger.info(f"Processing {len(texts)} texts with DirichletProcess...")
+        total = len(texts)
+        logger.info(f"Processing {total} texts with {self.__class__.__name__}...")
 
         # Reset state for a fresh run
         self.clusters = []
         self.cluster_params = {}
 
-        for text in tqdm(texts, desc="Clustering"):
-            self.assign_cluster(text)
+        # Process texts in batches for better progress reporting
+        batch_size = 100
+        total_batches = (len(texts) - 1) // batch_size + 1
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            batch_num = i // batch_size + 1
+            for text in tqdm(
+                batch,
+                desc=f"Clustering batch {batch_num}/{total_batches}",
+                total=len(batch),
+            ):
+                self.assign_cluster(text)
 
         return self.clusters, self.cluster_params
 
@@ -530,37 +545,3 @@ class PitmanYorProcess(DirichletProcess):
             self.cluster_params[chosen_cluster_id]["count"] += 1
 
         return chosen_cluster_id
-
-    def fit(self, texts: list[str]) -> tuple[list[int], dict]:
-        """
-        Train the Pitman-Yor Process model on the given text data.
-
-        This method processes each text in the input list, assigning it to a cluster
-        using Bayesian inference with the Pitman-Yor Process prior.
-
-        Args:
-            texts (list[str]): List of text strings to cluster.
-
-        Returns:
-            tuple[list[int], dict]: A tuple containing:
-                - List of cluster assignments for each text
-                - Dictionary of cluster parameters
-        """
-        logger.info(f"Processing {len(texts)} texts with PitmanYorProcess...")
-
-        # Reset state for a fresh run
-        self.clusters = []
-        self.cluster_params = {}
-
-        # Process texts in batches for better progress reporting
-        batch_size = 100
-        total_batches = (len(texts) - 1) // batch_size + 1
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i : i + batch_size]
-            batch_num = i // batch_size + 1
-            for text in tqdm(
-                batch, desc=f"Clustering batch {batch_num}/{total_batches}"
-            ):
-                self.assign_cluster(text)
-
-        return self.clusters, self.cluster_params

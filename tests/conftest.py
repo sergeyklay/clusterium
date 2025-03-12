@@ -49,6 +49,18 @@ def csv_with_empty_rows(tmp_path):
 
 
 @pytest.fixture
+def basic_text_file(tmp_path):
+    """Create a basic text file with one text per line."""
+    text_path = tmp_path / "test.txt"
+    with open(text_path, "w", encoding="utf-8") as f:
+        f.write("What is Python?\n")
+        f.write("What is TensorFlow?\n")
+        f.write("\n")  # Empty line should be skipped
+        f.write("What is PyTorch?\n")
+    return text_path
+
+
+@pytest.fixture
 def sample_texts():
     """Return a list of sample question texts."""
     return ["What is Python?", "What is TensorFlow?", "What is PyTorch?"]

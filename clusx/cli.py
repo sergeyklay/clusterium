@@ -8,6 +8,7 @@ functionality based on user commands.
 """
 
 import os
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Optional
@@ -54,20 +55,14 @@ def cli():
 @click.option(
     "--input",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
-    help="Path to the input CSV file containing QA pairs",
+    help="Path to the input file (text file or CSV)",
     required=True,
-)
-@click.option(
-    "--column",
-    default="question",
-    show_default=True,
-    help="Column name to use for clustering",
 )
 @click.option(
     "--output",
     default="clusters_output.csv",
     show_default=True,
-    help="Output CSV file path",
+    help="CSV file with clustering results",
 )
 @click.option(
     "--alpha",
@@ -97,15 +92,20 @@ def cli():
     type=int,
     help="Random seed for reproducible clustering",
 )
+@click.option(
+    "--column",
+    default=None,
+    help="Column name to use for clustering (required for CSV files)",
+)
 def cluster(
     input: str,
-    column: str,
     output: str,
     output_dir: str,
     alpha: float,
     sigma: float,
     variance: float,
     random_seed: Optional[int],
+    column: Optional[str],
 ) -> None:
     """Cluster text data using Dirichlet Process and Pitman-Yor Process."""
     from .clustering import (
@@ -113,23 +113,20 @@ def cluster(
         PitmanYorProcess,
     )
     from .clustering.utils import (
-        load_data_from_csv,
+        load_data,
         save_clusters_to_csv,
         save_clusters_to_json,
     )
 
     try:
         os.makedirs(output_dir, exist_ok=True)
+        logger.info(
+            f"Loading data from {input} "
+            f"""{", using column '" + column + "' " if column else ""}..."""
+        )
 
-        # Load data
-        logger.info(f"Loading data from {input}, using column '{column}'...")
-        texts, data = load_data_from_csv(input, column)
-
-        if not texts:
-            logger.error(
-                f"No data found in column '{column}'. Please check your CSV file."
-            )
-            raise click.ClickException(f"No data found in column '{column}'")
+        texts = load_data(input, column)
+        _validate_dataset(texts)
 
         logger.info(f"Loaded {len(texts)} texts for clustering")
 
@@ -191,7 +188,6 @@ def cluster(
             texts,
             clusters_dp,
             "DP",
-            data,
             alpha=alpha,
             sigma=0.0,
             variance=variance,
@@ -201,14 +197,13 @@ def cluster(
             texts,
             clusters_pyp,
             "PYP",
-            data,
             alpha=alpha,
             sigma=sigma,
             variance=variance,
         )
-    except Exception as e:
-        logger.exception(f"Error: {e}")
-        raise click.ClickException(str(e))
+    except Exception as err:
+        logger.error(err)
+        sys.exit(1)
 
 
 @cli.command(help="Evaluate clustering results")
@@ -216,14 +211,8 @@ def cluster(
 @click.option(
     "--input",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
-    help="Path to the input CSV file containing QA pairs",
+    help="Path to the input file (text file or CSV)",
     required=True,
-)
-@click.option(
-    "--column",
-    default="question",
-    show_default=True,
-    help="Column name to use for clustering",
 )
 @click.option(
     "--dp-clusters",
@@ -250,20 +239,25 @@ def cluster(
     type=int,
     help="Random seed for reproducible evaluation",
 )
+@click.option(
+    "--column",
+    default=None,
+    help="Column name to use for clustering (required for CSV files)",
+)
 def evaluate(
     input: str,
-    column: str,
     dp_clusters: str,
     pyp_clusters: str,
     output_dir: str,
     plot: bool,
     random_seed: Optional[int],
+    column: Optional[str],
 ) -> None:
     """Evaluate clustering results using established metrics."""
     from .clustering.utils import (
         get_embeddings,
         load_cluster_assignments,
-        load_data_from_csv,
+        load_data,
     )
     from .evaluation import (
         ClusterEvaluator,
@@ -272,12 +266,13 @@ def evaluate(
 
     try:
         os.makedirs(output_dir, exist_ok=True)
+        logger.info(
+            f"Loading data from {input} "
+            f"""{", using column '" + column + "' " if column else ""}..."""
+        )
 
-        logger.info(f"Loading data from {input}, using column '{column}'...")
-        texts, _ = load_data_from_csv(input, column)
-
-        if not texts:
-            raise click.ClickException(f"No data found in column '{column}'")
+        texts = load_data(input, column)
+        _validate_dataset(texts)
 
         logger.info(f"Loaded {len(texts)} texts for evaluation")
 
@@ -328,17 +323,58 @@ def evaluate(
         if plot:
             from .visualization import visualize_evaluation_dashboard
 
-            # Generate the dashboard visualization
-            click.echo("Generating evaluation dashboard...")
-            dashboard_path = visualize_evaluation_dashboard(
-                reports, output_dir, show_plot=True
-            )
-            click.echo(f"Visualization saved to: {dashboard_path}")
-            click.echo("Close the plot window to continue.")
+            logger.info("Generating evaluation dashboard...")
+            try:
+                dashboard_path = visualize_evaluation_dashboard(
+                    reports, output_dir, show_plot=True
+                )
+                logger.info(f"Visualization saved to: {dashboard_path}")
+                logger.info("Close the plot window to continue.")
+            except Exception as e:
+                logger.error(f"Error generating visualization: {e}")
 
-        click.echo("Evaluation complete.")
-    except Exception as e:
-        raise click.ClickException(str(e))
+        logger.info("Evaluation complete.")
+    except Exception as error:
+        logger.error(error)
+        sys.exit(1)
+
+
+def _validate_dataset(texts):
+    """
+    Validates the input dataset for clustering and provides appropriate warnings.
+
+    Checks if the dataset is empty or too small for effective Bayesian nonparametric
+    clustering. Displays color-coded warnings based on severity or raises an error
+    if the dataset is empty.
+
+    Args:
+        texts: List of texts to be clustered
+    """
+    if not texts:
+        raise click.ClickException("No data found in the provided source.")
+
+    if len(texts) < 10:
+        click.echo(
+            click.style(
+                "Warning: Dataset is very small (< 10 texts). "
+                "Some evaluation metrics and visualizations may not be available "
+                "or meaningful.",
+                fg="yellow",
+                bold=True,
+            )
+        )
+        return
+
+    if len(texts) <= 2:
+        click.echo(
+            click.style(
+                "Critical: Dataset has only 1-2 texts. "
+                "Most evaluation metrics require at least 3 texts. "
+                "Consider using a larger dataset for meaningful evaluation.",
+                fg="red",
+                bold=True,
+            )
+        )
 
 
 def main(args: Optional[list[str]] = None) -> int:

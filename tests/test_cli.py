@@ -37,3 +37,63 @@ def test_version_option_module():
     assert __copyright__ in result.stdout
     assert "This is free software" in result.stdout
     assert "warranty" in result.stdout
+
+
+def test_cluster_command_with_small_text_file(basic_text_file, tmp_path, monkeypatch):
+    """Test the cluster command with a text file."""
+    from unittest.mock import patch
+
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    with (
+        patch("clusx.clustering.DirichletProcess.fit", return_value=([0, 1, 2], {})),
+        patch("clusx.clustering.PitmanYorProcess.fit", return_value=([0, 1, 2], {})),
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "cluster",
+                "--input",
+                str(basic_text_file),
+                "--output",
+                "test_output.csv",
+                "--output-dir",
+                str(output_dir),
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Warning: Dataset is very small (< 10 texts)." in result.output
+        assert "metrics and visualizations may not be available" in result.output
+
+
+def test_cluster_command_with_small_csv_file(basic_qa_csv, tmp_path, monkeypatch):
+    """Test the cluster command with a CSV file."""
+    from unittest.mock import patch
+
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    with (
+        patch("clusx.clustering.DirichletProcess.fit", return_value=([0, 1], {})),
+        patch("clusx.clustering.PitmanYorProcess.fit", return_value=([0, 1], {})),
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "cluster",
+                "--input",
+                str(basic_qa_csv),
+                "--column",
+                "question",
+                "--output",
+                "test_output.csv",
+                "--output-dir",
+                str(output_dir),
+            ],
+        )
+        assert result.exit_code == 0
+    assert "Warning: Dataset is very small (< 10 texts)." in result.output
+    assert "metrics and visualizations may not be available" in result.output
