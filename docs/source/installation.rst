@@ -12,14 +12,15 @@ The Clusterium project provides two main components:
 
 Both components are installed simultaneously when following the instructions below, allowing you to choose the most appropriate interface for your specific needs.
 
-Prerequisites
-=============
+Requirements
+============
 
 Before installing ``clusx``, ensure you have the following prerequisites:
 
 * Python 3.11 or higher
-* `Poetry <https://python-poetry.org/>`_ for dependency management
-* Git (for cloning the repository)
+* `pip <https://pip.pypa.io/en/stable/>`_ (for PyPI installation)
+* `Poetry <https://python-poetry.org/>`_ (for development installation)
+* `Git <https://git-scm.com/>`_ (for cloning the repository)
 
 Python Version Compatibility
 ----------------------------
@@ -33,23 +34,52 @@ If you're using an older version of Python, you'll need to upgrade before instal
    # Check your current Python version
    python --version
 
-Project Structure
------------------
+Installation Methods
+====================
 
-The Clusterium project follows a standard Python package structure:
+There are several ways to install ``clusx`` depending on your needs:
 
-* ``clusx/``: Main package directory containing the source code
-* ``tests/``: Test suite for verifying functionality
-* ``docs/``: Documentation files (including this installation guide)
-* ``pyproject.toml``: Project configuration and dependencies
+Installing from PyPI (Recommended)
+----------------------------------
 
-Installation Steps
-==================
+``clusx`` is a Python package `hosted on PyPI <https://pypi.org/project/clusx/>`_.
+The recommended installation method is using `pip <https://pip.pypa.io/en/stable/>`_ to install into a virtual environment:
 
-Basic Installation
-------------------
+.. code-block:: bash
 
-Follow these steps for a standard installation:
+   # Create and activate a virtual environment (recommended)
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+   # Install clusx
+   python -m pip install clusx
+
+After installation, the ``clusx`` command will be available from the command line:
+
+.. code-block:: bash
+
+   # Verify installation
+   clusx --version
+
+Installing the Development Version
+----------------------------------
+
+If you need the latest unreleased features, you can install directly from the GitHub repository:
+
+.. code-block:: bash
+
+   # Install the latest development version
+   python -m pip install -e git+https://github.com/sergeyklay/clusterium.git#egg=clusx
+
+.. note::
+   The ``main`` branch will always contain the latest unstable version, so the experience
+   might not be as smooth. If you wish to use a stable version, consider installing from PyPI
+   or switching to a specific `tag <https://github.com/sergeyklay/clusterium/tags>`_.
+
+Installing for Development
+--------------------------
+
+If you plan to contribute to the project or need to modify the code, follow these steps:
 
 1. Clone the repository:
 
@@ -58,37 +88,39 @@ Follow these steps for a standard installation:
       git clone https://github.com/sergeyklay/clusterium.git
       cd clusterium
 
-2. Create and activate the virtual environment:
+2. Create and activate a virtual environment:
 
    .. code-block:: bash
 
       python -m venv .venv
-      source .venv/bin/activate
+      source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-3. Install dependencies using Poetry:
+3. Install with Poetry:
 
    .. code-block:: bash
 
+      # Install Poetry if you haven't already
+      # See https://python-poetry.org/docs/#installation
+
+      # Install dependencies
       poetry install
 
-   This will install all core dependencies required for running the application.
+Installation Options with Poetry
+================================
 
-Installation Options
---------------------
+Poetry allows for flexible installation options based on your specific needs:
 
-Development Installation
-^^^^^^^^^^^^^^^^^^^^^^^^
+Full Development Environment
+----------------------------
 
-If you plan to contribute to the project or need development tools:
+To install all dependency groups, including development tools, testing frameworks, and documentation generators:
 
 .. code-block:: bash
 
    poetry install --with dev,testing,docs
 
-This installs all dependency groups, including development tools, testing frameworks, and documentation generators.
-
 Production Installation
-^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------
 
 For production environments where you only need the core functionality:
 
@@ -96,12 +128,10 @@ For production environments where you only need the core functionality:
 
    poetry install --without dev,testing,docs
 
-This minimizes the installation footprint by excluding development-related dependencies.
-
 Custom Installation
-^^^^^^^^^^^^^^^^^^^
+-------------------
 
-You can customize which dependency groups to include based on your specific needs. For example:
+You can customize which dependency groups to include:
 
 .. code-block:: bash
 
@@ -118,20 +148,18 @@ To verify that the installation was successful, run:
 
 .. code-block:: bash
 
-   clusx --help
+   clusx --version
 
 Or using the Python module:
 
 .. code-block:: bash
 
-   python -m clusx --help
+   python -m clusx --version
 
-You should see the help message with available command-line options.
+You should see the version information and a brief copyright notice.
 
 Dependencies
 ============
-
-The project uses Poetry for dependency management and organizes dependencies into several groups:
 
 Core Dependencies
 -----------------
@@ -152,16 +180,12 @@ These dependencies are installed by default and are required for the basic funct
 Optional Dependency Groups
 --------------------------
 
-Poetry allows installing specific dependency groups based on your needs:
+When installing with Poetry, you can choose specific dependency groups:
 
 Development Dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 Tools for development and code quality:
-
-.. code-block:: bash
-
-   poetry install --with dev
 
 * ``black``: Code formatter
 * ``debugpy``: Debugging tool
@@ -174,10 +198,6 @@ Testing Dependencies
 
 Tools for testing the codebase:
 
-.. code-block:: bash
-
-   poetry install --with testing
-
 * ``pytest``: Testing framework
 * ``coverage``: Code coverage tool
 
@@ -186,32 +206,8 @@ Documentation Dependencies
 
 Tools for building documentation:
 
-.. code-block:: bash
-
-   poetry install --with docs
-
 * ``sphinx``: Documentation generator
 * ``sphinx-rtd-theme``: Read the Docs theme for Sphinx
-
-Installing Multiple Groups
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-You can install multiple dependency groups at once:
-
-.. code-block:: bash
-
-   poetry install --with dev,testing,docs
-
-Installing Only Core Dependencies
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If you only need the core functionality without any development tools:
-
-.. code-block:: bash
-
-   poetry install --without dev,testing,docs
-
-These dependencies will be automatically installed by Poetry based on the options you choose.
 
 Troubleshooting
 ===============
@@ -222,7 +218,7 @@ Common Issues
 If you encounter any issues during installation:
 
 1. Ensure you have the correct Python version (3.11+)
-2. Make sure Poetry is `properly installed <https://python-poetry.org/docs/#installing-with-the-official-installer>`_
+2. Make sure you're using the latest version of pip or Poetry
 3. Check for any error messages during the installation process
 
 PyTorch Installation Issues
@@ -235,8 +231,8 @@ If you encounter issues with PyTorch installation:
    # Install PyTorch separately with CUDA support if needed
    pip install torch --index-url https://download.pytorch.org/whl/cu118
 
-   # Then continue with Poetry installation
-   poetry install --no-dev
+   # Then continue with the installation
+   pip install clusx
 
 Dependency Conflicts
 --------------------
@@ -245,29 +241,14 @@ If you encounter dependency conflicts:
 
 .. code-block:: bash
 
-   # Update Poetry
+   # For pip installations, try:
+   pip install --upgrade pip
+   pip install clusx --no-deps
+   pip install -r <(pip freeze | grep -v clusx)
+
+   # For Poetry installations:
    poetry self update
-
-   # Clear Poetry's cache
-   poetry cache clear --all pypi
-
-   # Try installation with verbose output
-   poetry install -v
-
-Virtual Environment Issues
---------------------------
-
-If you have issues with the virtual environment:
-
-.. code-block:: bash
-
-   # Create a fresh virtual environment
-   rm -rf .venv
-   python -m venv .venv
-   source .venv/bin/activate
-
-   # Install Poetry in the virtual environment
-   pip install poetry
+   poetry lock --no-update
    poetry install
 
 Getting Help
