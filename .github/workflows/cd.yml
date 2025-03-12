@@ -153,3 +153,10 @@ jobs:
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           verbose: true
+
+      - name: Upload release artifacts
+        uses: alexellis/upload-assets@0.4.1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          asset_paths: '["./dist/*"]'
