@@ -101,7 +101,7 @@ Basic Clustering with Text File
       --output clusters.csv
 
 Clustering with CSV File
------------------------
+------------------------
 
 When using a CSV file, you must specify the column name to use for clustering:
 
