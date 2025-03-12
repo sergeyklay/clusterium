@@ -202,6 +202,7 @@ class DirichletProcess:
 
         This method computes log probabilities for assigning the text to each existing
         cluster or creating a new cluster. The probabilities combine:
+
         1. The CRP prior (Chinese Restaurant Process)
         2. The likelihood of the text embedding under each cluster's distribution
 
@@ -442,6 +443,7 @@ class PitmanYorProcess(DirichletProcess):
 
         This method computes log probabilities for assigning the text to each existing
         cluster or creating a new cluster. The probabilities combine:
+
         1. The PYP prior (Pitman-Yor Process)
         2. The likelihood of the text embedding under each cluster's distribution
 
