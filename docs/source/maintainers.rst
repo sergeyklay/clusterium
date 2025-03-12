@@ -65,6 +65,12 @@ If you don't have ``make`` installed, you can use the equivalent Poetry command:
 
 This will install the package and all its dependencies using Poetry.
 
+
+.. note::
+
+   For details on the installation of the development environment, see :doc:`installation` section.
+
+
 Available Make Commands
 -----------------------
 
