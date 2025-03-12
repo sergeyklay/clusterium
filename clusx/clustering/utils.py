@@ -166,13 +166,12 @@ def save_clusters_to_json(
     logger.info(f"JSON clusters saved to {output_file}")
 
 
-def get_embeddings(texts: list[str], cache_provider) -> np.ndarray:
+def get_embeddings(texts: list[str]) -> np.ndarray:
     """
     Get embeddings for a list of texts.
 
     Args:
         texts: List of text strings
-        cache_provider: Cache provider for embeddings
 
     Returns:
         Numpy array of embeddings
@@ -181,9 +180,7 @@ def get_embeddings(texts: list[str], cache_provider) -> np.ndarray:
 
     logger.info("Computing embeddings for evaluation...")
     # Use default parameters for embedding generation only
-    dp = DirichletProcess(
-        alpha=1.0, base_measure={"variance": 0.1}, cache=cache_provider
-    )
+    dp = DirichletProcess(alpha=1.0, base_measure={"variance": 0.1})
     embeddings = []
 
     for text in texts:
