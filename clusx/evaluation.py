@@ -245,6 +245,108 @@ class ClusterEvaluator:
                 "silhouette_like_score": 0.0,
             }
 
+    def _check_cluster_sizes_for_powerlaw(self, cluster_sizes):
+        """
+        Check if there are enough clusters and unique sizes for power-law analysis.
+
+        Args:
+            cluster_sizes: List of cluster sizes
+
+        Returns:
+            tuple: (is_valid, result_dict) where is_valid is a boolean and result_dict
+                  is a dictionary with error information if invalid or empty dict if
+                  valid
+        """
+        # Need at least a few clusters to detect power-law
+        if len(cluster_sizes) < 5:
+            logger.warning("Not enough clusters to detect power-law distribution")
+            return False, {
+                "alpha": None,
+                "xmin": None,
+                "is_powerlaw": False,
+                "sigma_error": None,
+                "p_value": None,
+            }
+
+        # Check if we have enough unique cluster sizes
+        unique_sizes = set(cluster_sizes)
+        if len(unique_sizes) < 2:
+            logger.warning(
+                "Not enough unique cluster sizes to detect power-law distribution"
+            )
+            return False, {
+                "alpha": None,
+                "xmin": None,
+                "is_powerlaw": False,
+                "sigma_error": None,
+                "p_value": None,
+            }
+
+        return True, {}
+
+    def _fit_powerlaw_distribution(self, cluster_sizes):
+        """
+        Fit power-law distribution to cluster sizes.
+
+        Args:
+            cluster_sizes: List of cluster sizes
+
+        Returns:
+            tuple: (success, result) where success is a boolean and result is either
+                  a dictionary with power-law parameters or error information
+        """
+        try:
+            import powerlaw
+
+            fit = powerlaw.Fit(cluster_sizes, discrete=True, verbose=False)
+
+            # Get power-law parameters
+            alpha = fit.alpha
+            xmin = fit.xmin
+            sigma = fit.sigma if hasattr(fit, "sigma") else 0.0
+
+            # Check for NaN values
+            if alpha is None or np.isnan(alpha) or xmin is None or np.isnan(xmin):
+                logger.warning("Power-law fit returned NaN values")
+                return False, {
+                    "alpha": None,
+                    "xmin": None,
+                    "is_powerlaw": False,
+                    "sigma_error": None,
+                    "p_value": None,
+                }
+
+            # Test if distribution follows power-law
+            # Compare to exponential distribution
+            try:
+                R, p = fit.distribution_compare(
+                    "power_law", "exponential", normalized_ratio=True
+                )
+                is_powerlaw = R > 0 and p < 0.1  # Positive R means power_law is better
+            except Exception as e:
+                logger.warning(f"Error comparing distributions: {e}")
+                R, p = None, None
+                is_powerlaw = False
+
+            return True, {
+                "alpha": float(alpha) if alpha is not None else None,
+                "xmin": float(xmin) if xmin is not None else None,
+                "is_powerlaw": bool(is_powerlaw),
+                "sigma_error": (
+                    float(sigma) if sigma is not None and not np.isnan(sigma) else None
+                ),
+                "p_value": float(p) if p is not None and not np.isnan(p) else None,
+            }
+        except Exception as e:
+            logger.error(f"Error fitting power-law distribution: {e}")
+            return False, {
+                "alpha": None,
+                "xmin": None,
+                "is_powerlaw": False,
+                "sigma_error": None,
+                "p_value": None,
+            }
+
     def detect_powerlaw_distribution(self) -> dict[str, Any]:
         """
         Detect if the cluster size distribution follows a power-law.
@@ -263,54 +365,14 @@ class ClusterEvaluator:
                 size = self.cluster_assignments.count(cluster_id)
                 cluster_sizes.append(size)
 
-            # Need at least a few clusters to detect power-law
-            if len(cluster_sizes) < 5:
-                logger.warning("Not enough clusters to detect power-law distribution")
-                return {
-                    "alpha": None,
-                    "xmin": None,
-                    "is_powerlaw": False,
-                    "sigma_error": None,
-                    "p_value": None,
-                }
+            # Check if we have enough data for power-law analysis
+            is_valid, result = self._check_cluster_sizes_for_powerlaw(cluster_sizes)
+            if not is_valid:
+                return result
 
-            # Try to import powerlaw package
-            try:
-                import powerlaw
-            except ImportError:
-                logger.warning(
-                    "powerlaw package not installed, cannot detect power-law"
-                )
-                return {
-                    "alpha": None,
-                    "xmin": None,
-                    "is_powerlaw": False,
-                    "sigma_error": None,
-                    "p_value": None,
-                }
-
-            # Fit power-law to cluster size distribution
-            fit = powerlaw.Fit(cluster_sizes, discrete=True)
-
-            # Get power-law parameters
-            alpha = fit.alpha
-            xmin = fit.xmin
-            sigma = fit.sigma if hasattr(fit, "sigma") else 0.0
-
-            # Test if distribution follows power-law
-            # Compare to exponential distribution
-            R, p = fit.distribution_compare(
-                "power_law", "exponential", normalized_ratio=True
-            )
-            is_powerlaw = R > 0 and p < 0.1  # Positive R means power_law is better
-
-            return {
-                "alpha": float(alpha) if alpha is not None else None,
-                "xmin": float(xmin) if xmin is not None else None,
-                "is_powerlaw": bool(is_powerlaw),
-                "sigma_error": float(sigma) if sigma is not None else None,
-                "p_value": float(p) if p is not None else None,
-            }
+            # Fit power-law distribution
+            _, result = self._fit_powerlaw_distribution(cluster_sizes)
+            return result
 
         except Exception as e:
             logger.error(f"Error detecting power-law distribution: {e}")

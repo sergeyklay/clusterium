@@ -10,50 +10,53 @@ import pytest
 from clusx.clustering.utils import (
     get_embeddings,
     load_cluster_assignments,
-    load_data_from_csv,
+    load_data,
     save_clusters_to_csv,
     save_clusters_to_json,
 )
 
 
 def test_load_data_from_csv_basic(basic_qa_csv):
-    """Test basic functionality of load_data_from_csv."""
-    texts, data = load_data_from_csv(str(basic_qa_csv))
+    """Test basic functionality of load_data with CSV file."""
+    texts = load_data(str(basic_qa_csv), column="question")
 
     assert len(texts) == 2
     assert texts[0] == "What is Python?"
     assert texts[1] == "What is TensorFlow?"
-    assert len(data) == 2
-    assert data[0]["question"] == "What is Python?"
-    assert data[0]["answer"] == "Python is a programming language."
-    assert data[1]["question"] == "What is TensorFlow?"
-    assert data[1]["answer"] == "TensorFlow is a machine learning framework."
 
 
 def test_load_data_from_csv_custom_columns(custom_columns_csv):
-    """Test load_data_from_csv with custom column names."""
-    texts, data = load_data_from_csv(
-        str(custom_columns_csv), column="query", answer_column="response"
-    )
+    """Test load_data with custom column names."""
+    texts = load_data(str(custom_columns_csv), column="query")
 
     assert len(texts) == 2
     assert texts[0] == "What is Python?"
     assert texts[1] == "What is TensorFlow?"
-    assert len(data) == 2
-    assert data[0]["query"] == "What is Python?"
-    assert data[0]["response"] == "Python is a programming language."
-    assert data[1]["query"] == "What is TensorFlow?"
-    assert data[1]["response"] == "TensorFlow is a machine learning framework."
 
 
 def test_load_data_from_csv_empty_rows(csv_with_empty_rows):
-    """Test load_data_from_csv with empty rows."""
-    texts, data = load_data_from_csv(str(csv_with_empty_rows))
+    """Test load_data with empty rows in CSV."""
+    texts = load_data(str(csv_with_empty_rows), column="question")
 
     assert len(texts) == 2
     assert texts[0] == "What is Python?"
     assert texts[1] == "What is TensorFlow?"
-    assert len(data) == 2
+
+
+def test_load_data_from_text_file(basic_text_file):
+    """Test load_data with a text file."""
+    texts = load_data(str(basic_text_file))
+
+    assert len(texts) == 3
+    assert texts[0] == "What is Python?"
+    assert texts[1] == "What is TensorFlow?"
+    assert texts[2] == "What is PyTorch?"
+
+
+def test_load_data_csv_without_column(basic_qa_csv):
+    """Test load_data with CSV file but without specifying a column."""
+    with pytest.raises(ValueError, match="Column name must be specified"):
+        load_data(str(basic_qa_csv))
 
 
 def test_save_clusters_to_csv(tmp_path, sample_texts, sample_clusters):
@@ -82,8 +85,8 @@ def test_save_clusters_to_csv(tmp_path, sample_texts, sample_clusters):
     assert rows[2][1] == "1"
 
 
-def test_save_clusters_to_json_basic(tmp_path, sample_texts, sample_clusters):
-    """Test basic functionality of save_clusters_to_json without data."""
+def test_save_clusters_to_json(tmp_path, sample_texts, sample_clusters):
+    """Test basic functionality of save_clusters_to_json."""
     output_path = tmp_path / "clusters.json"
 
     save_clusters_to_json(str(output_path), sample_texts, sample_clusters, "DP")
@@ -94,66 +97,28 @@ def test_save_clusters_to_json_basic(tmp_path, sample_texts, sample_clusters):
         data = json.load(f)
 
     assert "clusters" in data
-    assert len(data["clusters"]) == 2  # Two unique clusters
+    assert len(data["clusters"]) == 2
 
     cluster1 = data["clusters"][0]
     assert cluster1["id"] == 1
-    assert cluster1["representative"][0]["question"] == "What is Python?"
-    assert "Answer for cluster 1" in cluster1["representative"][0]["answer"]
-    assert len(cluster1["source"]) == 1
+    assert cluster1["representative"] == "What is Python?"
+    assert "members" in cluster1
+    assert len(cluster1["members"]) == 1
+    assert cluster1["members"][0] == "What is Python?"
 
     cluster2 = data["clusters"][1]
     assert cluster2["id"] == 2
-    assert cluster2["representative"][0]["question"] == "What is TensorFlow?"
-    assert "Answer for cluster 2" in cluster2["representative"][0]["answer"]
-    assert len(cluster2["source"]) == 2
-    assert cluster2["source"][0]["question"] == "What is TensorFlow?"
-    assert cluster2["source"][1]["question"] == "What is PyTorch?"
+    assert cluster2["representative"] == "What is TensorFlow?"
+    assert "members" in cluster2
+    assert len(cluster2["members"]) == 2
+    assert cluster2["members"][0] == "What is TensorFlow?"
+    assert cluster2["members"][1] == "What is PyTorch?"
 
-
-def test_save_clusters_to_json_with_data(
-    tmp_path, sample_texts, sample_clusters, sample_data
-):
-    """Test save_clusters_to_json with data containing answers."""
-    output_path = tmp_path / "clusters_with_data.json"
-
-    save_clusters_to_json(
-        str(output_path), sample_texts, sample_clusters, "DP", sample_data
-    )
-
-    assert output_path.exists()
-
-    with open(output_path, "r") as f:
-        result = json.load(f)
-
-    assert "clusters" in result
-    assert len(result["clusters"]) == 2  # Two unique clusters
-
-    cluster1 = result["clusters"][0]
-    assert cluster1["id"] == 1
-    assert cluster1["representative"][0]["question"] == "What is Python?"
-    assert (
-        cluster1["representative"][0]["answer"] == "Python is a programming language."
-    )
-    assert len(cluster1["source"]) == 1
-
-    cluster2 = result["clusters"][1]
-    assert cluster2["id"] == 2
-    assert cluster2["representative"][0]["question"] == "What is TensorFlow?"
-    assert (
-        cluster2["representative"][0]["answer"]
-        == "TensorFlow is a machine learning framework."
-    )
-    assert len(cluster2["source"]) == 2
-    assert cluster2["source"][0]["question"] == "What is TensorFlow?"
-    assert (
-        cluster2["source"][0]["answer"] == "TensorFlow is a machine learning framework."
-    )
-    assert cluster2["source"][1]["question"] == "What is PyTorch?"
-    assert (
-        cluster2["source"][1]["answer"]
-        == "PyTorch is another machine learning framework."
-    )
+    assert "metadata" in data
+    assert data["metadata"]["model_name"] == "DP"
+    assert data["metadata"]["alpha"] == 1.0
+    assert data["metadata"]["sigma"] == 0.0
+    assert data["metadata"]["variance"] == 0.1
 
 
 @patch("clusx.clustering.DirichletProcess")

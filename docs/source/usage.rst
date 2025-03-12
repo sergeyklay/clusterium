@@ -14,7 +14,7 @@ Basic Usage
 
 .. code-block:: bash
 
-   clusx cluster --input your_data.csv --column your_column --output clusters.csv
+   clusx cluster --input your_data.txt --output clusters.csv
 
 Command Structure
 -----------------
@@ -47,7 +47,7 @@ Command Line Options for ``cluster``
      - Column name to use for clustering (required for CSV files)
      - None
    * - ``--output``
-     - Output file path
+     - CSV file with clustering results
      - ``clusters_output.csv``
    * - ``--output-dir``
      - Directory to save output files
@@ -91,26 +91,25 @@ Command Line Options for ``evaluate``
 Examples
 ========
 
-Basic Clustering
-----------------
+Basic Clustering with Text File
+-------------------------------
 
 .. code-block:: bash
 
    clusx cluster \
-      --input your_data.csv \
-      --column your_column \
+      --input your_data.txt \
       --output clusters.csv
 
-Specifying Column Names
+Clustering with CSV File
 -----------------------
 
-If your CSV file has a different column name for questions:
+When using a CSV file, you must specify the column name to use for clustering:
 
 .. code-block:: bash
 
    clusx cluster \
       --input your_data.csv \
-      --column question_text \
+      --column text_column \
       --output clusters.csv
 
 Adjusting Clustering Parameters
@@ -121,7 +120,7 @@ Fine-tune the clustering by adjusting the alpha and sigma parameters:
 .. code-block:: bash
 
    clusx cluster \
-      --input your_data.csv \
+      --input your_data.txt \
       --alpha 0.5 \
       --sigma 0.3
 
@@ -133,7 +132,7 @@ To save all output files to a specific directory, use the ``--output-dir`` optio
 .. code-block:: bash
 
    clusx cluster \
-      --input your_data.csv \
+      --input your_data.txt \
       --output-dir results
 
 Understanding Output Files
@@ -158,21 +157,10 @@ The JSON output follows this structure:
      "clusters": [
        {
          "id": 1,
-         "representative": [
-           {
-             "question": "What is the capital of France?",
-             "answer": "Paris is the capital of France."
-           }
-         ],
-         "source": [
-           {
-             "question": "What is the capital of France?",
-             "answer": "Paris is the capital of France."
-           },
-           {
-             "question": "What city is the capital of France?",
-             "answer": "Paris is the capital city of France."
-           }
+         "representative": "What is the capital of France?",
+         "members": [
+           "What is the capital of France?",
+           "What city is the capital of France?"
          ]
        }
      ],
@@ -197,11 +185,11 @@ The CSV output format provides a simple tabular view of cluster assignments:
 
 .. code-block:: text
 
-   Text,Cluster_DP,Alpha,Sigma
-   "What is the capital of France?",0,1.0,0.0
-   "What city is the capital of France?",0,1.0,0.0
-   "How tall is the Eiffel Tower?",1,1.0,0.0
-   "What is the height of the Eiffel Tower?",1,1.0,0.0
+   Text,Cluster_DP,Alpha,Sigma,Variance
+   "What is the capital of France?",0,1.0,0.0,0.1
+   "What city is the capital of France?",0,1.0,0.0,0.1
+   "How tall is the Eiffel Tower?",1,1.0,0.0,0.1
+   "What is the height of the Eiffel Tower?",1,1.0,0.0,0.1
 
 Evaluating Clustering Results
 -----------------------------
@@ -212,7 +200,17 @@ the generated clusters using the ``evaluate`` command:
 .. code-block:: bash
 
    clusx evaluate \
+      --input your_data.txt \
+      --dp-clusters output/clusters_output_dp.csv \
+      --pyp-clusters output/clusters_output_pyp.csv
+
+For CSV files, remember to specify the column:
+
+.. code-block:: bash
+
+   clusx evaluate \
       --input your_data.csv \
+      --column text_column \
       --dp-clusters output/clusters_output_dp.csv \
       --pyp-clusters output/clusters_output_pyp.csv
 
@@ -247,7 +245,7 @@ use the ``--no-plot`` option:
 .. code-block:: bash
 
    clusx evaluate \
-      --input your_data.csv \
+      --input your_data.txt \
       --dp-clusters output/clusters_output_dp.csv \
       --pyp-clusters output/clusters_output_pyp.csv \
       --no-plot
@@ -370,7 +368,7 @@ To interpret evaluation results and improve clustering performance, it's importa
 
 Based on evaluation results, you can adjust parameters to improve clustering quality:
 
-1. Start with the defaults (alpha=1.0, sigma=0.5)
+1. Start with the defaults (alpha=5.0, sigma=0.5)
 2. If you want more clusters, increase alpha
 3. If you want fewer clusters, decrease alpha
 4. To get a more power-law-like distribution, increase sigma (for PYP only)
@@ -390,21 +388,21 @@ Basic Usage
 
 .. code-block:: python
 
-   from clusx.clustering import DirichletProcess, PitmanYorProcess, EmbeddingCache
-   from clusx.clustering.utils import load_data_from_csv, save_clusters_to_json
+   from clusx.clustering import DirichletProcess, PitmanYorProcess
+   from clusx.clustering.utils import load_data, save_clusters_to_json
 
-   # Load data
-   texts, data = load_data_from_csv("your_data.csv", column="question")
+   # Load data from a text file
+   texts = load_data("your_data.txt")
 
-   # Create cache provider
-   cache = EmbeddingCache(cache_dir=".cache")
+   # Or load data from a CSV file
+   # texts = load_data("your_data.csv", column="text_column")
 
    # Perform Dirichlet Process clustering
    dp = DirichletProcess(alpha=1.0)
-   clusters, params = dp.fit(texts)
+   clusters, _ = dp.fit(texts)
 
    # Save results
-   save_clusters_to_json("clusters.json", texts, clusters, "DP", data)
+   save_clusters_to_json("clusters.json", texts, clusters, "DP")
 
 Using Pitman-Yor Process
 ------------------------
@@ -415,10 +413,10 @@ The Pitman-Yor Process often produces better clustering results for text data:
 
    # Perform Pitman-Yor Process clustering
    pyp = PitmanYorProcess(alpha=1.0, sigma=0.5)
-   clusters_pyp, params_pyp = pyp.fit(texts)
+   clusters_pyp, _ = pyp.fit(texts)
 
    # Save results
-   save_clusters_to_json("pyp_clusters.json", texts, clusters_pyp, "PYP", data)
+   save_clusters_to_json("pyp_clusters.json", texts, clusters_pyp, "PYP")
 
 Evaluating Clusters
 -------------------
@@ -490,7 +488,24 @@ Troubleshooting
 
 If you encounter issues:
 
-1. Check your input CSV file format
-2. Ensure you have sufficient memory for large datasets
-3. Try adjusting the alpha and sigma parameters for better clustering results
-4. Remember to use the correct command structure: ``clusx cluster [options]`` instead of just ``clusx [options]``
+1. Check your input file format
+2. For CSV files, ensure you specify the correct column name with ``--column``
+3. Ensure you have sufficient memory for large datasets
+4. Try adjusting the alpha and sigma parameters for better clustering results
+5. Remember to use the correct command structure: ``clusx cluster [options]`` instead of just ``clusx [options]``
+
+**Limitations with Small Datasets**
+
+When working with very small datasets (fewer than 10 texts) or when each text is placed in its own cluster, you may encounter visualization errors during evaluation. This is because:
+
+* Power-law analysis requires a minimum number of data points to be meaningful
+* Silhouette scores cannot be calculated when clusters have fewer than 2 samples
+* Some statistical measures become unstable with very small sample sizes
+
+In these cases:
+
+* The evaluation will still complete and save the JSON report
+* Some visualizations may show error messages instead of plots
+* You can still analyze the clustering results through the CSV and JSON output files
+
+For best results, use datasets with at least 20-30 texts to ensure meaningful clustering and evaluation.

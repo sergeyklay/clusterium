@@ -8,6 +8,20 @@ releases, in reverse chronological order.
 0.4.0 - 2025-XX-XX
 ------------------
 
+Features
+^^^^^^^^
+
+* Updated the application interface to support both text files (each line treated
+  as a clustering candidate) and CSV files.
+
+Breaking Changes
+^^^^^^^^^^^^^^^^
+
+* Removed the "answer" field from ``*_dp.json`` and ``*_pyp.json`` outputs, with
+  corresponding updates to code, documentation, and tests.
+* CSV inputs now require an explicit column name; otherwise, the program will
+  exit with an error.
+
 Improvements
 ^^^^^^^^^^^^
 
@@ -24,8 +38,8 @@ Trivial/Internal Changes
 
 * Improve cascading metadata resolution in :mod:`clusx.version` module.
 * Refactor type hints to use built-in types.
-* Remove embedding cache functionality as it is not helpful for the current implementation.
-  It will be re-implemented in the future.
+* Remove embedding cache functionality as it is not helpful for the current
+  implementation. It will be re-implemented in the future.
 
 0.3.3 - 2025-03-12
 ------------------

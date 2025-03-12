@@ -10,38 +10,63 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
+from tqdm.auto import tqdm
 
 from clusx.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-def load_data_from_csv(
-    csv_file: str, column: str = "question", answer_column: str = "answer"
-) -> tuple[list[str], list[dict[str, str]]]:
+def load_data(input_file: str, column: Optional[str] = None) -> list[str]:
     """
-    Load text data from a CSV file.
+    Load text data from a file. Supports text files and CSV files.
 
     Args:
-        csv_file: Path to the CSV file
-        column: Column name containing the text data (default: "question")
-        answer_column: Column name containing the answers (default: "answer")
+        input_file: Path to the input file (text or CSV)
+        column: Column name containing the text data (required for CSV files)
 
     Returns:
-        tuple[list[str], list[dict[str, str]]]: A tuple containing (texts, data_rows)
+        list[str]: A list of texts
+
+    Raises:
+        ValueError: If a CSV file is provided without specifying a column
     """
     texts = []
-    data = []  # Store full data including answers
 
-    with open(csv_file, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if column in row and row[column].strip():
-                texts.append(row[column])
-                # Store the full row data
-                data.append(row)
+    # Check if the file is a CSV by trying to parse it
+    is_csv = False
+    try:
+        with open(input_file, "r", encoding="utf-8") as f:
+            # Read the first line and check if it contains a comma
+            first_line = f.readline().strip()
+            if "," in first_line:
+                # Try to parse as CSV
+                sniffer = csv.Sniffer()
+                # Just check if it can be parsed as CSV, don't need the dialect
+                sniffer.sniff(first_line)
+                is_csv = True
+    except Exception:
+        # If any error occurs, assume it's a text file
+        is_csv = False
 
-    return texts, data
+    if is_csv:
+        if column is None:
+            raise ValueError("Column name must be specified when using a CSV file")
+
+        with open(input_file, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if column in row and row[column].strip():
+                    texts.append(row[column])
+    else:
+        # Process as a text file (one text per line)
+        with open(input_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:  # Skip empty lines
+                    texts.append(line)
+
+    return texts
 
 
 def save_clusters_to_csv(
@@ -80,7 +105,6 @@ def save_clusters_to_json(
     clusters: list[int],
     model_name: str,
     data: Optional[list[dict[str, Any]]] = None,
-    answer_column: str = "answer",
     alpha: float = 1.0,
     sigma: float = 0.0,
     variance: float = 0.1,
@@ -93,20 +117,12 @@ def save_clusters_to_json(
         texts: List of text strings
         clusters: List of cluster assignments
         model_name: Name of the clustering model
-        data: List of data rows containing answers (optional)
-        answer_column: Column name containing the answers (default: "answer")
+        data: List of data rows (optional)
         alpha: Concentration parameter (default: 1.0)
         sigma: Discount parameter (default: 0.0)
         variance: Variance parameter for likelihood model (default: 0.1)
     """
     cluster_groups = {}
-    data_map = {}
-
-    # Create a mapping from question to data row if data is provided
-    if data:
-        for row in data:
-            if "question" in row:
-                data_map[row["question"]] = row
 
     # Group texts by cluster
     for text, cluster_id in zip(texts, clusters):
@@ -127,36 +143,12 @@ def save_clusters_to_json(
     for i, (cluster_id, cluster_texts) in enumerate(cluster_groups.items()):
         representative_text = cluster_texts[0]
 
-        # Get the answer for the representative text
-        representative_answer = "No answer available"
-        if (
-            data_map
-            and representative_text in data_map
-            and answer_column in data_map[representative_text]
-        ):
-            representative_answer = data_map[representative_text][answer_column]
-        else:
-            representative_answer = f"Answer for cluster {i + 1} using {model_name}"
-
-        # Create the cluster object
+        # Create the cluster object with the new format
         cluster_obj = {
             "id": i + 1,
-            "representative": [
-                {
-                    "question": representative_text,
-                    "answer": representative_answer,
-                }
-            ],
-            "source": [],
+            "representative": representative_text,
+            "members": cluster_texts,
         }
-
-        # Add sources with their real answers if available
-        for text in cluster_texts:
-            answer = f"Answer for question in cluster {i + 1}"
-            if data_map and text in data_map and answer_column in data_map[text]:
-                answer = data_map[text][answer_column]
-
-            cluster_obj["source"].append({"question": text, "answer": answer})
 
         clusters_json["clusters"].append(cluster_obj)
 
@@ -183,7 +175,8 @@ def get_embeddings(texts: list[str]) -> np.ndarray:
     dp = DirichletProcess(alpha=1.0, base_measure={"variance": 0.1})
     embeddings = []
 
-    for text in texts:
+    # Process texts with progress bar
+    for text in tqdm(texts, desc="Computing embeddings", total=len(texts)):
         embedding = dp.get_embedding(text)
         # Check if the embedding is a PyTorch tensor or NumPy array
         if hasattr(embedding, "cpu"):

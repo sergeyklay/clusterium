@@ -47,7 +47,9 @@ class TestDirichletProcess:
         dp = DirichletProcess(alpha=1.0)
         embedding = dp.get_embedding("test text")
 
-        mock_instance.encode.assert_called_once_with("test text")
+        mock_instance.encode.assert_called_once_with(
+            "test text", show_progress_bar=False
+        )
         assert np.array_equal(embedding, np.array([0.1, 0.2, 0.3, 0.4]))
 
     def test_cosine_similarity(self):
