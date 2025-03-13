@@ -2,15 +2,20 @@
 Utility functions for data loading, saving, and visualization.
 """
 
+from __future__ import annotations
+
 import csv
 import json
 import os
 import re
-from typing import Any, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
+
+if TYPE_CHECKING:
+    from typing import Optional
 
 from clusx.logging import get_logger
 
@@ -104,7 +109,6 @@ def save_clusters_to_json(
     texts: list[str],
     clusters: list[int],
     model_name: str,
-    data: Optional[list[dict[str, Any]]] = None,
     alpha: float = 1.0,
     sigma: float = 0.0,
     variance: float = 0.1,
@@ -117,7 +121,6 @@ def save_clusters_to_json(
         texts: List of text strings
         clusters: List of cluster assignments
         model_name: Name of the clustering model
-        data: List of data rows (optional)
         alpha: Concentration parameter (default: 1.0)
         sigma: Discount parameter (default: 0.0)
         variance: Variance parameter for likelihood model (default: 0.1)
@@ -181,10 +184,10 @@ def get_embeddings(texts: list[str]) -> np.ndarray:
         # Check if the embedding is a PyTorch tensor or NumPy array
         if hasattr(embedding, "cpu"):
             # It's a PyTorch tensor
-            embedding = embedding.cpu().numpy()
+            embedding = embedding.cpu().numpy()  # type: ignore
         elif hasattr(embedding, "numpy"):
             # It's a tensor with numpy method
-            embedding = embedding.numpy()
+            embedding = embedding.numpy()  # type: ignore
         # If it's already a NumPy array, we can use it directly
         embeddings.append(embedding)
 

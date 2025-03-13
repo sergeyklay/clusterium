@@ -8,12 +8,17 @@ Provides package metadata through a cascading resolution strategy:
 
 """
 
+from __future__ import annotations
+
 import importlib
 import importlib.metadata
 import importlib.util
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any, Optional
 
 
 @lru_cache(maxsize=1)
@@ -25,8 +30,8 @@ def get_metadata() -> dict[str, str]:
     ]
 
     for resolver in resolvers:
-        if metadata := resolver():
-            return metadata
+        if resolved_metadata := resolver():
+            return resolved_metadata
 
     return _get_fallback_metadata()
 

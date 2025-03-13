@@ -7,13 +7,18 @@ functionality based on user commands.
 
 """
 
+from __future__ import annotations
+
 import os
 import sys
-from collections.abc import Callable
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import click
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Optional
 
 from .logging import get_logger, setup_logging
 from .version import __copyright__, __version__

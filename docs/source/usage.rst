@@ -605,7 +605,8 @@ If you encounter issues:
 
 **Limitations with Small Datasets**
 
-When working with very small datasets (fewer than 10 texts) or when each text is placed in its own cluster, you may encounter visualization errors during evaluation. This is because:
+When working with very small datasets (fewer than 10 texts) or when each text is placed
+in its own cluster, you may encounter visualization errors during evaluation. This is because:
 
 * Power-law analysis requires a minimum number of data points to be meaningful
 * Silhouette scores cannot be calculated when clusters have fewer than 2 samples

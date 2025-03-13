@@ -18,8 +18,13 @@ Typical usage:
     >>> logger.info("Processing started")
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Optional
 
 
 def setup_logging(level: Optional[int] = None) -> None:

@@ -5,14 +5,19 @@ This module provides functions for visualizing clustering results and evaluation
 metrics.
 """
 
+from __future__ import annotations
+
 import os
 import textwrap
 from collections import Counter
-from typing import Any
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colormaps
+
+if TYPE_CHECKING:
+    from typing import Any
 
 from .logging import get_logger
 

@@ -2,15 +2,24 @@
 Clustering models for text data using Dirichlet Process and Pitman-Yor Process.
 """
 
-from collections.abc import Callable
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.spatial.distance import cosine
 from scipy.special import logsumexp
 from sentence_transformers import SentenceTransformer
-from torch import Tensor
 from tqdm.auto import tqdm
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Optional, Union
+
+    import torch
+    from numpy.typing import NDArray
+
+    EmbeddingTensor = Union[torch.Tensor, NDArray[np.float32]]
 
 from clusx.logging import get_logger
 
@@ -41,7 +50,9 @@ class DirichletProcess:
         alpha: float,
         sigma: float = 0.0,
         base_measure: Optional[dict] = None,
-        similarity_metric: Optional[Callable[[Tensor, Tensor], float]] = None,
+        similarity_metric: Optional[
+            Callable[[EmbeddingTensor, EmbeddingTensor], float]
+        ] = None,
         random_state: Optional[int] = None,
     ):
         """
@@ -77,17 +88,16 @@ class DirichletProcess:
         self.random_state = np.random.RandomState(random_state)
 
         # For tracking processed texts and their embeddings
-        self.text_embeddings: dict[str, Tensor] = {}
+        self.text_embeddings: dict[str, EmbeddingTensor] = {}
 
-    def get_embedding(self, text: str) -> Tensor:
+    def get_embedding(self, text: str) -> EmbeddingTensor:
         """
         Get the embedding for a text.
 
         Args:
             text (str): The text to embed.
 
-        Returns:
-            torch.Tensor: The embedding vector for the text.
+        Returns: The embedding vector for the text.
         """
         # Check if already computed in this session
         if text in self.text_embeddings:
@@ -104,13 +114,15 @@ class DirichletProcess:
 
         return embedding
 
-    def cosine_similarity(self, embedding1: Tensor, embedding2: Tensor) -> float:
+    def cosine_similarity(
+        self, embedding1: EmbeddingTensor, embedding2: EmbeddingTensor
+    ) -> float:
         """
         Calculate cosine similarity between two embeddings.
 
         Args:
-            embedding1 (torch.Tensor): First embedding.
-            embedding2 (torch.Tensor): Second embedding.
+            embedding1: First embedding.
+            embedding2: Second embedding.
 
         Returns:
             float: Similarity score between 0 and 1, where 1 means identical.
@@ -118,15 +130,15 @@ class DirichletProcess:
         similarity = 1 - cosine(embedding1, embedding2)
         return max(0.0, similarity)
 
-    def log_likelihood(self, embedding: Tensor, cluster_id: int) -> float:
+    def log_likelihood(self, embedding: EmbeddingTensor, cluster_id: int) -> float:
         """
         Calculate log likelihood of an embedding under a cluster's distribution.
 
         This implements a multivariate Gaussian likelihood in the embedding space.
 
         Args:
-            embedding (torch.Tensor): The embedding to evaluate.
-            cluster_id (int): The cluster ID.
+            embedding: The embedding to evaluate.
+            cluster_id: The cluster ID.
 
         Returns:
             float: Log likelihood of the embedding under the cluster distribution.
@@ -152,12 +164,12 @@ class DirichletProcess:
 
         return log_likelihood
 
-    def _log_likelihood_base_measure(self, embedding: Tensor) -> float:
+    def _log_likelihood_base_measure(self, embedding: EmbeddingTensor) -> float:
         """
         Calculate log likelihood of an embedding under the base measure.
 
         Args:
-            embedding (torch.Tensor): The embedding to evaluate.
+            embedding: The embedding to evaluate.
 
         Returns:
             float: Log likelihood of the embedding under the base measure.
@@ -230,7 +242,7 @@ class DirichletProcess:
             # Convert embedding to numpy array for storage
             if hasattr(embedding, "clone"):
                 # PyTorch tensor
-                emb_array = embedding.clone().detach().numpy()
+                emb_array = embedding.clone().detach().numpy()  # type: ignore
             else:
                 # Already numpy or other array-like
                 emb_array = np.array(embedding)
@@ -289,7 +301,7 @@ class DirichletProcess:
             # Convert embedding to numpy array for storage
             if hasattr(embedding, "clone"):
                 # PyTorch tensor
-                emb_array = embedding.clone().detach().numpy()
+                emb_array = embedding.clone().detach().numpy()  # type: ignore
             else:
                 # Already numpy or other array-like
                 emb_array = np.array(embedding)
@@ -302,7 +314,7 @@ class DirichletProcess:
 
             # Convert embedding to numpy for calculation
             if hasattr(embedding, "numpy"):
-                emb_array = embedding.numpy()
+                emb_array = embedding.numpy()  # type: ignore
             else:
                 emb_array = np.array(embedding)
 
@@ -382,7 +394,9 @@ class PitmanYorProcess(DirichletProcess):
         alpha: float,
         sigma: float,
         base_measure: Optional[dict] = None,
-        similarity_metric: Optional[Callable[[Tensor, Tensor], float]] = None,
+        similarity_metric: Optional[
+            Callable[[EmbeddingTensor, EmbeddingTensor], float]
+        ] = None,
         random_state: Optional[int] = None,
     ):
         """
@@ -480,7 +494,7 @@ class PitmanYorProcess(DirichletProcess):
             # Convert embedding to numpy array for storage
             if hasattr(embedding, "clone"):
                 # PyTorch tensor
-                emb_array = embedding.clone().detach().numpy()
+                emb_array = embedding.clone().detach().numpy()  # type: ignore
             else:
                 # Already numpy or other array-like
                 emb_array = np.array(embedding)
@@ -539,7 +553,7 @@ class PitmanYorProcess(DirichletProcess):
             # Convert embedding to numpy array for storage
             if hasattr(embedding, "clone"):
                 # PyTorch tensor
-                emb_array = embedding.clone().detach().numpy()
+                emb_array = embedding.clone().detach().numpy()  # type: ignore
             else:
                 # Already numpy or other array-like
                 emb_array = np.array(embedding)
@@ -552,7 +566,7 @@ class PitmanYorProcess(DirichletProcess):
 
             # Convert embedding to numpy for calculation
             if hasattr(embedding, "numpy"):
-                emb_array = embedding.numpy()
+                emb_array = embedding.numpy()  # type: ignore
             else:
                 emb_array = np.array(embedding)
 
