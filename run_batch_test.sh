@@ -100,10 +100,20 @@ mkdir -p "${BATCH_DIR}"
 
 # Define test cases with parameters
 declare -A test_cases
+
+# Baseline with moderate parameters
 test_cases[1]="--dp-alpha 0.5 --pyp-alpha 0.3 --pyp-sigma 0.2 --variance 0.3"
+
+# Test tighter DP clustering + stronger PYP power-law
 test_cases[2]="--dp-alpha 0.3 --pyp-alpha 0.2 --pyp-sigma 0.3 --variance 0.5"
+
+# Test more DP clusters + milder PYP discount
 test_cases[3]="--dp-alpha 0.8 --pyp-alpha 0.4 --pyp-sigma 0.1 --variance 0.2"
+
+# Test aggressive merging in DP + strong PYP power-law
 test_cases[4]="--dp-alpha 0.2 --pyp-alpha 0.1 --pyp-sigma 0.4 --variance 0.7"
+
+# High cluster discovery in both models
 test_cases[5]="--dp-alpha 1.0 --pyp-alpha 0.5 --pyp-sigma 0.25 --variance 0.4"
 
 echo "Starting test run with input file: $INPUT_FILE"
