@@ -14,14 +14,14 @@ repos:
     rev: 25.1.0
     hooks:
       - id: black
-        args: ["--line-length", "88", "--target-version", "py312"]
+        args: ["--line-length", "88", "--target-version", "py312", "--extend-exclude", ".poetry"]
         language_version: python3.12
 
   - repo: https://github.com/pycqa/isort
     rev: 6.0.0
     hooks:
       - id: isort
-        args: ["--profile", "black", "--line-length", "88", "--python-version", "312"]
+        args: ["--profile", "black", "--line-length", "88", "--python-version", "312", "--gitignore"]
         language_version: python3.12
 
   - repo: https://github.com/pycqa/flake8

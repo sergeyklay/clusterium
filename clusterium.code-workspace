@@ -25,6 +25,7 @@
 			}
 		},
 		"isort.args": [
+			"--gitignore",
 			"--profile",
 			"black",
 			"--python-version",
@@ -32,6 +33,8 @@
 		],
 
 		"black-formatter.args": [
+			"--extend-exclude",
+			".poetry",
 			"--target-version",
 			"py312",
 			"--line-length",

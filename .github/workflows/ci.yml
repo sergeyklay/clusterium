@@ -81,8 +81,8 @@ jobs:
         run: |
           source $VENV
 
-          isort --profile black --python-version auto ./
-          black . ./clusx ./tests
+          isort --gitignore --profile black --python-version auto ./
+          black --extend-exclude .poetry . ./clusx ./tests
 
       - name: Show improperly formatted files
         run: git diff --color=always --exit-code
