@@ -389,28 +389,37 @@ class PitmanYorProcess(DirichletProcess):
         Initialize a Pitman-Yor Process clustering model.
 
         Args:
-            alpha (float): Concentration parameter that controls the propensity to
-                create new clusters. Higher values lead to more clusters.
+            alpha (float): Concentration parameter controlling the propensity to
+                create new clusters. Higher values lead to more clusters. Must
+                satisfy: alpha > -sigma.
             sigma (float): Discount parameter controlling power-law behavior.
-                Must satisfy: 0.0 ≤ sigma < 1.0. Higher values create more heavy-tailed
-                distributions. When sigma = 0, it becomes the Dirichlet process which
-                is irrelevant for this implementation.
+                The value must satisfy: sigma ∈ [0.0, 1.0). As sigma approaches
+                1.0, the distribution exhibits heavier tails; sigma = 0.0 corresponds
+                to the :class:`DirichletProcess`, which is irrelevant for this
+                implementation.
             base_measure (Optional[dict]): Base measure parameters for the PYP.
                 Should contain 'variance' key for the likelihood model.
             similarity_metric (Optional[Callable]): Function to compute similarity
-                between embeddings. If None, uses cosine_similarity.
+                between embeddings. If None, uses
+                :meth:`DirichletProcess.cosine_similarity`.
             random_state (Optional[int]): Random seed for reproducibility.
 
         Raises:
-            ValueError: If sigma not satisfies 0.0 ≤ sigma < 1.0 rule.
+            ValueError: If sigma ∉ [0.0, 1.0) or if alpha ≤ -sigma.
         """
-        super().__init__(alpha, 0.0, base_measure, similarity_metric, random_state)
-
         if sigma < 0.0 or sigma >= 1.0:
             raise ValueError(
-                f"Discount parameter sigma must satisfy: 0.0 ≤ sigma < 1.0, got {sigma}"
+                f"Discount parameter sigma must be in the interval [0.0, 1.0); "
+                f"got {sigma}"
             )
 
+        if alpha <= -sigma:
+            raise ValueError(
+                f"Parameter alpha must be greater than -sigma (i.e., alpha > {-sigma}) "
+                f"for sigma={sigma}"
+            )
+
+        super().__init__(alpha, 0.0, base_measure, similarity_metric, random_state)
         self.sigma = sigma
 
     def log_pyp_prior(self, cluster_id: int, total_points: int) -> float:

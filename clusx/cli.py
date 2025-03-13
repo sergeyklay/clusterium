@@ -65,22 +65,38 @@ def cli():
     help="CSV file with clustering results",
 )
 @click.option(
-    "--alpha",
-    default=5.0,
-    show_default=True,
-    type=float,
-    help="Concentration parameter",
-)
-@click.option(
-    "--sigma",
+    "--dp-alpha",
     default=0.5,
     show_default=True,
     type=float,
-    help="Discount parameter for Pitman-Yor",
+    help=(
+        "Concentration parameter for Dirichlet Process (α > 0, "
+        "typical values 0.1-10). Note: DP only uses α."
+    ),
+)
+@click.option(
+    "--pyp-alpha",
+    default=0.3,
+    show_default=True,
+    type=float,
+    help=(
+        "Concentration parameter for Pitman-Yor Process (α > -σ). "
+        "Using same α value as DP leads to dramatically clustering behaviors."
+    ),
+)
+@click.option(
+    "--pyp-sigma",
+    default=0.3,
+    show_default=True,
+    type=float,
+    help=(
+        "Discount parameter for Pitman-Yor Process (0.0 ≤ σ < 1.0). "
+        "PYP uses both α and σ parameters."
+    ),
 )
 @click.option(
     "--variance",
-    default=0.1,
+    default=0.3,
     show_default=True,
     type=float,
     help="Variance parameter for likelihood model",
@@ -101,8 +117,9 @@ def cluster(
     input: str,
     output: str,
     output_dir: str,
-    alpha: float,
-    sigma: float,
+    dp_alpha: float,
+    pyp_alpha: float,
+    pyp_sigma: float,
     variance: float,
     random_seed: Optional[int],
     column: Optional[str],
@@ -134,7 +151,7 @@ def cluster(
 
         logger.info("Performing Dirichlet Process clustering...")
         dp = DirichletProcess(
-            alpha=alpha,
+            alpha=dp_alpha,
             base_measure=base_measure,
             random_state=random_seed,
         )
@@ -143,8 +160,8 @@ def cluster(
 
         logger.info("Performing Pitman-Yor Process clustering...")
         pyp = PitmanYorProcess(
-            alpha=float(alpha),
-            sigma=float(sigma),
+            alpha=pyp_alpha,
+            sigma=pyp_sigma,
             base_measure=base_measure,
             random_state=random_seed,
         )
@@ -164,7 +181,7 @@ def cluster(
             texts,
             clusters_dp,
             "DP",
-            alpha=alpha,
+            alpha=dp_alpha,
             sigma=0.0,
             variance=variance,
         )
@@ -173,8 +190,8 @@ def cluster(
             texts,
             clusters_pyp,
             "PYP",
-            alpha=float(alpha),
-            sigma=float(sigma),
+            alpha=pyp_alpha,
+            sigma=pyp_sigma,
             variance=variance,
         )
 
@@ -188,7 +205,7 @@ def cluster(
             texts,
             clusters_dp,
             "DP",
-            alpha=float(alpha),
+            alpha=dp_alpha,
             sigma=0.0,
             variance=variance,
         )
@@ -197,8 +214,8 @@ def cluster(
             texts,
             clusters_pyp,
             "PYP",
-            alpha=float(alpha),
-            sigma=float(sigma),
+            alpha=pyp_alpha,
+            sigma=pyp_sigma,
             variance=variance,
         )
     except Exception as err:
