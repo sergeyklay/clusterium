@@ -127,6 +127,11 @@ show_missing = true
 # Skip empty files
 skip_empty = true
 
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
+
 [tool.coverage.html]
 # Directory for the HTML format report
 directory = "coverage/html"

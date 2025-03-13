@@ -39,6 +39,7 @@ exclude_patterns = []
 # to non-types.
 nitpick_ignore = [
     ("py:class", "numpy.bool_"),
+    ("py:class", "EmbeddingTensor"),
 ]
 
 # -- Options for intersphinx -------------------------------------------------

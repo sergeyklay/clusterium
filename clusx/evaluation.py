@@ -24,21 +24,26 @@ and Pitman-Yor Process models to compare their performance and understand the
 statistical properties of the generated clusters.
 """
 
+from __future__ import annotations
+
 import json
 import os
-from typing import Any, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 from sklearn.metrics import silhouette_score
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 
+if TYPE_CHECKING:
+    import numpy
+    from typing import Any, Union
+
 from .logging import get_logger
 
 logger = get_logger(__name__)
 
 
-# Custom JSON encoder for NumPy types
 class NumpyEncoder(json.JSONEncoder):
     """
     Custom JSON encoder that handles NumPy data types.
@@ -102,7 +107,7 @@ class ClusterEvaluator:
         alpha: float = 1.0,
         sigma: float = 0.0,
         variance: float = 0.1,
-        random_state: Union[int, None] = None,
+        random_state: "Union[int, None]" = None,
     ):
         """
         Initialize the cluster evaluator.
@@ -150,7 +155,7 @@ class ClusterEvaluator:
         The silhouette score measures how similar an object is to its own cluster
         compared to other clusters. The score ranges from -1 to 1, where:
 
-        - A high value (close to 1) indicates the object is well matched to its cluster
+        - A high value (close to 1) indicates the object is well-matched to its cluster
         - A value near 0 indicates the object is on or very close to the decision
           boundary
         - A negative value indicates the object might be assigned to the wrong cluster
@@ -197,7 +202,7 @@ class ClusterEvaluator:
             logger.error(f"Error calculating silhouette score: {e}")
             return 0.0
 
-    def calculate_similarity_metrics(self) -> dict[str, Union[float, np.floating]]:
+    def calculate_similarity_metrics(self) -> dict[str, Union[float, numpy.floating]]:
         """
         Calculate similarity metrics for the clusters.
 
@@ -283,108 +288,6 @@ class ClusterEvaluator:
                 "silhouette_like_score": 0.0,
             }
 
-    def _check_cluster_sizes_for_powerlaw(self, cluster_sizes):
-        """
-        Check if there are enough clusters and unique sizes for power-law analysis.
-
-        Args:
-            cluster_sizes: List of cluster sizes
-
-        Returns:
-            tuple: (is_valid, result_dict) where is_valid is a boolean and result_dict
-                  is a dictionary with error information if invalid or empty dict if
-                  valid
-        """
-        # Need at least a few clusters to detect power-law
-        if len(cluster_sizes) < 5:
-            logger.warning("Not enough clusters to detect power-law distribution")
-            return False, {
-                "alpha": None,
-                "xmin": None,
-                "is_powerlaw": False,
-                "sigma_error": None,
-                "p_value": None,
-            }
-
-        # Check if we have enough unique cluster sizes
-        unique_sizes = set(cluster_sizes)
-        if len(unique_sizes) < 2:
-            logger.warning(
-                "Not enough unique cluster sizes to detect power-law distribution"
-            )
-            return False, {
-                "alpha": None,
-                "xmin": None,
-                "is_powerlaw": False,
-                "sigma_error": None,
-                "p_value": None,
-            }
-
-        return True, {}
-
-    def _fit_powerlaw_distribution(self, cluster_sizes):
-        """
-        Fit power-law distribution to cluster sizes.
-
-        Args:
-            cluster_sizes: List of cluster sizes
-
-        Returns:
-            tuple: (success, result) where success is a boolean and result is either
-                  a dictionary with power-law parameters or error information
-        """
-        try:
-            import powerlaw
-
-            fit = powerlaw.Fit(cluster_sizes, discrete=True, verbose=False)
-
-            # Get power-law parameters
-            alpha = fit.alpha
-            xmin = fit.xmin
-            sigma = fit.sigma if hasattr(fit, "sigma") else 0.0
-
-            # Check for NaN values
-            if alpha is None or np.isnan(alpha) or xmin is None or np.isnan(xmin):
-                logger.warning("Power-law fit returned NaN values")
-                return False, {
-                    "alpha": None,
-                    "xmin": None,
-                    "is_powerlaw": False,
-                    "sigma_error": None,
-                    "p_value": None,
-                }
-
-            # Test if distribution follows power-law
-            # Compare to exponential distribution
-            try:
-                R, p = fit.distribution_compare(
-                    "power_law", "exponential", normalized_ratio=True
-                )
-                is_powerlaw = R > 0 and p < 0.1  # Positive R means power_law is better
-            except Exception as e:
-                logger.warning(f"Error comparing distributions: {e}")
-                R, p = None, None
-                is_powerlaw = False
-
-            return True, {
-                "alpha": float(alpha) if alpha is not None else None,
-                "xmin": float(xmin) if xmin is not None else None,
-                "is_powerlaw": bool(is_powerlaw),
-                "sigma_error": (
-                    float(sigma) if sigma is not None and not np.isnan(sigma) else None
-                ),
-                "p_value": float(p) if p is not None and not np.isnan(p) else None,
-            }
-        except Exception as e:
-            logger.error(f"Error fitting power-law distribution: {e}")
-            return False, {
-                "alpha": None,
-                "xmin": None,
-                "is_powerlaw": False,
-                "sigma_error": None,
-                "p_value": None,
-            }
-
     def detect_powerlaw_distribution(self) -> dict[str, Any]:
         """
         Detect if the cluster size distribution follows a power-law.
@@ -399,6 +302,7 @@ class ClusterEvaluator:
         4. Comparing the power-law fit to an exponential distribution
 
         The method handles edge cases:
+
         - Returns null values if there are fewer than 5 clusters
         - Handles errors in the powerlaw fitting process
         - Validates the fitted parameters to avoid NaN values
@@ -411,31 +315,76 @@ class ClusterEvaluator:
                 - sigma_error: Standard error of the alpha estimate
                 - p_value: P-value from comparison with exponential distribution
         """  # noqa: E501
+        default_powerlaw_results = {
+            "alpha": None,
+            "xmin": None,
+            "is_powerlaw": False,
+            "sigma_error": None,
+            "p_value": None,
+        }
+
         try:
-            # Get cluster sizes
+            import powerlaw
+
+            # 1. Get cluster sizes
             cluster_sizes = []
             for cluster_id in self.unique_clusters:
                 size = self.cluster_assignments.count(cluster_id)
                 cluster_sizes.append(size)
 
-            # Check if we have enough data for power-law analysis
-            is_valid, result = self._check_cluster_sizes_for_powerlaw(cluster_sizes)
-            if not is_valid:
-                return result
+            # 2. Check if there are enough clusters and unique sizes for the analysis.
+            unique_sizes = set(cluster_sizes)
 
-            # Fit power-law distribution
-            _, result = self._fit_powerlaw_distribution(cluster_sizes)
-            return result
+            if len(cluster_sizes) < 5:
+                logger.warning("Not enough clusters to detect power-law distribution")
+                return default_powerlaw_results
+            elif len(unique_sizes) < 2:
+                logger.warning(
+                    "Not enough unique cluster sizes to detect power-law distribution"
+                )  # noqa: E501
+                return default_powerlaw_results
 
+            # 3. Fit power-law distribution
+            fit = powerlaw.Fit(cluster_sizes, discrete=True, verbose=False)
+
+            alpha = fit.alpha
+            xmin = fit.xmin
+            sigma = fit.sigma if hasattr(fit, "sigma") else 0.0
+
+            # Check for NaN values
+            if alpha is None or np.isnan(alpha) or xmin is None or np.isnan(xmin):
+                logger.warning("Power-law fit returned NaN values")
+                return default_powerlaw_results
+
+            # Test if distribution follows power-law
+            # Compare to exponential distribution
+            try:
+                ratio, p_value = fit.distribution_compare(
+                    "power_law", "exponential", normalized_ratio=True
+                )
+                # Positive ratio means power_law is better
+                is_powerlaw = ratio > 0 and p_value < 0.1
+            except Exception as e:
+                logger.error(f"Error comparing distributions: {e}")
+                ratio, p_value = None, None
+                is_powerlaw = False
+
+            return {
+                "alpha": float(alpha),
+                "xmin": float(xmin),
+                "is_powerlaw": is_powerlaw,
+                "sigma_error": (
+                    float(sigma) if sigma is not None and not np.isnan(sigma) else None
+                ),  # noqa: E501
+                "p_value": (
+                    float(p_value)
+                    if p_value is not None and not np.isnan(p_value)
+                    else None
+                ),  # noqa: E501
+            }
         except Exception as e:
             logger.error(f"Error detecting power-law distribution: {e}")
-            return {
-                "alpha": None,
-                "xmin": None,
-                "is_powerlaw": False,
-                "sigma_error": None,
-                "p_value": None,
-            }
+            return default_powerlaw_results
 
     def find_outliers(self, n_neighbors: int = 5) -> dict[str, float]:
         """
@@ -486,7 +435,7 @@ class ClusterEvaluator:
             cluster_sizes[str(cluster_id)] = self.cluster_assignments.count(cluster_id)
         return cluster_sizes
 
-    def generate_report(self) -> dict[str, Any]:
+    def generate_report(self) -> "dict[str, Any]":
         """
         Generate a comprehensive evaluation report.
 
@@ -524,7 +473,7 @@ class ClusterEvaluator:
         return report
 
 
-def _sanitize_for_json(obj: Any) -> Any:
+def _sanitize_for_json(obj):
     """Convert NumPy types to Python types for JSON serialization."""
     if isinstance(obj, dict):
         return {k: _sanitize_for_json(v) for k, v in obj.items()}
@@ -565,7 +514,9 @@ def _create_simplified_report(report: dict[str, Any]) -> dict[str, Any]:
 
 
 def save_evaluation_report(
-    report: dict[str, Any], output_dir: str, filename: str = "evaluation_report.json"
+    report: dict[str, Any],
+    output_dir: str,
+    filename: str = "evaluation_report.json",
 ) -> str:
     """
     Save the evaluation report to a JSON file.

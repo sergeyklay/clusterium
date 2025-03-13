@@ -1,6 +1,5 @@
 """Tests for the version module."""
 
-import importlib
 import importlib.metadata
 import importlib.util
 from pathlib import Path
