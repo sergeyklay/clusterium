@@ -78,7 +78,7 @@ def _plot_cluster_size_distribution(reports, ax):
         has_sizes = has_cluster_stats and "cluster_sizes" in report["cluster_stats"]
 
         if not has_sizes:
-            logger.warning(f"Skipping {model_name}: No cluster size distribution data")
+            logger.warning("Skipping %s: No cluster size distribution data", model_name)
             continue
 
         # Use pre-computed cluster size distribution
@@ -93,7 +93,7 @@ def _plot_cluster_size_distribution(reports, ax):
 
         # Convert string keys to integers and create a Counter
         size_frequency = Counter()
-        for cluster_id, size in cluster_size_dist.items():
+        for _, size in cluster_size_dist.items():
             size_frequency[size] += 1
 
         # Convert to lists for plotting
@@ -123,7 +123,7 @@ def _plot_cluster_size_distribution(reports, ax):
                 alpha=0.7,
             )
         else:
-            logger.warning(f"No valid cluster sizes for {model_name}")
+            logger.warning("No valid cluster sizes for %s", model_name)
 
     ax.set_title("Cluster Size Distribution (Log-Log Scale)")
     ax.set_xlabel("Cluster Size")
@@ -284,13 +284,13 @@ def _plot_similarity_metrics(reports, ax):
         has_metrics = "metrics" in report and "similarity" in report["metrics"]
 
         if not has_metrics:
-            logger.warning(f"No similarity metrics for {model_name}")
+            logger.warning("No similarity metrics for %s", model_name)
             continue
 
         similarity_metrics = report["metrics"]["similarity"]
 
         if not similarity_metrics:
-            logger.warning(f"Empty similarity metrics for {model_name}")
+            logger.warning("Empty similarity metrics for %s", model_name)
             continue
 
         # Extract metrics
@@ -368,7 +368,9 @@ def _plot_cluster_counts(reports, ax):
         ax.text(i, count + 0.5, str(count), ha="center")
 
 
-def _get_valid_powerlaw_data(report, model_name):
+def _get_valid_powerlaw_data(
+    report, model_name
+):  # pylint: disable=too-many-return-statements
     """
     Extract and validate power law data from a report.
 
@@ -383,13 +385,13 @@ def _get_valid_powerlaw_data(report, model_name):
     has_metrics = "metrics" in report and "powerlaw" in report["metrics"]
 
     if not has_metrics:
-        logger.warning(f"No powerlaw metrics for {model_name}")
+        logger.warning("No powerlaw metrics for %s", model_name)
         return None
 
     powerlaw_metrics = report["metrics"]["powerlaw"]
 
     if not powerlaw_metrics:
-        logger.warning(f"Empty powerlaw metrics for {model_name}")
+        logger.warning("Empty powerlaw metrics for %s", model_name)
         return None
 
     # Get parameters
@@ -408,14 +410,17 @@ def _get_valid_powerlaw_data(report, model_name):
         if alpha is not None
         else False or np.isnan(xmin) if xmin is not None else False
     ):
-        logger.warning(
-            f"Invalid powerlaw parameters for {model_name}: alpha={alpha}, xmin={xmin}"
+        logger.error(
+            "Invalid powerlaw parameters for %s: alpha=%s, xmin=%s",
+            model_name,
+            alpha,
+            xmin,
         )
         return None
 
     # Get cluster size distribution
     if "cluster_stats" not in report or "cluster_sizes" not in report["cluster_stats"]:
-        logger.warning(f"No cluster size distribution for {model_name}")
+        logger.warning("No cluster size distribution for %s", model_name)
         return None
 
     cluster_sizes = report["cluster_stats"]["cluster_sizes"]
@@ -435,7 +440,7 @@ def _get_valid_powerlaw_data(report, model_name):
     valid_frequencies = [frequencies[i] for i in valid_indices]
 
     if not valid_sizes:
-        logger.warning(f"No valid sizes for powerlaw fit for {model_name}")
+        logger.warning("No valid sizes for powerlaw fit for %s", model_name)
         return None
 
     return alpha, sigma, xmin, valid_sizes, valid_frequencies
@@ -468,8 +473,8 @@ def _generate_powerlaw_fit_line(
         ]
 
         return True, (x, y, color, f"{model_name} (α={alpha:.2f})")
-    except Exception as e:
-        logger.warning(f"Error generating power-law fit for {model_name}: {e}")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning("Error generating power-law fit for %s: %s", model_name, e)
         return False, None
 
 
@@ -525,7 +530,7 @@ def _plot_powerlaw_fit(reports, ax):
         if result is None:
             continue
 
-        alpha, sigma, xmin, valid_sizes, valid_frequencies = result
+        alpha, _, xmin, valid_sizes, valid_frequencies = result
         color = model_colors.get(model_name)
 
         # Plot empirical distribution
@@ -544,10 +549,14 @@ def _plot_powerlaw_fit(reports, ax):
         except ValueError:
             # xmin not in valid_sizes, use the closest value
             logger.warning(
-                f"xmin={xmin} not in valid sizes for {model_name}, using closest value"
+                "xmin=%s not in valid sizes for %s, using closest value",
+                xmin,
+                model_name,
             )
             closest_idx = min(
-                range(len(valid_sizes)), key=lambda i: abs(valid_sizes[i] - xmin)
+                # pylint: disable=cell-var-from-loop
+                range(len(valid_sizes)),
+                key=lambda i: abs(valid_sizes[i] - xmin),
             )
             xmin = valid_sizes[closest_idx]
             xmin_index = closest_idx
@@ -592,13 +601,13 @@ def _plot_outliers(reports, ax):
         has_metrics = "metrics" in report and "outliers" in report["metrics"]
 
         if not has_metrics or not report["metrics"]["outliers"]:
-            logger.warning(f"No outlier metrics for {model_name}")
+            logger.warning("No outlier metrics for %s", model_name)
             continue
 
         outlier_scores = report["metrics"]["outliers"]
 
         if not outlier_scores:
-            logger.warning(f"Empty outlier scores for {model_name}")
+            logger.warning("Empty outlier scores for %s", model_name)
             continue
 
         # Extract scores
@@ -632,8 +641,8 @@ def _plot_with_error_handling(plot_func, reports, ax, plot_title):
     """
     try:
         plot_func(reports, ax)
-    except Exception as e:
-        logger.error(f"Error plotting {plot_title}: {e}")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("Error plotting %s: %s", plot_title, e)
 
         # Check if this is likely due to a small dataset
         small_dataset = False
@@ -716,13 +725,13 @@ def visualize_evaluation_dashboard(
             va="top",
             fontsize=12,
             color="red",
-            bbox=dict(
-                boxstyle="round",
-                facecolor="#fff8f8",
-                edgecolor="#ffcccc",
-                alpha=0.95,
-                pad=0.7,
-            ),
+            bbox={
+                "boxstyle": "round",
+                "facecolor": "#f8f8f8",
+                "edgecolor": "#cccccc",
+                "alpha": 0.95,
+                "pad": 0.7,
+            },
         )
 
     # Plot each visualization with error handling
@@ -773,13 +782,13 @@ def visualize_evaluation_dashboard(
         va="bottom",
         fontsize=9,
         fontstyle="italic",
-        bbox=dict(
-            boxstyle="round",
-            facecolor="#f8f8f8",
-            edgecolor="#cccccc",
-            alpha=0.95,
-            pad=0.7,
-        ),
+        bbox={
+            "boxstyle": "round",
+            "facecolor": "#f8f8f8",
+            "edgecolor": "#cccccc",
+            "alpha": 0.95,
+            "pad": 0.7,
+        },
     )
 
     # Save the figure
