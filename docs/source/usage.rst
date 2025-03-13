@@ -242,7 +242,8 @@ This command analyzes both Dirichlet Process and Pitman-Yor Process clustering
 results, generating comprehensive metrics and visualizations to help you understand
 cluster quality.
 
-**Visualization Dashboard**
+Visualization Dashboard
+^^^^^^^^^^^^^^^^^^^^^^^
 
 By default, the evaluation process generates an interactive visualization dashboard
 (enabled with ``--plot``) that includes:
@@ -261,7 +262,8 @@ The dashboard is displayed interactively and automatically saved as
    :alt: Evaluation Dashboard Example
    :width: 100%
 
-**Disabling Visualizations**
+Disabling Visualizations
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you prefer to generate only the evaluation metrics without visualizations,
 use the ``--no-plot`` option:
@@ -274,7 +276,8 @@ use the ``--no-plot`` option:
       --pyp-clusters output/clusters_output_pyp.csv \
       --no-plot
 
-**Understanding Evaluation Results**
+Understanding Evaluation Results
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The evaluation results help you determine:
 
@@ -357,13 +360,15 @@ for further analysis or integration with other tools. Example evaluation report
 brevity. In real-world datasets, they will contain the actual cluster sizes and
 outliers.
 
-**Understanding Clustering Parameters**
+Understanding Clustering Parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To interpret evaluation results and improve clustering performance, it's important to understand the key parameters for each clustering model:
 
 1. **Dirichlet Process Parameters**:
 
    * **dp-alpha (concentration parameter)**:
+
      * Controls how likely the algorithm is to create new clusters
      * **Recommended range**: 0.1 to 5.0
      * **Effect**: Higher values create more clusters, lower values create fewer, larger clusters
@@ -372,6 +377,7 @@ To interpret evaluation results and improve clustering performance, it's importa
      * **Constraint**: Must be positive (α > 0)
 
    * **variance**:
+
      * Controls the sensitivity of the clustering process
      * **Effect**: Lower values make the model more sensitive to small differences between texts
      * **Typical good value**: 0.3
@@ -381,6 +387,7 @@ To interpret evaluation results and improve clustering performance, it's importa
 2. **Pitman-Yor Process Parameters**:
 
    * **pyp-alpha (concentration parameter)**:
+
      * Similar role as in Dirichlet Process, but with different optimal ranges
      * **Recommended range**: 0.1 to 2.0
      * **Effect**: Higher values create more clusters, lower values create fewer, larger clusters
@@ -390,6 +397,7 @@ To interpret evaluation results and improve clustering performance, it's importa
      * **Important**: Using the same alpha value as DP leads to dramatically different clustering behaviors
 
    * **pyp-sigma (discount parameter)**:
+
      * Unique to Pitman-Yor Process
      * **Recommended range**: 0.1 to 0.7
      * **Valid range**: 0.0 to 0.99 (must be less than 1.0)
@@ -401,29 +409,35 @@ To interpret evaluation results and improve clustering performance, it's importa
      * Higher sigma values tend to produce more small clusters and fewer large clusters
 
    * **variance**:
+
      * Controls the sensitivity of the clustering process
      * **Effect**: Lower values make the model more sensitive to small differences between texts
      * **Typical good value**: 0.5 (slightly higher than for Dirichlet Process)
      * **Default**: 0.3 (same as for Dirichlet Process)
      * Part of the base measure for the clustering model
 
-3. **Power Law Parameters** (detected in the evaluation results):
+3. **Power Law Parameters** (detected in the evaluation results, not passed as a parameter):
 
-   * **alpha**: Power law exponent that describes how quickly the probability of finding larger clusters decreases.
+   * **alpha** (power law exponent):
+
+     * Describes how quickly the probability of finding larger clusters decreases
      * Values around 2.0 indicate a strong power-law behavior in the cluster sizes
      * The higher this value, the more rapidly the frequency of large clusters decreases
      * Typical values in natural phenomena: 2.0 to 3.0
      * Note: This is different from the clustering alpha parameter
 
-   * **sigma_error**: Standard error of the power law alpha estimate.
+   * **sigma_error** (standard error of the power law alpha estimate):
+
      * Smaller values indicate more confidence in the power law alpha estimate
      * Helps determine the reliability of the power law fit
 
-**Optimizing Clustering Parameters**
+Optimizing Clustering Parameters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Based on evaluation results, you can adjust parameters to improve clustering quality:
 
 1. Start with the recommended values:
+
    * For Dirichlet Process: alpha=0.5, variance=0.3
    * For Pitman-Yor Process: alpha=0.3, sigma=0.3, variance=0.5
 
