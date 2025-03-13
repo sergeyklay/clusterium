@@ -26,15 +26,15 @@ ccov:
 .PHONY: format
 format:
 	@echo $(CS)Formatting code for package: $(PKG_NAME)$(CE)
-	$(VENV_BIN)/isort --profile black --python-version auto ./
-	$(VENV_BIN)/black . ./$(PKG_NAME) ./tests
+	$(VENV_BIN)/isort --gitignore --profile black --python-version auto ./
+	$(VENV_BIN)/black --extend-exclude .poetry . ./$(PKG_NAME) ./tests
 	@echo
 
 .PHONY: format-check
 format-check:
 	@echo $(CS)Checking formatting for package: $(PKG_NAME)$(CE)
-	$(VENV_BIN)/isort --check-only --profile black --python-version auto --diff ./
-	$(VENV_BIN)/black --check . ./$(PKG_NAME) ./tests
+	$(VENV_BIN)/isort --check-only --gitignore --profile black --python-version auto --diff ./
+	$(VENV_BIN)/black --check --extend-exclude .poetry . ./$(PKG_NAME) ./tests
 	@echo
 
 .PHONY: lint

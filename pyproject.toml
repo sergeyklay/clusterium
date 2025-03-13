@@ -143,10 +143,12 @@ disable = [
 [tool.black]
 line-length = 88
 target-version = ["py312"]
+extend-exclude = ".poetry"
 
 [tool.isort]
 profile = "black"
 py_version = 312
+skip_gitignore = false
 
 [tool.coverage.report]
 # Set the number of decimal places in coverage percentage
