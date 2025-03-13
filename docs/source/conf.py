@@ -33,6 +33,14 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = []
 
+# -- Options for nitpick -----------------------------------------------------
+
+# In nitpick mode (-n), still ignore any of the following "broken" references
+# to non-types.
+nitpick_ignore = [
+    ("py:class", "numpy.bool_"),
+]
+
 # -- Options for intersphinx -------------------------------------------------
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
