@@ -13,6 +13,10 @@ Improved Documentation
 * Fix code smells and style issues.
 * Introduced ``pylint`` to the CI workflow.
 
+Trivial/Internal Changes
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Amend and improve installation documentation.
 
 0.4.0 - 2025-03-13
 ------------------
