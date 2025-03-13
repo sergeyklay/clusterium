@@ -101,7 +101,7 @@ class ClusterEvaluator:
     def __init__(
         self,
         texts: list[str],
-        embeddings: np.ndarray,
+        embeddings: numpy.ndarray,
         cluster_assignments: list[int],
         model_name: str,
         alpha: float = 1.0,
