@@ -1,0 +1,14 @@
+# Test A: Ultra-low DP alpha + Higher PYP sigma
+--dp-alpha 0.05 --pyp-alpha 0.1 --pyp-sigma 0.55 --variance 0.25
+
+# Test B: Balanced parameters with cluster merging
+--dp-alpha 0.08 --pyp-alpha 0.15 --pyp-sigma 0.5 --variance 0.2
+
+# Test C: Aggressive power-law configuration
+--dp-alpha 0.02 --pyp-alpha 0.2 --pyp-sigma 0.6 --variance 0.15
+
+# Test D: Validation of variance effects
+--dp-alpha 0.05 --pyp-alpha 0.1 --pyp-sigma 0.55 --variance 0.35
+
+# Test E: Final verification
+--dp-alpha 0.1 --pyp-alpha 0.25 --pyp-sigma 0.45 --variance 0.25
