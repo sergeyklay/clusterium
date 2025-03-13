@@ -91,8 +91,8 @@ jobs:
         run: |
           source $VENV
 
-          # Run flake8 and show results in CI
           flake8 ./
+          pylint ./clusx
 
       - name: Load sentence_transformer cache
         uses: actions/cache@v4

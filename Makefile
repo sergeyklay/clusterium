@@ -10,8 +10,8 @@ install:
 test:
 	@echo $(CS)Running tests for package: $(PKG_NAME)$(CE)
 	$(VENV_BIN)/coverage erase
-	$(VENV_BIN)/coverage run -m pytest -m "not integration" $(PYTEST_FLAGS) ./clusx ./tests
-	$(VENV_BIN)/coverage run -m pytest -m integration $(PYTEST_FLAGS) ./clusx ./tests
+	$(VENV_BIN)/coverage run -m pytest -m "not integration" $(PYTEST_FLAGS) ./$(PKG_NAME) ./tests
+	$(VENV_BIN)/coverage run -m pytest -m integration $(PYTEST_FLAGS) ./$(PKG_NAME) ./tests
 	@echo
 
 .PHONY: ccov
@@ -27,20 +27,21 @@ ccov:
 format:
 	@echo $(CS)Formatting code for package: $(PKG_NAME)$(CE)
 	$(VENV_BIN)/isort --profile black --python-version auto ./
-	$(VENV_BIN)/black . ./clusx ./tests
+	$(VENV_BIN)/black . ./$(PKG_NAME) ./tests
 	@echo
 
 .PHONY: format-check
 format-check:
 	@echo $(CS)Checking formatting for package: $(PKG_NAME)$(CE)
 	$(VENV_BIN)/isort --check-only --profile black --python-version auto --diff ./
-	$(VENV_BIN)/black --check . ./clusx ./tests
+	$(VENV_BIN)/black --check . ./$(PKG_NAME) ./tests
 	@echo
 
 .PHONY: lint
 lint:
 	@echo $(CS)Running linters for package: $(PKG_NAME)$(CE)
 	$(VENV_BIN)/flake8 $(FLAKE8_FLAGS) ./
+	$(VENV_BIN)/pylint $(FLAKE8_FLAGS) ./$(PKG_NAME)
 	@echo
 
 .PHONY: clean

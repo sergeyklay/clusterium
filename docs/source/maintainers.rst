@@ -16,11 +16,11 @@ development workflows.
 Key configurations:
 
 * **Python Versions Supported:** >= 3.11 (tested on 3.11, 3.12, and 3.13)
-* **Build Tool:** ``poetry``
+* **Build Tool:** ``poetry`` >= 2.0
 * **Primary Dependencies:** ``numpy``, ``sentence-transformers``, ``scipy``, ``matplotlib``
 * **Documentation Tool:** ``sphinx`` with Read the Docs theme
 * **Testing Tools:** ``pytest``, ``coverage``
-* **Linting Tools:** ``black``, ``flake8``, ``isort``
+* **Linting Tools:** ``black``, ``flake8``, ``isort``, ``pylint``
 
 .. note::
 
@@ -263,7 +263,7 @@ The docs workflow automatically builds and validates documentation on pushes and
 Linting and Code Quality Checks
 ===============================
 
-Code quality is enforced using ``black``, ``flake8``, and ``isort``.
+Code quality is enforced using ``black``, ``flake8``, ``isort``, and ``pylint``.
 
 Running Locally
 ---------------
@@ -274,7 +274,7 @@ Format code and run linters using make commands:
 
    make format       # Format code with black and isort
    make format-check # Check formatting without making changes
-   make lint         # Run flake8
+   make lint         # Run flake8 and pylint
 
 Or manually with Poetry:
 
@@ -290,7 +290,7 @@ Or manually with Poetry:
 
    # Run linters (equivalent to make lint)
    flake8 ./
-
+   pylint ./clusx
 Pre-commit Hooks
 ----------------
 
