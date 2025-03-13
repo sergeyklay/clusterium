@@ -69,8 +69,11 @@ class DirichletProcess:
             similarity_metric (Optional[Callable]): Function to compute similarity
                 between embeddings. If None, uses cosine_similarity.
             random_state (Optional[int]): Random seed for reproducibility.
+                If None, then fresh, unpredictable entropy will be pulled from the OS.
         """
         self.alpha = alpha
+        _ = sigma  # Help linters understand that sigma is not used in this class
+
         # Ensure base_measure has a variance value
         if base_measure is None:
             self.base_measure = {"variance": 0.1}
@@ -85,7 +88,7 @@ class DirichletProcess:
         self.embedding_dim = None  # Will be set on first embedding
 
         # For reproducibility
-        self.random_state = np.random.RandomState(random_state)
+        self.random_state = np.random.default_rng(seed=random_state)
 
         # For tracking processed texts and their embeddings
         self.text_embeddings: dict[str, EmbeddingTensor] = {}
@@ -204,9 +207,9 @@ class DirichletProcess:
             # Existing cluster
             cluster_size = self.cluster_params[cluster_id]["count"]
             return np.log(cluster_size / (self.alpha + total_points))
-        else:
-            # New cluster
-            return np.log(self.alpha / (self.alpha + total_points))
+
+        # Otherwise its new cluster
+        return np.log(self.alpha / (self.alpha + total_points))
 
     def assign_cluster(self, text: str) -> int:
         """
@@ -345,8 +348,9 @@ class DirichletProcess:
                 - List of cluster assignments for each text
                 - Dictionary of cluster parameters
         """
-        total = len(texts)
-        logger.info(f"Processing {total} texts with {self.__class__.__name__}...")
+        logger.info(
+            "Processing %s texts with %s...", len(texts), self.__class__.__name__
+        )
 
         # Reset state for a fresh run
         self.clusters = []
@@ -453,12 +457,12 @@ class PitmanYorProcess(DirichletProcess):
             return np.log(
                 max(0, cluster_size - self.sigma) / (self.alpha + total_points)
             )
-        else:
-            # New cluster
-            num_tables = len(self.cluster_params)
-            return np.log(
-                (self.alpha + self.sigma * num_tables) / (self.alpha + total_points)
-            )
+
+        # Otherwise it's new cluster
+        num_tables = len(self.cluster_params)
+        return np.log(
+            (self.alpha + self.sigma * num_tables) / (self.alpha + total_points)
+        )
 
     def assign_cluster(self, text: str) -> int:
         """

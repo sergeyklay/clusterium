@@ -50,7 +50,7 @@ def load_data(input_file: str, column: Optional[str] = None) -> list[str]:
                 # Just check if it can be parsed as CSV, don't need the dialect
                 sniffer.sniff(first_line)
                 is_csv = True
-    except Exception:
+    except (OSError, csv.Error):
         # If any error occurs, assume it's a text file
         is_csv = False
 
@@ -101,7 +101,7 @@ def save_clusters_to_csv(
         writer.writerow(["Text", f"Cluster_{model_name}", "Alpha", "Sigma", "Variance"])
         for text, cluster in zip(texts, clusters):
             writer.writerow([text, cluster, alpha, sigma, variance])
-    logger.info(f"Clustering results saved to {output_file}")
+    logger.info("Clustering results saved to %s", output_file)
 
 
 def save_clusters_to_json(
@@ -158,7 +158,7 @@ def save_clusters_to_json(
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(clusters_json, f, indent=2, ensure_ascii=False)
 
-    logger.info(f"JSON clusters saved to {output_file}")
+    logger.info("JSON clusters saved to %s", output_file)
 
 
 def get_embeddings(texts: list[str]) -> np.ndarray:
@@ -279,7 +279,7 @@ def load_parameters_from_json(json_path: str) -> dict[str, float]:
                 params["alpha"] = float(data["metadata"]["alpha"])
             if "sigma" in data["metadata"]:
                 params["sigma"] = float(data["metadata"]["sigma"])
-    except Exception as e:
-        logger.warning(f"Error loading parameters from JSON: {e}")
+    except (OSError, json.JSONDecodeError) as err:
+        logger.error("Error loading parameters from JSON: %s", err)
 
     return params

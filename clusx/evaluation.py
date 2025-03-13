@@ -36,7 +36,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 
 if TYPE_CHECKING:
-    import numpy
+    import numpy  # pylint: disable=reimported
     from typing import Any, Union
 
 from .logging import get_logger
@@ -61,22 +61,31 @@ class NumpyEncoder(json.JSONEncoder):
     - Other NumPy types → Python equivalents via the `item()` method when available
     """
 
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        if isinstance(obj, (np.single, np.double)):  # type: ignore
-            return float(obj)
-        if isinstance(obj, (np.intc, np.int_)):  # type: ignore
-            return int(obj)
-        if isinstance(obj, np.bool):  # type: ignore
-            return bool(obj)
-        if isinstance(obj, bool):
-            return bool(obj)
+    def default(self, o):
+        """Convert NumPy types to their Python equivalents for JSON serialization."""
+        # Dictionary mapping types to conversion functions
+        converters = {
+            np.ndarray: lambda x: x.tolist(),
+            np.single: float,  # type: ignore
+            np.double: float,  # type: ignore
+            np.intc: int,  # type: ignore
+            np.int_: int,  # type: ignore
+            np.bool_: bool,  # type: ignore
+            bool: bool,
+        }
+
+        # Try direct type conversions first
+        for type_class, converter in converters.items():
+            if isinstance(o, type_class):
+                return converter(o)
+
+        # Try the item() method as fallback for other NumPy types
         try:
-            # Try to convert any other NumPy type to a Python type
-            return obj.item() if hasattr(obj, "item") else obj
+            if hasattr(o, "item"):
+                return o.item()
+            return o
         except (AttributeError, ValueError, TypeError):
-            return super().default(obj)
+            return super().default(o)
 
 
 class ClusterEvaluator:
@@ -144,8 +153,10 @@ class ClusterEvaluator:
             )
 
         logger.info(
-            f"Initialized cluster evaluator for {model_name} with {len(texts)} texts "
-            f"and {len(self.unique_clusters)} clusters"
+            "Initialized cluster evaluator for %s with %d texts and %d clusters",
+            model_name,
+            len(texts),
+            len(self.unique_clusters),
         )
 
     def calculate_silhouette_score(self) -> Union[float, int]:
@@ -173,8 +184,8 @@ class ClusterEvaluator:
         # We need at least 2 clusters and each cluster must have at least 2 samples
         if len(self.unique_clusters) < 2:
             logger.warning(
-                f"Cannot calculate silhouette score: only "
-                f"{len(self.unique_clusters)} cluster found"
+                "Cannot calculate silhouette score: only %d cluster found",
+                len(self.unique_clusters),
             )
             return 0.0
 
@@ -187,8 +198,9 @@ class ClusterEvaluator:
         single_sample_clusters = [c for c, count in cluster_counts.items() if count < 2]
         if single_sample_clusters:
             logger.warning(
-                f"Cannot calculate silhouette score: "
-                f"{len(single_sample_clusters)} clusters have fewer than 2 samples"
+                "Cannot calculate silhouette score: "
+                "%d clusters have fewer than 2 samples",
+                len(single_sample_clusters),
             )
             return 0.0
 
@@ -196,10 +208,10 @@ class ClusterEvaluator:
             score = silhouette_score(
                 self.embeddings, self.cluster_assignments, metric="cosine"
             )
-            logger.info(f"Silhouette score for {self.model_name}: {score:.4f}")
+            logger.info("Silhouette score for %s: %.4f", self.model_name, score)
             return float(score)
-        except Exception as e:
-            logger.error(f"Error calculating silhouette score: {e}")
+        except Exception as err:  # pylint: disable=broad-except
+            logger.error("Error calculating silhouette score: %s", err)
             return 0.0
 
     def calculate_similarity_metrics(self) -> dict[str, Union[float, numpy.floating]]:
@@ -280,8 +292,8 @@ class ClusterEvaluator:
                 "silhouette_like_score": float(silhouette_like),
             }
 
-        except Exception as e:
-            logger.error(f"Error calculating similarity metrics: {e}")
+        except Exception as err:  # pylint: disable=broad-except
+            logger.error("Error calculating similarity metrics: %s", err)
             return {
                 "intra_cluster_similarity": 0.0,
                 "inter_cluster_similarity": 0.0,
@@ -338,7 +350,8 @@ class ClusterEvaluator:
             if len(cluster_sizes) < 5:
                 logger.warning("Not enough clusters to detect power-law distribution")
                 return default_powerlaw_results
-            elif len(unique_sizes) < 2:
+
+            if len(unique_sizes) < 2:
                 logger.warning(
                     "Not enough unique cluster sizes to detect power-law distribution"
                 )  # noqa: E501
@@ -364,8 +377,8 @@ class ClusterEvaluator:
                 )
                 # Positive ratio means power_law is better
                 is_powerlaw = ratio > 0 and p_value < 0.1
-            except Exception as e:
-                logger.error(f"Error comparing distributions: {e}")
+            except Exception as err:  # pylint: disable=broad-except
+                logger.error("Error comparing distributions: %s", err)
                 ratio, p_value = None, None
                 is_powerlaw = False
 
@@ -382,8 +395,8 @@ class ClusterEvaluator:
                     else None
                 ),  # noqa: E501
             }
-        except Exception as e:
-            logger.error(f"Error detecting power-law distribution: {e}")
+        except Exception as err:  # pylint: disable=broad-except
+            logger.error("Error detecting power-law distribution: %s", err)
             return default_powerlaw_results
 
     def find_outliers(self, n_neighbors: int = 5) -> dict[str, float]:
@@ -419,8 +432,8 @@ class ClusterEvaluator:
 
             return result
 
-        except Exception as e:
-            logger.error(f"Error detecting outliers: {e}")
+        except Exception as err:  # pylint: disable=broad-except
+            logger.error("Error detecting outliers: %s", err)
             return {}
 
     def _get_cluster_sizes(self) -> dict[str, int]:
@@ -477,14 +490,17 @@ def _sanitize_for_json(obj):
     """Convert NumPy types to Python types for JSON serialization."""
     if isinstance(obj, dict):
         return {k: _sanitize_for_json(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
+
+    if isinstance(obj, list):
         return [_sanitize_for_json(item) for item in obj]
-    elif isinstance(obj, (np.integer, np.floating, np.bool_)):  # type: ignore
+
+    if isinstance(obj, (np.integer, np.floating, np.bool_)):  # type: ignore
         return obj.item()
-    elif isinstance(obj, np.ndarray):
+
+    if isinstance(obj, np.ndarray):
         return obj.tolist()
-    else:
-        return obj
+
+    return obj
 
 
 def _debug_json_error(report: dict[str, Any]) -> None:
@@ -493,13 +509,17 @@ def _debug_json_error(report: dict[str, Any]) -> None:
         try:
             json.dumps(model_report, cls=NumpyEncoder)
         except TypeError:
-            logger.error(f"Problem in model report: {model_name}")
+            logger.error("Problem in model report: %s", model_name)
 
             for key, value in model_report.items():
                 try:
                     json.dumps({key: value}, cls=NumpyEncoder)
                 except TypeError:
-                    logger.error(f"Problem with key: {key}, value type: {type(value)}")
+                    logger.error(
+                        "Problem with key: %s, value type: %s",
+                        key,
+                        str(type(value)),
+                    )
 
 
 def _create_simplified_report(report: dict[str, Any]) -> dict[str, Any]:
@@ -547,24 +567,24 @@ def save_evaluation_report(
         # Sanitize the report
         sanitized_report = _sanitize_for_json(report)
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(sanitized_report, f, indent=2, cls=NumpyEncoder)
 
-        logger.info(f"Evaluation report saved to {output_path}")
+        logger.info("Evaluation report saved to %s", output_path)
         return output_path
-    except TypeError as e:
+    except TypeError as err:
         # If we still have serialization issues, log detailed information
-        logger.error(f"JSON serialization error: {e}")
+        logger.error("JSON serialization error: %s", err)
 
         # Debug the error
         _debug_json_error(report)
 
         # Save a simplified version
         simplified_report = _create_simplified_report(report)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(simplified_report, f, indent=2)
 
-        logger.warning(
-            f"Saved simplified report to {output_path} due to serialization issues"
+        logger.info(
+            "Saved simplified report to %s due to serialization issues", output_path
         )
         return output_path

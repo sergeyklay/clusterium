@@ -52,13 +52,13 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.""",
 )
 def cli():
     """Text Clustering Toolkit for statistical analysis and benchmarking."""
-    pass
 
 
 @cli.command(help="Cluster text data using various Bayesian nonparametric methods")
 @common_options
 @click.option(
     "--input",
+    "input_",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
     help="Path to the input file (text file or CSV)",
     required=True,
@@ -119,7 +119,7 @@ def cli():
     help="Column name to use for clustering (required for CSV files)",
 )
 def cluster(
-    input: str,
+    input_: str,
     output: str,
     output_dir: str,
     dp_alpha: float,
@@ -142,15 +142,16 @@ def cluster(
 
     try:
         os.makedirs(output_dir, exist_ok=True)
-        logger.info(
-            f"Loading data from {input} "
-            f"""{", using column '" + column + "' " if column else ""}..."""
+        logger.debug(
+            "Loading data from %s%s...",
+            input_,
+            ", using column '" + column + "' " if column else "",
         )
 
-        texts = load_data(input, column)
+        texts = load_data(input_, column)
         _validate_dataset(texts)
 
-        logger.info(f"Loaded {len(texts)} texts for clustering")
+        logger.info("Loaded %d texts for clustering", len(texts))
 
         base_measure = {"variance": variance}
 
@@ -161,7 +162,7 @@ def cluster(
             random_state=random_seed,
         )
         clusters_dp, _ = dp.fit(texts)
-        logger.info(f"DP clustering complete. Found {len(set(clusters_dp))} clusters")
+        logger.info("DP clustering complete. Found %d clusters", len(set(clusters_dp)))
 
         logger.info("Performing Pitman-Yor Process clustering...")
         pyp = PitmanYorProcess(
@@ -171,7 +172,9 @@ def cluster(
             random_state=random_seed,
         )
         clusters_pyp, _ = pyp.fit(texts)
-        logger.info(f"PYP clustering complete. Found {len(set(clusters_pyp))} clusters")
+        logger.info(
+            "PYP clustering complete. Found %d unique clusters", len(set(clusters_pyp))
+        )
 
         # Save results
         output_basename = os.path.basename(output)
@@ -223,7 +226,7 @@ def cluster(
             sigma=pyp_sigma,
             variance=variance,
         )
-    except Exception as err:
+    except Exception as err:  # pylint: disable=broad-except
         logger.error(err)
         sys.exit(1)
 
@@ -232,6 +235,7 @@ def cluster(
 @common_options
 @click.option(
     "--input",
+    "input_",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
     help="Path to the input file (text file or CSV)",
     required=True,
@@ -273,7 +277,7 @@ def cluster(
     help="Column name to use for clustering (required for CSV files)",
 )
 def evaluate(
-    input: str,
+    input_: str,
     dp_clusters: str,
     pyp_clusters: str,
     output_dir: str,
@@ -295,21 +299,22 @@ def evaluate(
 
     try:
         os.makedirs(output_dir, exist_ok=True)
-        logger.info(
-            f"Loading data from {input} "
-            f"""{", using column '" + column + "' " if column else ""}..."""
+        logger.debug(
+            "Loading data from %s%s...",
+            input_,
+            ", using column '" + column + "' " if column else "",
         )
 
-        texts = load_data(input, column)
+        texts = load_data(input_, column)
         _validate_dataset(texts)
 
-        logger.info(f"Loaded {len(texts)} texts for evaluation")
+        logger.info("Loaded %d texts for evaluation", len(texts))
 
         # Load cluster assignments
-        logger.info(f"Loading DP cluster assignments from {dp_clusters}...")
+        logger.debug("Loading DP cluster assignments from %s...", dp_clusters)
         dp_cluster_assignments, dp_params = load_cluster_assignments(dp_clusters)
 
-        logger.info(f"Loading PYP cluster assignments from {pyp_clusters}...")
+        logger.debug("Loading PYP cluster assignments from %s...", pyp_clusters)
         pyp_cluster_assignments, pyp_params = load_cluster_assignments(pyp_clusters)
 
         embeddings = get_embeddings(texts)
@@ -353,18 +358,12 @@ def evaluate(
             from .visualization import visualize_evaluation_dashboard
 
             logger.info("Generating evaluation dashboard...")
-            try:
-                dashboard_path = visualize_evaluation_dashboard(
-                    reports, output_dir, show_plot=show_plot
-                )
-                logger.info(f"Visualization saved to: {dashboard_path}")
-                if show_plot:
-                    logger.info("Close the plot window to continue.")
-            except Exception as e:
-                logger.error(f"Error generating visualization: {e}")
+            visualize_evaluation_dashboard(reports, output_dir, show_plot=show_plot)
+            if show_plot:
+                logger.info("Close the plot window to continue.")
 
         logger.info("Evaluation complete.")
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-except
         logger.error(error)
         sys.exit(1)
 
@@ -431,7 +430,7 @@ def main(args: Optional[list[str]] = None) -> int:
     except click.exceptions.Exit as e:
         # Handle normal exit
         return e.exit_code
-    except Exception as e:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         # Handle unexpected errors
-        logger.exception(f"Unexpected error: {e}")
+        logger.error(exc)
         return 1

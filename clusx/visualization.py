@@ -784,7 +784,7 @@ def visualize_evaluation_dashboard(
 
     # Save the figure
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
-    logger.info(f"Evaluation dashboard saved to {output_path}")
+    logger.debug("Evaluation dashboard saved to %s", output_path)
 
     if show_plot:
         plt.show()
