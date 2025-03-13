@@ -291,6 +291,7 @@ Or manually with Poetry:
    # Run linters (equivalent to make lint)
    flake8 ./
    pylint ./clusx
+
 Pre-commit Hooks
 ----------------
 
