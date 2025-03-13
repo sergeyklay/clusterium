@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     import numpy  # pylint: disable=reimported
     from typing import Any, Union
 
+from .errors import EvaluationError
 from .logging import get_logger
 
 logger = get_logger(__name__)
@@ -216,91 +217,114 @@ class ClusterEvaluator:
             logger.error("Error calculating silhouette score: %s", err)
             return 0.0
 
-    def calculate_similarity_metrics(self) -> dict[str, Union[float, numpy.floating]]:
-        """
-        Calculate similarity metrics for the clusters.
+    def calculate_similarity_metrics(
+        self,
+    ) -> dict[str, Union[float, numpy.floating, dict[str, int]]]:
+        """Calculate cluster-aware similarity metrics.
 
         This method computes three key metrics using cosine similarity:
 
-        - Intra-cluster similarity:
-          Average similarity between texts in the same cluster (higher values indicate
-          more cohesive clusters)
-        - Inter-cluster similarity:
-          Average similarity between texts in different clusters (lower values indicate
-          better separation between clusters)
-        - Silhouette-like score:
-          Difference between intra-cluster and inter-cluster similarity (similar to
-          silhouette score but calculated differently)
+        - Intra-cluster similarity: Average similarity between texts in the same
+          cluster (higher values indicate more cohesive clusters)
+        - Inter-cluster similarity: Average similarity between texts in different
+          clusters (lower values indicate better separation between clusters)
+        - Silhouette-like score: Difference between intra-cluster and inter-cluster
+          similarity (similar to silhouette score but calculated differently)
 
         The method handles edge cases:
-        - Returns zeros if there are fewer than 2 samples
-        - Uses cosine similarity for text embeddings
-        - Only computes the upper triangle of the similarity matrix for efficiency
+
+        - Only considers clusters with ≥2 members for intra-similarity
+        - Uses matrix operations for O(n) complexity
+        - Handles edge cases with proper numerical stability
 
         Returns:
             dict[str, Union[float, numpy.floating]]: Dictionary with the following keys:
                 - intra_cluster_similarity: Average similarity within clusters
                 - inter_cluster_similarity: Average similarity between clusters
                 - silhouette_like_score: Difference between intra and inter similarity
+                - valid_cluster_ratio: Fraction of valid clusters
+                - analyzed_pairs: Number of analyzed intra and inter cluster pairs
+                  (intra: intra-cluster pairs, inter: inter-cluster pairs)
         """
+        default_results = {
+            "intra_cluster_similarity": 0.0,
+            "inter_cluster_similarity": 0.0,
+            "silhouette_like_score": 0.0,
+            "valid_cluster_ratio": 0.0,
+            "analyzed_pairs": {
+                "intra": 0,
+                "inter": 0,
+            },
+        }
+
+        # Get valid clusters with ≥2 members
+        valid_clusters = {
+            cid: [i for i, c in enumerate(self.cluster_assignments) if c == cid]
+            for cid in self.unique_clusters
+            if self.cluster_assignments.count(cid) >= 2
+        }
+
+        # No valid clusters case
+        if not valid_clusters:
+            logger.warning("No valid clusters found for similarity metrics")
+            return default_results
+
         try:
-            # Skip if we have too few samples
-            if len(self.embeddings) < 2:
-                logger.warning("Not enough samples to calculate similarity metrics")
-                return {
-                    "intra_cluster_similarity": 0.0,
-                    "inter_cluster_similarity": 0.0,
-                    "silhouette_like_score": 0.0,
-                }
 
-            # Calculate similarity matrix
-            similarity_matrix = cosine_similarity(self.embeddings)
+            # Flatten indices properly for inter-similarity calculation
+            all_indices = []
+            for cluster_indices in valid_clusters.values():
+                all_indices.extend(cluster_indices)
+            all_indices = np.array(all_indices)
 
-            # Initialize counters and sums
-            intra_cluster_sum = 0.0
-            intra_cluster_count = 0
-            inter_cluster_sum = 0.0
-            inter_cluster_count = 0
+            # Calculate intra-cluster similarities
+            intra_sims = []
+            for cluster_indices in valid_clusters.values():
+                cluster_embeddings = self.embeddings[cluster_indices]
+                sim_matrix = cosine_similarity(cluster_embeddings)
+                np.fill_diagonal(sim_matrix, np.nan)
+                intra_sims.append(sim_matrix[~np.isnan(sim_matrix)])
 
-            # Calculate intra-cluster and inter-cluster similarities
-            for i in range(len(self.embeddings)):
-                for j in range(i + 1, len(self.embeddings)):  # Only upper triangle
-                    if self.cluster_assignments[i] == self.cluster_assignments[j]:
-                        # Same cluster (intra-cluster)
-                        intra_cluster_sum += similarity_matrix[i, j]
-                        intra_cluster_count += 1
-                    else:
-                        # Different clusters (inter-cluster)
-                        inter_cluster_sum += similarity_matrix[i, j]
-                        inter_cluster_count += 1
+            # Flatten intra similarities
+            intra_sims = np.concatenate(intra_sims) if intra_sims else np.array([])
 
-            # Calculate averages
-            if intra_cluster_count > 0:
-                intra_cluster_similarity = intra_cluster_sum / intra_cluster_count
-            else:
-                intra_cluster_similarity = 0.0
+            # Calculate inter-cluster similarities
+            inter_sims = []
+            cluster_list = list(valid_clusters.values())
+            for i, cluster_i in enumerate(cluster_list):
+                for _, cluster_j in enumerate(cluster_list[i + 1 :], i + 1):
+                    embeds_i = self.embeddings[cluster_i]
+                    embeds_j = self.embeddings[cluster_j]
+                    sims = cosine_similarity(embeds_i, embeds_j)
+                    inter_sims.append(sims.flatten())
 
-            if inter_cluster_count > 0:
-                inter_cluster_similarity = inter_cluster_sum / inter_cluster_count
-            else:
-                inter_cluster_similarity = 0.0
+            inter_sims = np.concatenate(inter_sims) if inter_sims else np.array([])
 
-            # Calculate a silhouette-like score
+            # Calculate metrics
+            valid_cluster_count = len(valid_clusters)
+            total_clusters = len(self.unique_clusters)
+            intra_cluster_similarity = (
+                np.nanmean(intra_sims) if intra_sims.size else 0.0
+            )
+            inter_cluster_similarity = (
+                np.nanmean(inter_sims) if inter_sims.size else 0.0
+            )
             silhouette_like = intra_cluster_similarity - inter_cluster_similarity
 
             return {
                 "intra_cluster_similarity": float(intra_cluster_similarity),
                 "inter_cluster_similarity": float(inter_cluster_similarity),
                 "silhouette_like_score": float(silhouette_like),
+                "valid_cluster_ratio": valid_cluster_count / total_clusters,
+                "analyzed_pairs": {
+                    "intra": len(intra_sims),
+                    "inter": len(inter_sims),
+                },
             }
-
         except Exception as err:  # pylint: disable=broad-except
-            logger.error("Error calculating similarity metrics: %s", err)
-            return {
-                "intra_cluster_similarity": 0.0,
-                "inter_cluster_similarity": 0.0,
-                "silhouette_like_score": 0.0,
-            }
+            raise EvaluationError(
+                f"Error calculating similarity metrics: {err}"
+            ) from err
 
     def detect_powerlaw_distribution(self) -> dict[str, Any]:
         """

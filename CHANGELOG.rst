@@ -7,6 +7,17 @@ releases, in reverse chronological order.
 0.4.1 - 2025-03-XX
 ------------------
 
+Bug Fixes
+^^^^^^^^^
+
+* Fix critical issues in similarity metrics calculation:
+
+  - Properly handle singleton clusters instead of reporting misleading 0.0 values
+  - Optimize computation for large datasets with sparse clusters
+  - Add robust handling for edge cases with no valid cluster pairs
+  - Implement correct averaging when mixing singleton and non-singleton clusters
+  - Fix silent failures on datasets with predominantly singleton clusters
+
 Improved Documentation
 ^^^^^^^^^^^^^^^^^^^^^^
 
