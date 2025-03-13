@@ -11,12 +11,11 @@ set -e  # Exit on error
 
 # Display usage information
 usage() {
-    echo "Usage: $0 --input <input_file> [--column <column_name>] [--run-number <number>] [--random-seed <seed>] [--output <output_basename>]"
+    echo "Usage: $0 --input <input_file> [--column <column_name>] [--random-seed <seed>] [--output <output_basename>]"
     echo ""
     echo "Arguments:"
     echo "  --input        Path to the input CSV file (required)"
     echo "  --column       Column name to use for clustering (default: 'question')"
-    echo "  --run-number   Run number for documentation (default: 1)"
     echo "  --random-seed  Random seed for reproducibility (default: random value)"
     echo "  --output       Base name for output files (default: 'clusters_output')"
     echo "  --output-dir   Directory to save output files (default: 'output')"
@@ -27,7 +26,6 @@ usage() {
 # Parse command line arguments
 INPUT_FILE=""
 COLUMN="question"
-RUN_NUMBER=1
 RANDOM_SEED=$RANDOM  # Default to a random value
 OUTPUT_BASENAME="clusters_output"
 OUTPUT_DIR="output"
@@ -41,10 +39,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --column)
             COLUMN="$2"
-            shift 2
-            ;;
-        --run-number)
-            RUN_NUMBER="$2"
             shift 2
             ;;
         --random-seed)
@@ -118,7 +112,6 @@ test_cases[5]="--dp-alpha 1.0 --pyp-alpha 0.5 --pyp-sigma 0.25 --variance 0.4"
 
 echo "Starting test run with input file: $INPUT_FILE"
 echo "Column: $COLUMN"
-echo "Run number: $RUN_NUMBER"
 echo "Random seed: $RANDOM_SEED"
 echo "Output basename: $OUTPUT_BASENAME"
 echo "Output directory: $OUTPUT_DIR"
@@ -179,8 +172,10 @@ for test_num in {1..5}; do
         d_is_powerlaw=$(jq '.Dirichlet.metrics.powerlaw.is_powerlaw // false' "${RUN_DIR}/evaluation_report.json")
 
         # Extract similarity stats for Dirichlet
-        d_intra_sim=$(jq '.Dirichlet.metrics.similarity.intra_cluster // 0' "${RUN_DIR}/evaluation_report.json")
-        d_inter_sim=$(jq '.Dirichlet.metrics.similarity.inter_cluster // 0' "${RUN_DIR}/evaluation_report.json")
+        d_silhouette=$(jq '.Dirichlet.metrics.silhouette_score // 0' "${RUN_DIR}/evaluation_report.json")
+        d_intra_sim=$(jq '.Dirichlet.metrics.similarity.intra_cluster_similarity // 0' "${RUN_DIR}/evaluation_report.json")
+        d_inter_sim=$(jq '.Dirichlet.metrics.similarity.inter_cluster_similarity // 0' "${RUN_DIR}/evaluation_report.json")
+        d_silhouette_like=$(jq '.Dirichlet.metrics.similarity.silhouette_like_score // 0' "${RUN_DIR}/evaluation_report.json")
 
         # Extract Pitman-Yor stats
         py_num_clusters=$(jq '."Pitman-Yor".cluster_stats.num_clusters' "${RUN_DIR}/evaluation_report.json")
@@ -195,8 +190,10 @@ for test_num in {1..5}; do
         py_is_powerlaw=$(jq '."Pitman-Yor".metrics.powerlaw.is_powerlaw // false' "${RUN_DIR}/evaluation_report.json")
 
         # Extract similarity stats for Pitman-Yor
-        py_intra_sim=$(jq '."Pitman-Yor".metrics.similarity.intra_cluster // 0' "${RUN_DIR}/evaluation_report.json")
-        py_inter_sim=$(jq '."Pitman-Yor".metrics.similarity.inter_cluster // 0' "${RUN_DIR}/evaluation_report.json")
+        py_silhouette=$(jq '."Pitman-Yor".metrics.silhouette_score // 0' "${RUN_DIR}/evaluation_report.json")
+        py_intra_sim=$(jq '."Pitman-Yor".metrics.similarity.intra_cluster_similarity // 0' "${RUN_DIR}/evaluation_report.json")
+        py_inter_sim=$(jq '."Pitman-Yor".metrics.similarity.inter_cluster_similarity // 0' "${RUN_DIR}/evaluation_report.json")
+        py_silhouette_like=$(jq '."Pitman-Yor".metrics.similarity.silhouette_like_score // 0' "${RUN_DIR}/evaluation_report.json")
 
         # Create performance metrics JSON
         cat > "${RUN_DIR}/performance_metrics.json" << EOF
@@ -205,13 +202,23 @@ for test_num in {1..5}; do
     "num_clusters": $d_num_clusters,
     "cluster_size_distribution": {"1": $d_size_1, "2-5": $d_size_2_5, "6+": $d_size_6plus},
     "powerlaw": {"alpha": $d_powerlaw_alpha, "is_powerlaw": $d_is_powerlaw},
-    "similarity": {"intra": $d_intra_sim, "inter": $d_inter_sim}
+    "silhouette_score": $d_silhouette,
+    "similarity": {
+      "intra": $d_intra_sim,
+      "inter": $d_inter_sim,
+      "silhouette_like": $d_silhouette_like
+    }
   },
   "Pitman-Yor": {
     "num_clusters": $py_num_clusters,
     "cluster_size_distribution": {"1": $py_size_1, "2-5": $py_size_2_5, "6+": $py_size_6plus},
     "powerlaw": {"alpha": $py_powerlaw_alpha, "is_powerlaw": $py_is_powerlaw},
-    "similarity": {"intra": $py_intra_sim, "inter": $py_inter_sim}
+    "silhouette_score": $py_silhouette,
+    "similarity": {
+      "intra": $py_intra_sim,
+      "inter": $py_inter_sim,
+      "silhouette_like": $py_silhouette_like
+    }
   }
 }
 EOF
@@ -225,7 +232,6 @@ EOF
 Batch: $BATCH_NAME
 Test Run: $test_num
 Date: $CURRENT_DATE
-Run Number: $RUN_NUMBER
 Input File: $INPUT_FILE
 Column: $COLUMN
 Random Seed: $RANDOM_SEED
@@ -253,12 +259,12 @@ rm -rf "${TEMP_DIR}"
 # Create a summary report
 echo "Creating summary report..."
 SUMMARY_FILE="${BATCH_DIR}/summary.md"
+SUMMARY_CSV="${BATCH_DIR}/summary.csv"
 
 cat > "${SUMMARY_FILE}" << EOF
 # Clusx Test Summary
 Batch: $BATCH_NAME
 Date: $CURRENT_DATE
-Run Number: $RUN_NUMBER
 Input File: $INPUT_FILE
 Column: $COLUMN
 Random Seed: $RANDOM_SEED
@@ -268,9 +274,19 @@ Output Basename: $OUTPUT_BASENAME
 
 EOF
 
+# Create CSV header
+echo "test_num,model,dp_alpha,pyp_alpha,pyp_sigma,variance,num_clusters,cluster_size_1,cluster_size_2_5,cluster_size_6plus,powerlaw_alpha,is_powerlaw,silhouette_score,intra_similarity,inter_similarity,silhouette_like" > "${SUMMARY_CSV}"
+
 for test_num in {1..5}; do
     RUN_DIR="${BATCH_DIR}/${test_num}"
 
+    # Extract parameters from test case
+    dp_alpha=$(echo "${test_cases[$test_num]}" | grep -o "\--dp-alpha [0-9.]*" | awk '{print $2}')
+    pyp_alpha=$(echo "${test_cases[$test_num]}" | grep -o "\--pyp-alpha [0-9.]*" | awk '{print $2}')
+    pyp_sigma=$(echo "${test_cases[$test_num]}" | grep -o "\--pyp-sigma [0-9.]*" | awk '{print $2}')
+    variance=$(echo "${test_cases[$test_num]}" | grep -o "\--variance [0-9.]*" | awk '{print $2}')
+
+    # Add to markdown summary
     cat >> "${SUMMARY_FILE}" << EOF
 ### Test $test_num
 Parameters: ${test_cases[$test_num]}
@@ -280,7 +296,40 @@ $(cat "${RUN_DIR}/performance_metrics.json")
 \`\`\`
 
 EOF
+
+    # Add to CSV summary if performance_metrics.json exists
+    if [ -f "${RUN_DIR}/performance_metrics.json" ]; then
+        # Dirichlet model
+        d_num_clusters=$(jq '.Dirichlet.num_clusters' "${RUN_DIR}/performance_metrics.json")
+        d_size_1=$(jq '.Dirichlet.cluster_size_distribution."1"' "${RUN_DIR}/performance_metrics.json")
+        d_size_2_5=$(jq '.Dirichlet.cluster_size_distribution."2-5"' "${RUN_DIR}/performance_metrics.json")
+        d_size_6plus=$(jq '.Dirichlet.cluster_size_distribution."6+"' "${RUN_DIR}/performance_metrics.json")
+        d_powerlaw_alpha=$(jq '.Dirichlet.powerlaw.alpha' "${RUN_DIR}/performance_metrics.json")
+        d_is_powerlaw=$(jq '.Dirichlet.powerlaw.is_powerlaw' "${RUN_DIR}/performance_metrics.json")
+        d_silhouette=$(jq '.Dirichlet.silhouette_score' "${RUN_DIR}/performance_metrics.json")
+        d_intra_sim=$(jq '.Dirichlet.similarity.intra' "${RUN_DIR}/performance_metrics.json")
+        d_inter_sim=$(jq '.Dirichlet.similarity.inter' "${RUN_DIR}/performance_metrics.json")
+        d_silhouette_like=$(jq '.Dirichlet.similarity.silhouette_like' "${RUN_DIR}/performance_metrics.json")
+
+        # Pitman-Yor model
+        py_num_clusters=$(jq '."Pitman-Yor".num_clusters' "${RUN_DIR}/performance_metrics.json")
+        py_size_1=$(jq '."Pitman-Yor".cluster_size_distribution."1"' "${RUN_DIR}/performance_metrics.json")
+        py_size_2_5=$(jq '."Pitman-Yor".cluster_size_distribution."2-5"' "${RUN_DIR}/performance_metrics.json")
+        py_size_6plus=$(jq '."Pitman-Yor".cluster_size_distribution."6+"' "${RUN_DIR}/performance_metrics.json")
+        py_powerlaw_alpha=$(jq '."Pitman-Yor".powerlaw.alpha' "${RUN_DIR}/performance_metrics.json")
+        py_is_powerlaw=$(jq '."Pitman-Yor".powerlaw.is_powerlaw' "${RUN_DIR}/performance_metrics.json")
+        py_silhouette=$(jq '."Pitman-Yor".silhouette_score' "${RUN_DIR}/performance_metrics.json")
+        py_intra_sim=$(jq '."Pitman-Yor".similarity.intra' "${RUN_DIR}/performance_metrics.json")
+        py_inter_sim=$(jq '."Pitman-Yor".similarity.inter' "${RUN_DIR}/performance_metrics.json")
+        py_silhouette_like=$(jq '."Pitman-Yor".similarity.silhouette_like' "${RUN_DIR}/performance_metrics.json")
+
+        # Add Dirichlet row to CSV
+        echo "$test_num,Dirichlet,$dp_alpha,$pyp_alpha,$pyp_sigma,$variance,$d_num_clusters,$d_size_1,$d_size_2_5,$d_size_6plus,$d_powerlaw_alpha,$d_is_powerlaw,$d_silhouette,$d_intra_sim,$d_inter_sim,$d_silhouette_like" >> "${SUMMARY_CSV}"
+
+        # Add Pitman-Yor row to CSV
+        echo "$test_num,Pitman-Yor,$dp_alpha,$pyp_alpha,$pyp_sigma,$variance,$py_num_clusters,$py_size_1,$py_size_2_5,$py_size_6plus,$py_powerlaw_alpha,$py_is_powerlaw,$py_silhouette,$py_intra_sim,$py_inter_sim,$py_silhouette_like" >> "${SUMMARY_CSV}"
+    fi
 done
 
-echo "Testing completed. Summary available at ${SUMMARY_FILE}"
+echo "Testing completed. Summary available at ${SUMMARY_FILE} and ${SUMMARY_CSV}"
 echo "Results stored in ${BATCH_DIR}"
