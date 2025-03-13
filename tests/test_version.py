@@ -209,7 +209,7 @@ def test_parse_toml_exception(mock_find_spec):
     mock_find_spec.return_value = mock.MagicMock()
 
     with mock.patch("clusx.version.importlib.import_module") as mock_import:
-        mock_import.side_effect = Exception("Test exception")
+        mock_import.side_effect = TypeError("Test exception")
 
         result = _parse_toml(Path("dummy/path"))
         assert result is None
