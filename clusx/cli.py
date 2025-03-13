@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Optional
 
+from .errors import EvaluationError
 from .logging import get_logger, setup_logging
 from .version import __copyright__, __version__
 
@@ -363,8 +364,11 @@ def evaluate(
                 logger.info("Close the plot window to continue.")
 
         logger.info("Evaluation complete.")
-    except Exception as error:  # pylint: disable=broad-except
+    except EvaluationError as error:
         logger.error(error)
+        sys.exit(1)
+    except Exception as error:  # pylint: disable=broad-except
+        logger.exception(error)  # Unexpected error
         sys.exit(1)
 
 
