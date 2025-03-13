@@ -4,6 +4,15 @@ Changelog
 This file contains a brief summary of new features and dependency changes or
 releases, in reverse chronological order.
 
+0.4.1 - 2025-03-XX
+------------------
+
+Improved Documentation
+^^^^^^^^^^^^^^^^^^^^^^
+
+* Fix code smells and style issues.
+* Introduced ``pylint`` to the CI workflow.
+
 
 0.4.0 - 2025-03-13
 ------------------

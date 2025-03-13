@@ -19,7 +19,7 @@ Before installing ``clusx``, ensure you have the following prerequisites:
 
 * Python 3.11 or higher
 * `pip <https://pip.pypa.io/en/stable/>`_ (for PyPI installation)
-* `Poetry <https://python-poetry.org/>`_ (for development installation)
+* `Poetry <https://python-poetry.org/>`_ 2.0 or higher (for development installation only)
 * `Git <https://git-scm.com/>`_ (for cloning the repository)
 
 Python Version Compatibility
@@ -60,6 +60,11 @@ After installation, the ``clusx`` command will be available from the command lin
 
    # Verify installation
    clusx --version
+
+More information about ``pip`` and PyPI can be found here:
+
+* `Install pip <https://pip.pypa.io/en/latest/installation/>`_
+* `Python Packaging User Guide <https://packaging.python.org/>`_
 
 Installing from GitHub Releases
 -------------------------------

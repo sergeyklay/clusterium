@@ -6,6 +6,7 @@ build-backend = "poetry_dynamic_versioning.backend"
 name = "clusx"
 description = "Bayesian nonparametric toolkit for text clustering, analysis, and benchmarking with advanced embedding models and statistical validation."
 license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.rst"
 requires-python = ">=3.11,<4"
 authors = [{ name = "Serghei Iakovlev", email = "oss@serghei.pl" }]
@@ -25,10 +26,12 @@ keywords = [
 ]
 
 [project.urls]
-homepage = "https://clusterium.readthedocs.io"
-repository = "https://github.com/sergeyklay/clusterium"
-documentation = "https://clusterium.readthedocs.io"
-"Bug Tracker" = "https://github.com/sergeyklay/clusterium/issues"
+Homepage = "https://clusterium.readthedocs.io"
+Repository = "https://github.com/sergeyklay/clusterium"
+Documentation = "https://clusterium.readthedocs.io/en/latest/index.html"
+Changelog = "https://clusterium.readthedocs.io/en/latest/changelog.html"
+Issues = "https://github.com/sergeyklay/clusterium/issues"
+Download = "https://github.com/sergeyklay/clusterium/releases"
 
 [project.scripts]
 clusx = "clusx.cli:main"
@@ -44,23 +47,29 @@ include = [
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
+
     "Environment :: Console",
+
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
+
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Text Processing",
+    "Topic :: Text Processing :: Linguistic",
+
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
+
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Topic :: Scientific/Engineering",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Scientific/Engineering :: Information Analysis",
-    "Topic :: Text Processing",
-    "Topic :: Text Processing :: Linguistic",
+
     "Typing :: Typed"
 ]
 version = "0.0.0"
@@ -82,6 +91,7 @@ black = "^25.1.0"
 debugpy = "^1.8.13"
 flake8 = "^7.1.2"
 isort = { version = "^6.0.1", extras = ["colors"] }
+pylint = "^3.3.5"
 pre-commit = "^4.1.0"
 
 [tool.poetry.group.testing.dependencies]
@@ -107,6 +117,27 @@ format-jinja = "{% if distance == 0 %}{{ base }}{% else %}{{ base }}.dev{{ dista
 addopts = "--verbose --durations=25 --junitxml=junit.xml -o junit_family=legacy"
 markers = [
     "integration: integration tests"
+]
+
+[tool.pylint.MAIN]
+# Use multiple processes to speed up Pylint. Specifying 0 will auto-detect the
+# number of processors available to use.
+jobs = 0
+
+[tool.pylint."MESSAGES CONTROL"]
+# Disable the message, report, category or checker with the given id(s).
+disable = [
+    # This is intentionally due to performance reasons
+    "import-outside-toplevel",
+
+    # Let's delegate this to isort and flake8
+    "wrong-import-position",
+
+    # It's deliberately and by design
+    "too-many-locals",
+    "too-many-positional-arguments",
+    "too-many-arguments",
+    "too-many-instance-attributes",
 ]
 
 [tool.black]
