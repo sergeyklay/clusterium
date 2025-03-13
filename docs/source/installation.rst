@@ -34,6 +34,62 @@ If you're using an older version of Python, you'll need to upgrade before instal
    # Check your current Python version
    python --version
 
+.. warning::
+   **Python Command Differences Across Operating Systems**
+
+   The ``python`` and ``pip`` commands may behave differently across operating systems:
+
+   * **macOS**: By default, ``python`` often points to Python 2.x. You should use ``python3`` and ``pip3`` commands instead.
+   * **Linux**: Many distributions now default ``python`` to Python 3.x, but some still maintain ``python`` as Python 2.x. Use ``python3`` and ``pip3`` to ensure you're using the correct version.
+   * **Windows**: Recent installations typically have ``python`` pointing to Python 3.x, but it's best to verify with ``python --version``.
+
+   To ensure you're using the correct Python version, always check:
+
+   .. code-block:: bash
+
+      # Check Python version
+      python --version  # or python3 --version
+
+      # Check pip version
+      pip --version  # or pip3 --version
+
+   If ``python`` points to Python 2.x on your system, replace all ``python`` commands in this guide with ``python3`` and all ``pip`` commands with ``pip3``.
+
+   **Finding Your Python Installations**
+
+   To check where Python is installed and how many Python versions you have on your system:
+
+   **On Unix-based systems (Linux, macOS):**
+
+   .. code-block:: bash
+
+      # Find the location of the python/python3 executable
+      which python
+      which python3
+
+      # Alternative command to find executable location
+      command -v python
+      command -v python3
+
+      # List all instances of python in your PATH
+      type -a python
+      type -a python3
+
+      # Check if you have multiple Python installations
+      ls -l /usr/bin/python*
+      ls -l /usr/local/bin/python*
+
+   **On Windows:**
+
+   .. code-block:: bash
+
+      # Find the location of Python executable
+      where python
+      where python3
+
+      # Check Python version and installation path
+      py -0
+
 Installation Methods
 ====================
 
@@ -53,6 +109,13 @@ The recommended installation method is using `pip <https://pip.pypa.io/en/stable
 
    # Install clusx
    python -m pip install clusx
+
+   # Alternative commands if python points to Python 2.x on your system
+   python3 -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   python3 -m pip install clusx
+   # or
+   pip3 install clusx
 
 After installation, the ``clusx`` command will be available from the command line:
 
@@ -85,45 +148,34 @@ Another way to install package is to download it from GitHub Releases page:
 
    .. code-block:: bash
 
-      # Create and activate a virtual environment (recommended)
+      # Create a directory for the download
+      mkdir clusx-download && cd clusx-download
+
+      # Download the latest release artifacts and checksums (replace X.Y.Z with the actual version)
+      # You can use wget or curl
+      wget https://github.com/sergeyklay/clusterium/releases/download/X.Y.Z/clusx-X.Y.Z-py3-none-any.whl
+      wget https://github.com/sergeyklay/clusterium/releases/download/X.Y.Z/clusx-X.Y.Z.tar.gz
+      wget https://github.com/sergeyklay/clusterium/releases/download/X.Y.Z/SHA256SUMS
+
+      # Verify the integrity of the downloaded files
+      sha256sum -c SHA256SUMS
+
+      # Create and activate a virtual environment
       python -m venv .venv
       source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-      # Install from the downloaded wheel file
-      pip install clusx-x.y.z-py3-none-any.whl
+      # Install the verified package (choose one)
+      pip install clusx-X.Y.Z-py3-none-any.whl  # Wheel file (recommended)
+      # OR
+      pip install clusx-X.Y.Z.tar.gz  # Source distribution
 
-      # Or install from the source distribution
-      pip install clusx-x.y.z.tar.gz
+      # If python points to Python 2.x on your system
+      pip3 install clusx-X.Y.Z-py3-none-any.whl
+      # Or
+      pip3 install clusx-X.Y.Z.tar.gz
 
-This approach provides an additional layer of security by allowing you to verify the package integrity before installation.
-
-Example workflow:
-
-.. code-block:: bash
-
-   # Create a directory for the download
-   mkdir clusx-download && cd clusx-download
-
-   # Download the latest release artifacts and checksums (replace X.Y.Z with the actual version)
-   # You can use wget or curl
-   wget https://github.com/sergeyklay/clusterium/releases/download/X.Y.Z/clusx-X.Y.Z-py3-none-any.whl
-   wget https://github.com/sergeyklay/clusterium/releases/download/X.Y.Z/clusx-X.Y.Z.tar.gz
-   wget https://github.com/sergeyklay/clusterium/releases/download/X.Y.Z/SHA256SUMS
-
-   # Verify the integrity of the downloaded files
-   sha256sum -c SHA256SUMS
-
-   # Create and activate a virtual environment
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-   # Install the verified package (choose one)
-   pip install clusx-X.Y.Z-py3-none-any.whl  # Wheel file (recommended)
-   # OR
-   pip install clusx-X.Y.Z.tar.gz  # Source distribution
-
-   # Verify the installation
-   clusx --version
+      # Verify the installation
+      clusx --version
 
 Installing the Development Version
 ----------------------------------
@@ -134,6 +186,9 @@ If you need the latest unreleased features, you can install directly from the Gi
 
    # Install the latest development version
    python -m pip install -e git+https://github.com/sergeyklay/clusterium.git#egg=clusx
+
+   # If python points to Python 2.x on your system
+   python3 -m pip install -e git+https://github.com/sergeyklay/clusterium.git#egg=clusx
 
 .. note::
    The ``main`` branch will always contain the latest unstable version, so the experience
@@ -157,6 +212,10 @@ If you plan to contribute to the project or need to modify the code, follow thes
    .. code-block:: bash
 
       python -m venv .venv
+      source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+      # If python points to Python 2.x on your system
+      python3 -m venv .venv
       source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 3. Install with Poetry:
@@ -216,6 +275,8 @@ Or using the Python module:
 .. code-block:: bash
 
    python -m clusx --version
+   # If python points to Python 2.x on your system
+   python3 -m clusx --version
 
 You should see the version information and a brief copyright notice.
 

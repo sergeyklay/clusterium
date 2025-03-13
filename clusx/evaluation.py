@@ -55,8 +55,10 @@ class NumpyEncoder(json.JSONEncoder):
     Conversions:
 
     - :class:`numpy.ndarray` → :class:`list`
-    - :class:`numpy.single`, :class:`numpy.double` → :class:`float`
-    - :class:`numpy.intc`, :class:`numpy.int_` → :class:`int`
+    - :class:`numpy.single` → :class:`float`
+    - :class:`numpy.double` → :class:`float`
+    - :class:`numpy.intc` → :class:`int`
+    - :class:`numpy.int_` → :class:`int`
     - :class:`numpy.bool_` → :class:`bool`
     - Other NumPy types → Python equivalents via the `item()` method when available
     """
@@ -66,17 +68,17 @@ class NumpyEncoder(json.JSONEncoder):
         # Dictionary mapping types to conversion functions
         converters = {
             np.ndarray: lambda x: x.tolist(),
-            np.single: float,  # type: ignore
-            np.double: float,  # type: ignore
-            np.intc: int,  # type: ignore
-            np.int_: int,  # type: ignore
-            np.bool_: bool,  # type: ignore
+            np.single: float,
+            np.double: float,
+            np.intc: int,
+            np.int_: int,
+            np.bool_: bool,
             bool: bool,
         }
 
         # Try direct type conversions first
         for type_class, converter in converters.items():
-            if isinstance(o, type_class):
+            if isinstance(o, type_class):  # type: ignore
                 return converter(o)
 
         # Try the item() method as fallback for other NumPy types
