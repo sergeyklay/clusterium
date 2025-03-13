@@ -107,16 +107,13 @@ def _parse_toml(path: Path) -> Optional[dict[str, Any]]:
     """Parse TOML file with appropriate parser."""
     # Try stdlib tomllib (Python 3.11+) first, then fallback to tomli
     for module_name in ("tomllib", "tomli"):
-        spec = importlib.util.find_spec(module_name)
-        if not spec:
-            continue
-
-        try:
-            toml_parser = importlib.import_module(module_name)
-            with open(path, "rb") as f:
-                return toml_parser.load(f)
-        except Exception:
-            continue
+        if _ := importlib.util.find_spec(module_name):
+            try:
+                toml_parser = importlib.import_module(module_name)
+                with open(path, "rb") as f:
+                    return toml_parser.load(f)
+            except TypeError:
+                continue
 
     return None
 
