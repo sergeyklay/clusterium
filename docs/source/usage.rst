@@ -95,6 +95,9 @@ Command Line Options for ``evaluate``
    * - ``--plot``
      - Generate evaluation plots
      - True
+   * - ``--show-plot``
+     - Display plots interactively (not recommended for automated runs)
+     - False
    * - ``--output-dir``
      - Directory to save output files
      - ``output``
@@ -245,7 +248,7 @@ cluster quality.
 Visualization Dashboard
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-By default, the evaluation process generates an interactive visualization dashboard
+By default, the evaluation process generates an visualization dashboard
 (enabled with ``--plot``) that includes:
 
 1. **Cluster Size Distribution**: Log-log scale plot showing the frequency of different cluster sizes
@@ -255,8 +258,17 @@ By default, the evaluation process generates an interactive visualization dashbo
 5. **Outlier Detection**: Identification of potential outliers in the clustering results
 6. **Silhouette Score**: Comparative analysis of clustering quality using silhouette coefficients
 
-The dashboard is displayed interactively and automatically saved as
-``evaluation_dashboard.png`` in your specified output directory:
+The dashboard is automatically saved as ``evaluation_dashboard.png`` in your specified output directory.
+By default, plots are not displayed interactively to support automation and headless environments.
+If you want to view plots interactively, use the ``--show-plot`` option:
+
+.. code-block:: bash
+
+   clusx evaluate \
+      --input your_data.txt \
+      --dp-clusters output/clusters_output_dp.csv \
+      --pyp-clusters output/clusters_output_pyp.csv \
+      --show-plot
 
 .. image:: _static/evaluation_dashboard_v1.png
    :alt: Evaluation Dashboard Example
@@ -539,8 +551,11 @@ You can evaluate the quality of your clusters using the evaluation module:
    }
    save_evaluation_report(reports, "output")
 
-   # Generate visualization dashboard
-   visualize_evaluation_dashboard(reports, "output", show_plot=True)
+   # Generate visualization dashboard (saved to file by default)
+   visualize_evaluation_dashboard(reports, "output", show_plot=False)  # Default: no interactive display
+
+   # Or display plots interactively (not recommended for automated scripts)
+   # visualize_evaluation_dashboard(reports, "output", show_plot=True)
 
 Customizing the Clustering Process
 ----------------------------------

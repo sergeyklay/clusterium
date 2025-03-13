@@ -255,6 +255,12 @@ def cluster(
     help="Generate evaluation plots",
 )
 @click.option(
+    "--show-plot/--no-show-plot",
+    default=False,
+    show_default=True,
+    help="Display plots interactively (not recommended for automated runs)",
+)
+@click.option(
     "--random-seed",
     default=None,
     show_default=True,
@@ -272,6 +278,7 @@ def evaluate(
     pyp_clusters: str,
     output_dir: str,
     plot: bool,
+    show_plot: bool,
     random_seed: Optional[int],
     column: Optional[str],
 ) -> None:
@@ -348,10 +355,11 @@ def evaluate(
             logger.info("Generating evaluation dashboard...")
             try:
                 dashboard_path = visualize_evaluation_dashboard(
-                    reports, output_dir, show_plot=True
+                    reports, output_dir, show_plot=show_plot
                 )
                 logger.info(f"Visualization saved to: {dashboard_path}")
-                logger.info("Close the plot window to continue.")
+                if show_plot:
+                    logger.info("Close the plot window to continue.")
             except Exception as e:
                 logger.error(f"Error generating visualization: {e}")
 

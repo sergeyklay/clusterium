@@ -97,3 +97,80 @@ def test_cluster_command_with_small_csv_file(basic_qa_csv, tmp_path, monkeypatch
         assert result.exit_code == 0
     assert "Warning: Dataset is very small (< 10 texts)." in result.output
     assert "metrics and visualizations may not be available" in result.output
+
+
+def test_evaluate_command_show_plot_option(basic_text_file, tmp_path, monkeypatch):
+    """Test the evaluate command with --show-plot option."""
+    from unittest.mock import patch
+
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    # Create mock cluster files
+    dp_clusters = tmp_path / "dp_clusters.csv"
+    pyp_clusters = tmp_path / "pyp_clusters.csv"
+
+    # Write minimal content to mock files
+    dp_clusters.write_text("Text,Cluster_DP\ntext1,0\ntext2,1\n")
+    pyp_clusters.write_text("Text,Cluster_PYP\ntext1,0\ntext2,1\n")
+
+    # Mock dependencies
+    with (
+        patch("clusx.clustering.utils.load_data", return_value=["text1", "text2"]),
+        patch(
+            "clusx.clustering.utils.load_cluster_assignments",
+            return_value=([0, 1], {"alpha": 0.5, "sigma": 0.0}),
+        ),
+        patch(
+            "clusx.clustering.utils.get_embeddings",
+            return_value=[[0.1, 0.2], [0.3, 0.4]],
+        ),
+        patch("clusx.evaluation.ClusterEvaluator.generate_report", return_value={}),
+        patch("clusx.evaluation.save_evaluation_report"),
+        patch("clusx.visualization.visualize_evaluation_dashboard") as mock_viz,
+    ):
+        runner = CliRunner()
+
+        # Test with default --no-show-plot (implicit)
+        result = runner.invoke(
+            cli,
+            [
+                "evaluate",
+                "--input",
+                str(basic_text_file),
+                "--dp-clusters",
+                str(dp_clusters),
+                "--pyp-clusters",
+                str(pyp_clusters),
+                "--output-dir",
+                str(output_dir),
+            ],
+        )
+        assert result.exit_code == 0
+        mock_viz.assert_called_with(
+            {"Dirichlet": {}, "Pitman-Yor": {}}, str(output_dir), show_plot=False
+        )
+
+        # Reset mock
+        mock_viz.reset_mock()
+
+        # Test with explicit --show-plot
+        result = runner.invoke(
+            cli,
+            [
+                "evaluate",
+                "--input",
+                str(basic_text_file),
+                "--dp-clusters",
+                str(dp_clusters),
+                "--pyp-clusters",
+                str(pyp_clusters),
+                "--output-dir",
+                str(output_dir),
+                "--show-plot",
+            ],
+        )
+        assert result.exit_code == 0
+        mock_viz.assert_called_with(
+            {"Dirichlet": {}, "Pitman-Yor": {}}, str(output_dir), show_plot=True
+        )
