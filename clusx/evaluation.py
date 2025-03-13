@@ -162,9 +162,11 @@ class ClusterEvaluator:
             len(self.unique_clusters),
         )
 
-    def calculate_silhouette_score(self) -> Union[float, int]:
+    def calculate_silhouette_score(self) -> float:
         """
-        Calculate the silhouette score for the clustering.
+        Calculate the silhouette score for the clustering data.
+
+        Cosine distance is used because the data is represented by text embeddings.
 
         The silhouette score measures how similar an object is to its own cluster
         compared to other clusters. The score ranges from -1 to 1, where:
@@ -178,7 +180,9 @@ class ClusterEvaluator:
 
         - Returns 0.0 if there are fewer than 2 clusters
         - Returns 0.0 if any cluster has fewer than 2 samples
-        - Uses cosine distance for text embeddings
+        - An error occurs during calculation
+
+        Cosine distance is used because the data is represented by text embeddings.
 
         Returns:
             float: Silhouette score as a float between -1 and 1, or 0.0 if calculation
