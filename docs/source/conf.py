@@ -38,7 +38,9 @@ exclude_patterns = []
 # In nitpick mode (-n), still ignore any of the following "broken" references
 # to non-types.
 nitpick_ignore = [
+    ("py:class", "np.float32"),
     ("py:class", "numpy.bool_"),
+    ("py:class", "NDArray"),
     ("py:class", "EmbeddingTensor"),
 ]
 
