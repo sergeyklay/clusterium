@@ -97,7 +97,7 @@ jobs:
       - name: Load sentence_transformer cache
         uses: actions/cache@v4
         with:
-          path: ~/.models
+          path: ./model-data
           key: models-${{ runner.os }}-${{ matrix.python }}-${{ hashFiles('./poetry.lock') }}
           restore-keys: |
             models-${{ runner.os }}-${{ matrix.python }}-
@@ -115,7 +115,8 @@ jobs:
           coverage combine
           coverage xml
         env:
-          SENTENCE_TRANSFORMERS_HOME: ~/.models
+          SENTENCE_TRANSFORMERS_HOME: ${{ github.workspace }}/model-data/sentence-transformers
+          HF_HOME: ${{ github.workspace }}/model-data/hub
 
       - name: Upload test results to Codecov
         uses: codecov/test-results-action@v1
