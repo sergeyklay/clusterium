@@ -1,7 +1,7 @@
 #!/bin/bash
 # Script to perform manual testing of clusx cluster & clusx evaluate commands
 # This script will:
-# 1. Define a matrix of parameters
+# 1. Load test parameters from a profile file
 # 2. Execute clusx cluster with these parameters
 # 3. Move output files to organized folders
 # 4. Create JSON with performance metrics
@@ -11,10 +11,11 @@ set -e  # Exit on error
 
 # Display usage information
 usage() {
-    echo "Usage: $0 --input <input_file> [--column <column_name>] [--random-seed <seed>] [--output <output_basename>]"
+    echo "Usage: $0 --input <input_file> --profile <profile_file> [--column <column_name>] [--random-seed <seed>] [--output <output_basename>]"
     echo ""
     echo "Arguments:"
     echo "  --input        Path to the input CSV file (required)"
+    echo "  --profile      Path to the profile file with test parameters (required)"
     echo "  --column       Column name to use for clustering (default: 'question')"
     echo "  --random-seed  Random seed for reproducibility (default: random value)"
     echo "  --output       Base name for output files (default: 'clusters_output')"
@@ -25,6 +26,7 @@ usage() {
 
 # Parse command line arguments
 INPUT_FILE=""
+PROFILE_FILE=""
 COLUMN="question"
 RANDOM_SEED=$RANDOM  # Default to a random value
 OUTPUT_BASENAME="clusters_output"
@@ -35,6 +37,10 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --input)
             INPUT_FILE="$2"
+            shift 2
+            ;;
+        --profile)
+            PROFILE_FILE="$2"
             shift 2
             ;;
         --column)
@@ -73,9 +79,21 @@ if [ -z "$INPUT_FILE" ]; then
     usage
 fi
 
+# Check if profile file is provided
+if [ -z "$PROFILE_FILE" ]; then
+    echo "Error: Profile file is required"
+    usage
+fi
+
 # Check if input file exists
 if [ ! -f "$INPUT_FILE" ]; then
     echo "Error: Input file '$INPUT_FILE' does not exist"
+    exit 1
+fi
+
+# Check if profile file exists
+if [ ! -f "$PROFILE_FILE" ]; then
+    echo "Error: Profile file '$PROFILE_FILE' does not exist"
     exit 1
 fi
 
@@ -92,30 +110,38 @@ fi
 BATCH_DIR="${OUTPUT_DIR}/batch/${BATCH_NAME}"
 mkdir -p "${BATCH_DIR}"
 
-# Define test cases with parameters
+# Load test cases from profile file
+# Strip empty lines and comments (lines starting with #)
 declare -A test_cases
+test_num=1
 
-# Baseline with moderate parameters
-test_cases[1]="--dp-alpha 0.5 --pyp-alpha 0.3 --pyp-sigma 0.2 --variance 0.3"
+while IFS= read -r line || [[ -n "$line" ]]; do
+    # Skip empty lines and comments
+    if [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]]; then
+        continue
+    fi
 
-# Test tighter DP clustering + stronger PYP power-law
-test_cases[2]="--dp-alpha 0.3 --pyp-alpha 0.2 --pyp-sigma 0.3 --variance 0.5"
+    # Store non-empty, non-comment lines as test cases
+    test_cases[$test_num]="$line"
+    ((test_num++))
+done < <(grep -v '^\s*$\|^\s*#' "$PROFILE_FILE")
 
-# Test more DP clusters + milder PYP discount
-test_cases[3]="--dp-alpha 0.8 --pyp-alpha 0.4 --pyp-sigma 0.1 --variance 0.2"
+# Get the total number of test cases
+total_tests=${#test_cases[@]}
 
-# Test aggressive merging in DP + strong PYP power-law
-test_cases[4]="--dp-alpha 0.2 --pyp-alpha 0.1 --pyp-sigma 0.4 --variance 0.7"
-
-# High cluster discovery in both models
-test_cases[5]="--dp-alpha 1.0 --pyp-alpha 0.5 --pyp-sigma 0.25 --variance 0.4"
+if [ $total_tests -eq 0 ]; then
+    echo "Error: No valid test cases found in profile file"
+    exit 1
+fi
 
 echo "Starting test run with input file: $INPUT_FILE"
+echo "Profile file: $PROFILE_FILE"
 echo "Column: $COLUMN"
 echo "Random seed: $RANDOM_SEED"
 echo "Output basename: $OUTPUT_BASENAME"
 echo "Output directory: $OUTPUT_DIR"
 echo "Batch name: $BATCH_NAME"
+echo "Number of test cases: $total_tests"
 echo ""
 
 # Create temporary directory for intermediate files
@@ -123,7 +149,7 @@ TEMP_DIR="${OUTPUT_DIR}/temp"
 mkdir -p "${TEMP_DIR}"
 
 # Run each test case
-for test_num in {1..5}; do
+for test_num in $(seq 1 $total_tests); do
     echo "======================================================="
     echo "Running Test $test_num"
     echo "Parameters: ${test_cases[$test_num]}"
@@ -233,6 +259,7 @@ Batch: $BATCH_NAME
 Test Run: $test_num
 Date: $CURRENT_DATE
 Input File: $INPUT_FILE
+Profile File: $PROFILE_FILE
 Column: $COLUMN
 Random Seed: $RANDOM_SEED
 Output Basename: $OUTPUT_BASENAME
@@ -266,6 +293,7 @@ cat > "${SUMMARY_FILE}" << EOF
 Batch: $BATCH_NAME
 Date: $CURRENT_DATE
 Input File: $INPUT_FILE
+Profile File: $PROFILE_FILE
 Column: $COLUMN
 Random Seed: $RANDOM_SEED
 Output Basename: $OUTPUT_BASENAME
@@ -277,7 +305,7 @@ EOF
 # Create CSV header
 echo "test_num,model,dp_alpha,pyp_alpha,pyp_sigma,variance,num_clusters,cluster_size_1,cluster_size_2_5,cluster_size_6plus,powerlaw_alpha,is_powerlaw,silhouette_score,intra_similarity,inter_similarity,silhouette_like" > "${SUMMARY_CSV}"
 
-for test_num in {1..5}; do
+for test_num in $(seq 1 $total_tests); do
     RUN_DIR="${BATCH_DIR}/${test_num}"
 
     # Extract parameters from test case
