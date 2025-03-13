@@ -29,34 +29,56 @@ Quick Start
 
    pip install clusx
 
-   # Run clustering
-   clusx --input your_data.csv --column your_column --output clusters.csv
+   # Run clustering with optimized default parameters
+   clusx cluster --input your_data.txt --output clusters.csv
+
+   # For custom parameter tuning, you can override the defaults
+   clusx cluster --input your_data.txt \
+     --dp-alpha 1.0 \
+     --pyp-alpha 0.5 \
+     --pyp-sigma 0.5 \
+     --variance 0.2 \
+     --output clusters.csv
 
    # Evaluate clustering results and generate visualizations
    clusx evaluate \
-     --input input.csv \
-     --column your_column \
-     --dp-clusters output_dp.csv \
-     --pyp-clusters output_pyp.csv \
+     --input your_data.txt \
+     --dp-clusters output/clusters_output_dp.csv \
+     --pyp-clusters output/clusters_output_pyp.csv \
      --plot
+
+.. note::
+
+   The default parameters are now optimized based on extensive testing:
+
+   * Dirichlet Process: α=0.5, variance=0.3
+   * Pitman-Yor Process: α=0.3, σ=0.3, variance=0.3
 
 Python API Example
 ------------------
 
 .. code-block:: python
 
-   from clusx.clustering import DirichletProcess
-   from clusx.clustering.utils import load_data_from_csv, save_clusters_to_json
+   from clusx.clustering import DirichletProcess, PitmanYorProcess
+   from clusx.clustering.utils import load_data, save_clusters_to_json
 
    # Load data
-   texts, data = load_data_from_csv("your_data.csv", column="your_column")
+   texts = load_data("your_data.txt")
+   # Or from CSV: texts = load_data("your_data.csv", column="your_column")
 
-   # Perform clustering
-   dp = DirichletProcess(alpha=1.0)
-   clusters, params = dp.fit(texts)
+   # Perform Dirichlet Process clustering with default parameters
+   base_measure = {"variance": 0.3}
+   dp = DirichletProcess(alpha=0.5, base_measure=base_measure, random_state=42)
+   clusters_dp, _ = dp.fit(texts)
+
+   # Perform Pitman-Yor Process clustering with default parameters
+   base_measure = {"variance": 0.3}  # Same variance for both models
+   pyp = PitmanYorProcess(alpha=0.3, sigma=0.3, base_measure=base_measure, random_state=42)
+   clusters_pyp, _ = pyp.fit(texts)
 
    # Save results
-   save_clusters_to_json("clusters.json", texts, clusters, "DP", data)
+   save_clusters_to_json("dp_clusters.json", texts, clusters_dp, "DP")
+   save_clusters_to_json("pyp_clusters.json", texts, clusters_pyp, "PYP")
 
 
 .. note::

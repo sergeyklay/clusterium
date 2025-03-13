@@ -21,17 +21,32 @@ Breaking Changes
   corresponding updates to code, documentation, and tests.
 * CSV inputs now require an explicit column name; otherwise, the program will
   exit with an error.
+* Changed default parameter values to optimal settings:
+  - Dirichlet Process: α=0.5 (was 5.0)
+  - Pitman-Yor Process: α=0.3 (was 5.0), σ=0.3 (was 0.5)
+  - Variance: 0.3 (was 0.1)
+
+Bug Fixes
+^^^^^^^^^
+
+* Fixed critical parameter handling in CLI interface for Dirichlet Process and Pitman-Yor Process:
+  - Separated ``--dp-alpha`` and ``--pyp-alpha`` parameters with appropriate help text
+  - Added proper validation for parameter ranges (DP: α > 0, PYP: α > -σ, 0 ≤ σ < 1)
+  - Updated documentation to clarify that using the same α value for both models leads to dramatically different clustering behaviors
+  - Added recommended parameter ranges in help text (DP: α ∈ [0.1, 5.0], PYP: α ∈ [0.1, 2.0], σ ∈ [0.1, 0.7])
 
 Improvements
 ^^^^^^^^^^^^
 
 * The resulted JSON output file no longer created as it was identical to the
   Dirichlet Process JSON output file.
+* Default parameter values now set to optimal values based on extensive testing, providing better out-of-the-box clustering performance.
 
 Improved Documentation
 ^^^^^^^^^^^^^^^^^^^^^^
 
 * Amend and improve usage documentation.
+* Updated documentation to reflect new default parameter values and their effects on clustering.
 
 Trivial/Internal Changes
 ^^^^^^^^^^^^^^^^^^^^^^^^

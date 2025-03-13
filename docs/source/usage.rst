@@ -35,7 +35,7 @@ Command Line Options for ``cluster``
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 50 30
+   :widths: 30 50 20
 
    * - Option
      - Description
@@ -52,19 +52,30 @@ Command Line Options for ``cluster``
    * - ``--output-dir``
      - Directory to save output files
      - ``output``
-   * - ``--alpha``
-     - Concentration parameter for clustering
-     - 5.0
-   * - ``--sigma``
-     - Discount parameter for Pitman-Yor Process
+   * - ``--dp-alpha``
+     - Concentration parameter for Dirichlet Process
      - 0.5
+   * - ``--pyp-alpha``
+     - Concentration parameter for Pitman-Yor Process
+     - 0.3
+   * - ``--pyp-sigma``
+     - Discount parameter for Pitman-Yor Process (0.0 ≤ σ < 1.0)
+     - 0.3
+   * - ``--variance``
+     - Sensitivity parameter for the clustering model
+     - 0.3
+   * - ``--random-seed``
+     - Random seed for reproducible clustering
+     - None
+
+For detailed information about clustering parameters and recommended values for different models, see the `Understanding Clustering Parameters`_ section.
 
 Command Line Options for ``evaluate``
 -------------------------------------
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 50 30
+   :widths: 30 50 20
 
    * - Option
      - Description
@@ -115,14 +126,27 @@ When using a CSV file, you must specify the column name to use for clustering:
 Adjusting Clustering Parameters
 -------------------------------
 
-Fine-tune the clustering by adjusting the alpha and sigma parameters:
+Fine-tune the clustering by adjusting the model-specific parameters:
 
 .. code-block:: bash
 
    clusx cluster \
       --input your_data.txt \
-      --alpha 0.5 \
-      --sigma 0.3
+      --dp-alpha 0.5 \
+      --pyp-alpha 0.3 \
+      --pyp-sigma 0.3 \
+      --variance 0.3 \
+      --random-seed 42
+
+The choice of parameters significantly affects clustering results. For example:
+
+* Lower alpha values (0.1-0.5) create fewer, larger clusters
+* Higher alpha values (1.0-5.0) create more, smaller clusters
+* For Pitman-Yor Process, sigma values between 0.1-0.7 typically work well
+* Lower variance values (0.1-0.3) make the model more sensitive to small differences between texts
+* Using the same value for both DP and PYP alpha parameters will result in dramatically different clustering behaviors
+
+For detailed guidance on parameter selection for each model, see the `Understanding Clustering Parameters`_ section below.
 
 Specifying Output Directory
 ---------------------------
@@ -335,24 +359,55 @@ outliers.
 
 **Understanding Clustering Parameters**
 
-To interpret evaluation results and improve clustering performance, it's important to understand the key parameters:
+To interpret evaluation results and improve clustering performance, it's important to understand the key parameters for each clustering model:
 
-1. **Clustering Parameters** (inputs to the clustering algorithms):
+1. **Dirichlet Process Parameters**:
 
-   * **alpha**: Concentration parameter that controls how likely the algorithm is to create new clusters.
-     * Higher values (e.g., 5.0) create more clusters
-     * Lower values (e.g., 0.1) create fewer, larger clusters
-     * Range: Typically 0.1 to 10.0
-     * Default: 5.0
+   * **dp-alpha (concentration parameter)**:
+     * Controls how likely the algorithm is to create new clusters
+     * **Recommended range**: 0.1 to 5.0
+     * **Effect**: Higher values create more clusters, lower values create fewer, larger clusters
+     * **Typical good starting value**: α=0.5 with variance=0.3
+     * **Default**: 0.5
+     * **Constraint**: Must be positive (α > 0)
 
-   * **sigma**: Discount parameter used only in the Pitman-Yor Process.
-     * Controls the power-law behavior of the cluster sizes
-     * When sigma=0, the Pitman-Yor Process behaves like the Dirichlet Process
-     * As sigma increases toward 1, the cluster size distribution becomes more power-law-like
-     * Range: 0.0 to 0.9 (must be less than 1)
-     * Default: 0.5
+   * **variance**:
+     * Controls the sensitivity of the clustering process
+     * **Effect**: Lower values make the model more sensitive to small differences between texts
+     * **Typical good value**: 0.3
+     * **Default**: 0.3
+     * Part of the base measure for the clustering model
 
-2. **Power Law Parameters** (detected in the evaluation results):
+2. **Pitman-Yor Process Parameters**:
+
+   * **pyp-alpha (concentration parameter)**:
+     * Similar role as in Dirichlet Process, but with different optimal ranges
+     * **Recommended range**: 0.1 to 2.0
+     * **Effect**: Higher values create more clusters, lower values create fewer, larger clusters
+     * **Typical good starting value**: α=0.3 with variance=0.5
+     * **Default**: 0.3
+     * **Constraint**: Must satisfy α > -σ (typically not an issue since σ is positive)
+     * **Important**: Using the same alpha value as DP leads to dramatically different clustering behaviors
+
+   * **pyp-sigma (discount parameter)**:
+     * Unique to Pitman-Yor Process
+     * **Recommended range**: 0.1 to 0.7
+     * **Valid range**: 0.0 to 0.99 (must be less than 1.0)
+     * **Effect**: Controls the power-law behavior of cluster sizes
+     * **Typical good starting value**: σ=0.3
+     * **Default**: 0.3
+     * When sigma=0, Pitman-Yor behaves exactly like Dirichlet Process
+     * As sigma approaches 1.0, the distribution exhibits heavier tails (more power-law-like)
+     * Higher sigma values tend to produce more small clusters and fewer large clusters
+
+   * **variance**:
+     * Controls the sensitivity of the clustering process
+     * **Effect**: Lower values make the model more sensitive to small differences between texts
+     * **Typical good value**: 0.5 (slightly higher than for Dirichlet Process)
+     * **Default**: 0.3 (same as for Dirichlet Process)
+     * Part of the base measure for the clustering model
+
+3. **Power Law Parameters** (detected in the evaluation results):
 
    * **alpha**: Power law exponent that describes how quickly the probability of finding larger clusters decreases.
      * Values around 2.0 indicate a strong power-law behavior in the cluster sizes
@@ -368,7 +423,10 @@ To interpret evaluation results and improve clustering performance, it's importa
 
 Based on evaluation results, you can adjust parameters to improve clustering quality:
 
-1. Start with the defaults (alpha=5.0, sigma=0.5)
+1. Start with the recommended values:
+   * For Dirichlet Process: alpha=0.5, variance=0.3
+   * For Pitman-Yor Process: alpha=0.3, sigma=0.3, variance=0.5
+
 2. If you want more clusters, increase alpha
 3. If you want fewer clusters, decrease alpha
 4. To get a more power-law-like distribution, increase sigma (for PYP only)
@@ -397,8 +455,9 @@ Basic Usage
    # Or load data from a CSV file
    # texts = load_data("your_data.csv", column="text_column")
 
-   # Perform Dirichlet Process clustering
-   dp = DirichletProcess(alpha=1.0)
+   # Perform Dirichlet Process clustering with recommended parameters
+   base_measure = {"variance": 0.3}  # Controls sensitivity to text differences
+   dp = DirichletProcess(alpha=0.5, base_measure=base_measure, random_state=42)
    clusters, _ = dp.fit(texts)
 
    # Save results
@@ -411,12 +470,24 @@ The Pitman-Yor Process often produces better clustering results for text data:
 
 .. code-block:: python
 
-   # Perform Pitman-Yor Process clustering
-   pyp = PitmanYorProcess(alpha=1.0, sigma=0.5)
+   # Perform Pitman-Yor Process clustering with recommended parameters
+   base_measure = {"variance": 0.5}  # Typically higher for PYP
+   pyp = PitmanYorProcess(alpha=0.3, sigma=0.3, base_measure=base_measure, random_state=42)
    clusters_pyp, _ = pyp.fit(texts)
 
    # Save results
    save_clusters_to_json("pyp_clusters.json", texts, clusters_pyp, "PYP")
+
+For optimal results, consider using the recommended parameter values discussed in
+the `Understanding Clustering Parameters`_ section. The Pitman-Yor Process is
+particularly effective for text data that naturally follows power-law distributions.
+
+
+.. note::
+
+   The Python API uses a single `alpha` parameter for both models, while the
+   command-line interface distinguishes between `--dp-alpha` and `--pyp-alpha`
+   to allow for model-specific optimization.
 
 Evaluating Clusters
 -------------------
@@ -464,13 +535,37 @@ You can customize various aspects of the clustering process:
 
 .. code-block:: python
 
-   # Custom alpha and sigma values
-   dp = DirichletProcess(alpha=0.5)
-   pyp = PitmanYorProcess(alpha=0.5, sigma=0.3)
+   # Custom parameters for different clustering behaviors
+
+   # For fewer, larger clusters (good for broad categorization)
+   dp_fewer_clusters = DirichletProcess(
+       alpha=0.1,  # Low alpha = fewer clusters
+       base_measure={"variance": 0.5},  # Higher variance = less sensitive to differences
+       random_state=42
+   )
+
+   # For more, smaller clusters (good for fine-grained categorization)
+   dp_more_clusters = DirichletProcess(
+       alpha=5.0,  # High alpha = more clusters
+       base_measure={"variance": 0.1},  # Lower variance = more sensitive to differences
+       random_state=42
+   )
+
+   # For power-law distributed cluster sizes (often matches natural language patterns)
+   pyp_power_law = PitmanYorProcess(
+       alpha=0.3,
+       sigma=0.7,  # Higher sigma = stronger power-law behavior
+       base_measure={"variance": 0.5},
+       random_state=42
+   )
 
    # Custom embedding model (advanced)
    from sentence_transformers import SentenceTransformer
    custom_model = SentenceTransformer("all-mpnet-base-v2")  # Different model
+
+   # To use a custom model with DirichletProcess:
+   dp_custom = DirichletProcess(alpha=0.5)
+   dp_custom.embedding_model = custom_model
 
    # Custom similarity function (advanced)
    def custom_similarity(text, cluster_param):
