@@ -26,6 +26,27 @@ from clusx.logging import get_logger
 logger = get_logger(__name__)
 
 
+def to_numpy(embedding: EmbeddingTensor) -> NDArray[np.float32]:
+    """
+    A helper function to convert a tensor to a numpy array.
+
+    If embedding is already a numpy array (or compatible), it is returned as is.
+    Otherwise, it is converted to a numpy array.
+
+    Args:
+        embedding: The tensor to convert.
+
+    Returns: The numpy array.
+    """
+    # Use duck typing to check if this is a PyTorch tensor
+    # PyTorch tensors have detach() method, numpy arrays don't
+    if hasattr(embedding, "detach"):
+        return embedding.detach().cpu().numpy()  # type: ignore[attr-defined]
+
+    # Already numpy or other array-like
+    return np.asarray(embedding)
+
+
 class DirichletProcess:
     """
     Dirichlet Process clustering implementation for text data.
@@ -241,16 +262,10 @@ class DirichletProcess:
         if total_points == 0:
             new_cluster_id = 0
             self.clusters.append(new_cluster_id)
-
-            # Convert embedding to numpy array for storage
-            if hasattr(embedding, "clone"):
-                # PyTorch tensor
-                emb_array = embedding.clone().detach().numpy()  # type: ignore
-            else:
-                # Already numpy or other array-like
-                emb_array = np.array(embedding)
-
-            self.cluster_params[new_cluster_id] = {"mean": emb_array, "count": 1}
+            self.cluster_params[new_cluster_id] = {
+                "mean": to_numpy(embedding),
+                "count": 1,
+            }
 
             return new_cluster_id
 
@@ -301,25 +316,15 @@ class DirichletProcess:
 
         if chosen_cluster_id not in self.cluster_params:
             # Create a new cluster
-            # Convert embedding to numpy array for storage
-            if hasattr(embedding, "clone"):
-                # PyTorch tensor
-                emb_array = embedding.clone().detach().numpy()  # type: ignore
-            else:
-                # Already numpy or other array-like
-                emb_array = np.array(embedding)
-
-            self.cluster_params[chosen_cluster_id] = {"mean": emb_array, "count": 1}
+            self.cluster_params[chosen_cluster_id] = {
+                "mean": to_numpy(embedding),
+                "count": 1,
+            }
         else:
             # Update existing cluster
             current_mean = self.cluster_params[chosen_cluster_id]["mean"]
             current_count = self.cluster_params[chosen_cluster_id]["count"]
-
-            # Convert embedding to numpy for calculation
-            if hasattr(embedding, "numpy"):
-                emb_array = embedding.numpy()  # type: ignore
-            else:
-                emb_array = np.array(embedding)
+            emb_array = to_numpy(embedding)
 
             # Update mean using online update formula
             new_mean = (current_mean * current_count + emb_array) / (current_count + 1)
@@ -494,16 +499,10 @@ class PitmanYorProcess(DirichletProcess):
         if total_points == 0:
             new_cluster_id = 0
             self.clusters.append(new_cluster_id)
-
-            # Convert embedding to numpy array for storage
-            if hasattr(embedding, "clone"):
-                # PyTorch tensor
-                emb_array = embedding.clone().detach().numpy()  # type: ignore
-            else:
-                # Already numpy or other array-like
-                emb_array = np.array(embedding)
-
-            self.cluster_params[new_cluster_id] = {"mean": emb_array, "count": 1}
+            self.cluster_params[new_cluster_id] = {
+                "mean": to_numpy(embedding),
+                "count": 1,
+            }
 
             return new_cluster_id
 
@@ -554,25 +553,15 @@ class PitmanYorProcess(DirichletProcess):
 
         if chosen_cluster_id not in self.cluster_params:
             # Create a new cluster
-            # Convert embedding to numpy array for storage
-            if hasattr(embedding, "clone"):
-                # PyTorch tensor
-                emb_array = embedding.clone().detach().numpy()  # type: ignore
-            else:
-                # Already numpy or other array-like
-                emb_array = np.array(embedding)
-
-            self.cluster_params[chosen_cluster_id] = {"mean": emb_array, "count": 1}
+            self.cluster_params[chosen_cluster_id] = {
+                "mean": to_numpy(embedding),
+                "count": 1,
+            }
         else:
             # Update existing cluster
             current_mean = self.cluster_params[chosen_cluster_id]["mean"]
             current_count = self.cluster_params[chosen_cluster_id]["count"]
-
-            # Convert embedding to numpy for calculation
-            if hasattr(embedding, "numpy"):
-                emb_array = embedding.numpy()  # type: ignore
-            else:
-                emb_array = np.array(embedding)
+            emb_array = to_numpy(embedding)
 
             # Update mean using online update formula
             new_mean = (current_mean * current_count + emb_array) / (current_count + 1)
