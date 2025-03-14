@@ -141,7 +141,7 @@ def test_get_model_colors_few_models():
     assert isinstance(result, dict)
     assert len(result) == 10
 
-    tab10_colors = [colormaps["tab10"](i / 9) for i in range(10)]
+    tab10_colors = [colormaps["Set1"](i / 9) for i in range(10)]
     for i, model in enumerate(model_names):
         np.testing.assert_almost_equal(result[model], tab10_colors[i])
 
