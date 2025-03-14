@@ -346,26 +346,48 @@ class DirichletProcess:
                 - List of cluster assignments for each text
                 - Dictionary of cluster parameters
         """
-        logger.info(
-            "Processing %s texts with %s...", len(texts), self.__class__.__name__
-        )
+        logger.info("Start processing %d texts ...", len(texts))
 
         # Reset state for a fresh run
         self.clusters = []
         self.cluster_params = {}
 
-        # Process texts in batches for better progress reporting
-        batch_size = 100
-        total_batches = (len(texts) - 1) // batch_size + 1
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i : i + batch_size]
-            batch_num = i // batch_size + 1
-            for text in tqdm(
-                batch,
-                desc=f"Clustering batch {batch_num}/{total_batches}",
-                total=len(batch),
-            ):
-                self.assign_cluster(text)
+        def format_process(class_name: str) -> str:
+            """
+            Format a class name into a human-readable progress description.
+
+            Converts CamelCase class names to space-separated words and handles
+            special cases like 'PitmanYorProcess' to 'Pitman-Yor Process'.
+
+            Args:
+                class_name (str): The name of the class to format
+
+            Returns:
+                str: Formatted string with timestamp and readable class name
+                     in the format:
+                     "YYYY-MM-DD HH:MM:SS - INFO - Clustering with {formatted_name}"
+            """
+            import re
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            formatted_name = (
+                "Pitman-Yor Process"  # Special case for Pitman-Yor
+                if class_name == "PitmanYorProcess"
+                else re.sub(r"(?<!^)(?=[A-Z])", " ", class_name)
+            )
+
+            return f"{timestamp} - INFO - Clustering with {formatted_name}"
+
+        # Process all texts with a single progress bar
+        for text in tqdm(
+            texts,
+            desc=format_process(self.__class__.__name__),
+            total=len(texts),
+            disable=None,  # Disable on non-TTY
+            unit=" texts",
+        ):
+            self.assign_cluster(text)
 
         return self.clusters, self.cluster_params
 
