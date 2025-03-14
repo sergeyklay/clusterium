@@ -321,6 +321,7 @@ def evaluate(
     random_seed: Optional[int],
     column: Optional[str],
 ) -> None:
+    """Evaluate clustering results using established metrics."""
     from .clustering.utils import (
         get_embeddings,
         load_cluster_assignments,
