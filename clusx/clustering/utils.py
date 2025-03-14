@@ -107,7 +107,7 @@ def save_clusters_to_csv(
         writer.writerow(["Text", f"Cluster_{model_name}", "Alpha", "Sigma", "Variance"])
         for text, cluster in zip(texts, clusters):
             writer.writerow([text, cluster, alpha, sigma, variance])
-    logger.info("Clustering results saved to %s", output_file)
+    logger.debug("Clustering results saved to %s", output_file)
 
 
 def save_clusters_to_json(
@@ -163,8 +163,7 @@ def save_clusters_to_json(
 
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(clusters_json, f, indent=2, ensure_ascii=False)
-
-    logger.info("JSON clusters saved to %s", output_file)
+    logger.debug("JSON clusters saved to %s", output_file)
 
 
 def get_embeddings(texts: list[str]) -> np.ndarray:
@@ -177,15 +176,23 @@ def get_embeddings(texts: list[str]) -> np.ndarray:
     Returns:
         Numpy array of embeddings
     """
+    from datetime import datetime
+
     from clusx.clustering import DirichletProcess
 
-    logger.info("Computing embeddings for evaluation...")
     # Use default parameters for embedding generation only
     dp = DirichletProcess(alpha=1.0)
     embeddings = []
 
     # Process texts with progress bar
-    for text in tqdm(texts, desc="Computing embeddings", total=len(texts)):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    for text in tqdm(
+        texts,
+        desc=f"{timestamp} - INFO - Computing embeddings",
+        total=len(texts),
+        disable=None,  # Disable on non-TTY
+        unit=" texts",
+    ):
         emb_array = to_numpy(dp.get_embedding(text))
         embeddings.append(emb_array)
 
