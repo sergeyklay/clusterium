@@ -46,6 +46,7 @@ Improvements
 ^^^^^^^^^^^^
 
 * Select appropriate colormaps based on visualization best practices for clustering.
+* Redesign progress bar on clustering to be more informative and less noisy.
 
 Improved Documentation
 ^^^^^^^^^^^^^^^^^^^^^^
