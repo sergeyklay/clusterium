@@ -262,7 +262,7 @@ def cluster(
         sys.exit(1)
 
 
-@cli.command(help="Evaluate clustering results")
+@cli.command(help="Evaluate and compare clustering results")
 @common_options
 @click.option(
     "--input",
