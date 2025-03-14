@@ -22,29 +22,9 @@ if TYPE_CHECKING:
     EmbeddingTensor = Union[torch.Tensor, NDArray[np.float32]]
 
 from clusx.logging import get_logger
+from clusx.utils import to_numpy
 
 logger = get_logger(__name__)
-
-
-def to_numpy(embedding: EmbeddingTensor) -> NDArray[np.float32]:
-    """
-    A helper function to convert a tensor to a numpy array.
-
-    If embedding is already a numpy array (or compatible), it is returned as is.
-    Otherwise, it is converted to a numpy array.
-
-    Args:
-        embedding: The tensor to convert.
-
-    Returns: The numpy array.
-    """
-    # Use duck typing to check if this is a PyTorch tensor
-    # PyTorch tensors have detach() method, numpy arrays don't
-    if hasattr(embedding, "detach"):
-        return embedding.detach().cpu().numpy()  # type: ignore[attr-defined]
-
-    # Already numpy or other array-like
-    return np.asarray(embedding)
 
 
 class DirichletProcess:

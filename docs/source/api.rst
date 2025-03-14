@@ -40,6 +40,13 @@ The ``logging`` module
     :members:
     :no-undoc-members:
 
+The ``utils`` module
+--------------------
+
+.. automodule:: clusx.utils
+    :members:
+    :no-undoc-members:
+
 The ``version`` module
 ----------------------
 
