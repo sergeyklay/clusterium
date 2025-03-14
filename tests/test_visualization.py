@@ -15,21 +15,28 @@ def test_empty_reports():
 
 
 def test_no_cluster_stats():
-    """Test when reports don't contain cluster_stats."""
+    """Test when reports don't contain cluster_stats.
+
+    If no reports have cluster_stats, the dataset should be considered small.
+    """
     reports = {
         "model1": {"metrics": {"some_metric": 0.5}},
         "model2": {"parameters": {"alpha": 0.1}},
     }
-    assert not is_small_dataset(reports, MIN_DATASET_SIZE)
+    assert is_small_dataset(reports, MIN_DATASET_SIZE)
 
 
 def test_no_num_texts():
-    """Test when cluster_stats doesn't contain num_texts."""
+    """Test when cluster_stats doesn't contain num_texts.
+
+    If no reports have num_texts in their cluster_stats, the dataset should be
+    considered small.
+    """
     reports = {
         "model1": {"cluster_stats": {"cluster_sizes": {}}},
         "model2": {"cluster_stats": {"num_clusters": 5}},
     }
-    assert not is_small_dataset(reports, MIN_DATASET_SIZE)
+    assert is_small_dataset(reports, MIN_DATASET_SIZE)
 
 
 def test_all_datasets_large_enough():
@@ -60,13 +67,27 @@ def test_all_datasets_too_small():
 
 
 def test_mixed_report_structure():
-    """Test with mixed report structure (some with num_texts, some without)."""
+    """Test with mixed report structure (some with num_texts, some without).
+
+    As long as at least one report has num_texts and it's large enough,
+    the dataset should not be considered small.
+    """
     reports = {
         "model1": {"cluster_stats": {"num_texts": MIN_DATASET_SIZE + 5}},
         "model2": {"cluster_stats": {"num_clusters": 10}},  # No num_texts
         "model3": {"metrics": {"some_metric": 0.5}},  # No cluster_stats
     }
     assert not is_small_dataset(reports, MIN_DATASET_SIZE)
+
+
+def test_mixed_report_structure_all_small():
+    """Test with mixed report structure where all reports with num_texts are small."""
+    reports = {
+        "model1": {"cluster_stats": {"num_texts": MIN_DATASET_SIZE - 1}},
+        "model2": {"cluster_stats": {"num_clusters": 10}},  # No num_texts
+        "model3": {"metrics": {"some_metric": 0.5}},  # No cluster_stats
+    }
+    assert is_small_dataset(reports, MIN_DATASET_SIZE)
 
 
 def test_custom_threshold():
