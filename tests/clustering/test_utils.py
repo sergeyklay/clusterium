@@ -68,7 +68,7 @@ def test_save_clusters_to_csv(tmp_path, sample_texts, sample_clusters):
 
     assert output_path.exists()
 
-    with open(output_path, "r", newline="") as f:
+    with open(output_path, "r", encoding="utf-8", newline="") as f:
         reader = csv.reader(f)
         header = next(reader)
         rows = list(reader)
@@ -94,7 +94,7 @@ def test_save_clusters_to_json(tmp_path, sample_texts, sample_clusters):
 
     assert output_path.exists()
 
-    with open(output_path, "r") as f:
+    with open(output_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     assert "clusters" in data

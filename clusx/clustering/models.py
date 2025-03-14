@@ -14,7 +14,7 @@ from tqdm.auto import tqdm
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from typing import Optional, Union
+    from typing import Literal, Optional, Union
 
     import torch
     from numpy.typing import NDArray
@@ -75,11 +75,6 @@ class DirichletProcess:
         self.alpha = alpha
         _ = sigma  # Help linters understand that sigma is not used in this class
 
-        # Ensure base_measure has a variance value
-        if base_measure is None:
-            self.base_measure = {"variance": 0.1}
-        else:
-            self.base_measure = base_measure
         self.clusters: list[int] = []
         self.cluster_params: dict[int, dict] = {}
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -93,6 +88,20 @@ class DirichletProcess:
 
         # For tracking processed texts and their embeddings
         self.text_embeddings: dict[str, EmbeddingTensor] = {}
+
+        # Ensure base_measure has a variance value
+        if base_measure is None or "variance" not in base_measure:
+            # We expect variance from the user, and this is a moderate variance
+            # default value. It's not expected to use this default value in practice.
+            self.base_measure: dict[Literal["variance"], float] = {"variance": 0.3}
+        elif not isinstance(base_measure["variance"], float):
+            # Ensure the variance is a float
+            raise TypeError(
+                "The variance in base_measure must be a float, got "
+                f"{type(base_measure['variance'])}"
+            )
+        else:
+            self.base_measure: dict[Literal["variance"], float] = base_measure
 
     def get_embedding(self, text: str) -> EmbeddingTensor:
         """
@@ -180,7 +189,7 @@ class DirichletProcess:
         """
         # For the base measure, we use a wider variance
         # Ensure we have a valid variance value
-        variance = float(self.base_measure.get("variance", 0.1)) * 10.0
+        variance = self.base_measure["variance"] * 10.0
 
         # For new clusters, we center at the embedding itself
         if self.embedding_dim is not None:
@@ -189,9 +198,8 @@ class DirichletProcess:
             # Fallback if embedding_dim is not set
             dim = float(len(embedding))
 
-        log_likelihood = -0.5 * dim * np.log(2 * np.pi * variance)
-
-        return log_likelihood
+        # The same value as in the likelihood function ???
+        return -0.5 * dim * np.log(2 * np.pi * variance)
 
     def log_crp_prior(self, cluster_id: int, total_points: int) -> float:
         """
@@ -274,7 +282,9 @@ class DirichletProcess:
             dim = float(len(embedding))
 
         # Base measure likelihood with a bonus to encourage new clusters
-        variance = float(self.base_measure.get("variance", 0.1))
+        variance = self.base_measure["variance"]
+
+        # Test: 1
         log_like_new = -0.5 * dim * np.log(2 * np.pi * variance)  # Normalization term
         # No squared distance term because the cluster would be
         # centered at the embedding
@@ -511,7 +521,8 @@ class PitmanYorProcess(DirichletProcess):
             dim = float(len(embedding))
 
         # Base measure likelihood with a bonus to encourage new clusters
-        variance = float(self.base_measure.get("variance", 0.1))
+        variance = self.base_measure["variance"]
+        # The same value as in the likelihood function ???
         log_like_new = -0.5 * dim * np.log(2 * np.pi * variance)  # Normalization term
         # No squared distance term because the cluster would be
         # centered at the embedding
