@@ -1,0 +1,14 @@
+# Test 1: Medium DP, mild PYP, moderate variance
+--dp-alpha 0.12 --pyp-alpha 0.12 --pyp-sigma 0.35 --variance 0.30
+
+# Test 2: Higher DP alpha, moderate PYP, larger variance
+--dp-alpha 0.45 --pyp-alpha 0.25 --pyp-sigma 0.25 --variance 0.55
+
+# Test 3: More pronounced DP alpha, strong PYP alpha, small variance
+--dp-alpha 0.75 --pyp-alpha 0.60 --pyp-sigma 0.20 --variance 0.20
+
+# Test 4: Lower DP alpha, moderate PYP, very large variance
+--dp-alpha 0.25 --pyp-alpha 0.18 --pyp-sigma 0.50 --variance 0.80
+
+# Test 5: Larger DP alpha, stronger PYP, medium variance
+--dp-alpha 1.20 --pyp-alpha 0.65 --pyp-sigma 0.35 --variance 0.50
