@@ -110,8 +110,7 @@ Or manually with Poetry:
 
    coverage erase
 
-   coverage run -m pytest -m "not integration" ./clusx ./tests
-   coverage run -m pytest -m integration ./clusx ./tests
+   coverage run -m pytest ./clusx ./tests
 
    coverage combine
    coverage report
@@ -461,8 +460,7 @@ Common Development Issues
    .. code-block:: bash
 
       # Run tests with verbose output
-      pytest -vvv -m "not integration" ./clusx ./tests
-      pytest -vvv -m integration ./clusx ./tests
+      pytest -vvv ./clusx ./tests
 
       # Run a specific test
       pytest -vvv ./tests/test_specific_file.py::test_specific_function

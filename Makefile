@@ -10,8 +10,7 @@ install:
 test:
 	@echo $(CS)Running tests for package: $(PKG_NAME)$(CE)
 	$(VENV_BIN)/coverage erase
-	$(VENV_BIN)/coverage run -m pytest -m "not integration" $(PYTEST_FLAGS) ./$(PKG_NAME) ./tests
-	$(VENV_BIN)/coverage run -m pytest -m integration $(PYTEST_FLAGS) ./$(PKG_NAME) ./tests
+	$(VENV_BIN)/coverage run -m pytest $(PYTEST_FLAGS) ./$(PKG_NAME) ./tests
 	@echo
 
 .PHONY: ccov
@@ -55,7 +54,7 @@ clean:
 .PHONY: docs
 docs: CONTRIBUTING.rst README.rst
 	@echo $(CS)Building documentation for package: $(PKG_NAME)$(CE)
-	@$(MAKE) -C $@ clean
+	@$(MAKE) -C docs clean
 	$(VENV_PYTHON) -m doctest CONTRIBUTING.rst README.rst
 	$(VENV_PYTHON) -m sphinx --jobs auto --builder html --nitpicky --show-traceback --fail-on-warning --doctree-dir docs/build/doctrees docs/source docs/build/html
 

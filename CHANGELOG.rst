@@ -45,7 +45,7 @@ Bug Fixes
 Improvements
 ^^^^^^^^^^^^
 
-* Selects appropriate colormaps based on visualization best practices for clustering
+* Select appropriate colormaps based on visualization best practices for clustering.
 
 Improved Documentation
 ^^^^^^^^^^^^^^^^^^^^^^

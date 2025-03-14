@@ -109,8 +109,7 @@ jobs:
 
           coverage erase
 
-          coverage run -m pytest -m "not integration" ./clusx ./tests
-          coverage run -m pytest -m integration ./clusx ./tests
+          coverage run -m pytest./clusx ./tests
 
           coverage combine
           coverage xml

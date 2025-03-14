@@ -1,8 +1,60 @@
 """Common test fixtures, mocks and configurations."""
 
 import csv
+from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
+
+from clusx.clustering.models import DirichletProcess, PitmanYorProcess
+
+
+@pytest.fixture
+def embedding_fx() -> np.ndarray:
+    """Return a sample embedding numpy array."""
+    return np.asarray([0.1, 0.2, 0.3, 0.4])
+
+
+@pytest.fixture
+def transformer_mock(
+    embedding_fx: np.ndarray, patch_sentence_transformer
+):  # pylint: disable=redefined-outer-name
+    """
+    Configure the mock SentenceTransformer for specific tests.
+
+    This fixture uses the globally patched SentenceTransformer and configures
+    it to return the embedding_fx when encode is called.
+    """
+    mock_instance = patch_sentence_transformer.return_value
+    mock_instance.encode.return_value = embedding_fx
+    return patch_sentence_transformer
+
+
+@pytest.fixture(autouse=True)
+def patch_sentence_transformer():
+    """
+    Patch SentenceTransformer to prevent model loading in all tests.
+
+    This fixture is automatically used in all tests to prevent the actual
+    SentenceTransformer model from being loaded, which significantly
+    improves test performance.
+    """
+    with patch("clusx.clustering.models.SentenceTransformer") as mock_st:
+        mock_instance = MagicMock()
+        mock_st.return_value = mock_instance
+        yield mock_st
+
+
+@pytest.fixture
+def dp_instance():
+    """Return a pre-configured DirichletProcess instance."""
+    return DirichletProcess(alpha=1.0)
+
+
+@pytest.fixture
+def pyp_instance():
+    """Return a pre-configured PitmanYorProcess instance."""
+    return PitmanYorProcess(alpha=1.0, sigma=0.5)
 
 
 @pytest.fixture
