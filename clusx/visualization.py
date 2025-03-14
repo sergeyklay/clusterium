@@ -388,10 +388,21 @@ def plot_similarity_metrics(reports, ax: Axes):
         ax.bar(x[0] + offset, intra, width, label=model, color=color)
         ax.bar(x[1] + offset, inter, width, color=color, alpha=1.0)
 
+    # Calculate dynamic y-axis limit based on data
+    intra_max = max(intra_values, default=0)
+    inter_max = max(inter_values, default=0)
+    max_value = max(intra_max, inter_max)
+
+    # Add a small padding (25%) above the highest bar for aesthetics
+    y_max = min(1.0, max_value * 1.25) if max_value > 0 else 0.1
+
+    # Ensure minimum height for very small values
+    y_max = max(y_max, 0.1)
+
     ax.set_ylabel("Cosine Similarity")
     ax.set_xticks(x)
     ax.set_xticklabels(["Intra-cluster", "Inter-cluster"])
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0, y_max)
     ax.legend()
 
 
