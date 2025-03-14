@@ -47,12 +47,19 @@ Improvements
 
 * Select appropriate colormaps based on visualization best practices for clustering.
 * Redesign progress bar on clustering to be more informative and less noisy.
+* Enhance silhouette score calculation to handle singleton clusters properly:
+
+  - Now calculates scores using only valid clusters (≥2 samples) rather than returning 0.0 when any singleton exists
+  - Preserves valuable evaluation data that would otherwise be discarded
+  - Provides detailed logging about what proportion of data contributed to the score
+  - Aligns with academic best practices in cluster validation literature
 
 Improved Documentation
 ^^^^^^^^^^^^^^^^^^^^^^
 
 * Fix code smells and style issues.
 * Introduced ``pylint`` to the CI workflow.
+* Added new "Methodological Framework" documentation explaining theoretical decisions behind implementation choices.
 
 Trivial/Internal Changes
 ^^^^^^^^^^^^^^^^^^^^^^^^
