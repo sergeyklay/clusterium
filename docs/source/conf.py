@@ -42,6 +42,7 @@ nitpick_ignore = [
     ("py:class", "numpy.bool_"),
     ("py:class", "NDArray"),
     ("py:class", "EmbeddingTensor"),
+    ("py:class", "Axes"),
 ]
 
 # -- Options for intersphinx -------------------------------------------------
