@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Optional
 
-from .errors import EvaluationError
+from .errors import ClusterIntegrityError, EvaluationError
 from .logging import get_logger, setup_logging
 from .version import __copyright__, __version__
 
@@ -329,7 +329,7 @@ def evaluate(
             "Dirichlet",
             alpha=dp_params["alpha"],
             sigma=dp_params["sigma"],
-            variance=dp_params.get("variance", 0.1),
+            variance=dp_params["variance"],
             random_state=random_seed,
         )
         dp_report = dp_evaluator.generate_report()
@@ -343,7 +343,7 @@ def evaluate(
             "Pitman-Yor",
             alpha=pyp_params["alpha"],
             sigma=pyp_params["sigma"],
-            variance=pyp_params.get("variance", 0.1),
+            variance=pyp_params["variance"],
             random_state=random_seed,
         )
         pyp_report = pyp_evaluator.generate_report()
@@ -364,7 +364,7 @@ def evaluate(
                 logger.info("Close the plot window to continue.")
 
         logger.info("Evaluation complete.")
-    except EvaluationError as error:
+    except (ClusterIntegrityError, EvaluationError) as error:
         logger.error(error)
         sys.exit(1)
     except Exception as error:  # pylint: disable=broad-except

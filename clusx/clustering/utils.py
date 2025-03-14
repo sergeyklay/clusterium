@@ -6,14 +6,13 @@ from __future__ import annotations
 
 import csv
 import json
-import os
-import re
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
 
+from clusx.errors import MissingClusterColumnError, MissingParametersError
 from clusx.logging import get_logger
 from clusx.utils import to_numpy
 
@@ -202,56 +201,47 @@ def load_cluster_assignments(csv_path: str) -> tuple[list[int], dict[str, float]
 
     Returns:
         tuple[list[int], dict[str, float]]: A tuple containing:
-            - List of cluster assignments
+            - List of cluster assignments (clusterized texts)
             - Dictionary of parameters (alpha, sigma, variance)
 
     Raises:
-        ValueError: If no cluster column is found in the CSV file
+        MissingClusterColumnError: If no cluster column is found in the file
+        MissingParametersError: If required parameters are missing in the file
     """
     df = pd.read_csv(csv_path)
 
     # Check which column contains the cluster assignments
     cluster_column = None
     for col in df.columns:
-        if col.lower().startswith("cluster"):
+        # Cluster_PYP or Cluster_DP
+        if col.lower().startswith("cluster_"):
             cluster_column = col
             break
 
     if not cluster_column:
-        raise ValueError(f"No cluster column found in {csv_path}")
+        raise MissingClusterColumnError(csv_path)
 
     # Extract cluster assignments
     cluster_assignments = df[cluster_column].tolist()
-
-    # Extract parameters from file content if available
-    params = {"alpha": 1.0, "sigma": 0.0, "variance": 0.1}  # Default values
+    params = {}
 
     # Check if parameter columns exist in the CSV
     if "Alpha" in df.columns:
         params["alpha"] = float(df["Alpha"].iloc[0])
+
     if "Sigma" in df.columns:
         params["sigma"] = float(df["Sigma"].iloc[0])
+
     if "Variance" in df.columns:
         params["variance"] = float(df["Variance"].iloc[0])
-    else:
-        # Fallback to extracting from filename if columns don't exist
-        # (for backward compatibility)
-        filename = os.path.basename(csv_path)
 
-        # Look for alpha in filename (e.g., alpha_1.0)
-        alpha_match = re.search(r"alpha[_-](\d+\.\d+)", filename)
-        if alpha_match:
-            params["alpha"] = float(alpha_match.group(1))
-
-        # Look for sigma in filename (e.g., sigma_0.5)
-        sigma_match = re.search(r"sigma[_-](\d+\.\d+)", filename)
-        if sigma_match:
-            params["sigma"] = float(sigma_match.group(1))
-
-        # Look for variance in filename (e.g., var_0.1)
-        var_match = re.search(r"var[_-](\d+\.\d+)", filename)
-        if var_match:
-            params["variance"] = float(var_match.group(1))
+    missing_params = [
+        key
+        for key in ["alpha", "sigma", "variance"]
+        if key not in params or params[key] is None
+    ]
+    if missing_params:
+        raise MissingParametersError(csv_path, missing_params)
 
     return cluster_assignments, params
 
