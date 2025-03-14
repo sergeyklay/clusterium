@@ -54,6 +54,10 @@ class RichGroup(click.Group):
         super().__init__(*args, **kwargs)
 
     def format_help(self, ctx, formatter):
+        """Writes the help into the formatter if it exists.
+
+        This method is called by Click when the help text is requested.
+        """
         click.secho(BANNER, nl=False)
         super().format_help(ctx, formatter)
 
@@ -317,7 +321,6 @@ def evaluate(
     random_seed: Optional[int],
     column: Optional[str],
 ) -> None:
-    """Evaluate clustering results using established metrics."""
     from .clustering.utils import (
         get_embeddings,
         load_cluster_assignments,
