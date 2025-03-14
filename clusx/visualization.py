@@ -14,10 +14,10 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colormaps
+from matplotlib.axes import Axes
 
 if TYPE_CHECKING:
     from typing import Any
-    from matplotlib.axes import Axes
 
 from .errors import VisualizationError
 from .logging import get_logger
@@ -161,7 +161,15 @@ def is_small_dataset(reports: dict[str, dict[str, Any]], min_size: int) -> bool:
 def render_error_message(
     ax: Axes, plot_title: str, error, small_dataset: bool, min_size: int
 ):
-    """Display appropriate error message on the plot."""
+    """Display appropriate error message on the plot.
+
+    Args:
+        ax: matplotlib.axes.Axes object to display the error message on
+        plot_title: Title of the plot
+        error: The exception that was raised
+        small_dataset: Whether the dataset is considered small
+        min_size: Minimum dataset size threshold
+    """
     if small_dataset:
         message = f"Cannot generate {plot_title} for small datasets"
         details = f"(Requires at least {min_size} data points)"
@@ -200,7 +208,7 @@ def plot_cluster_size_distribution(reports, ax: Axes):
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
+        ax: matplotlib.axes.Axes object to plot on
     """
     # Generate colors for models
     model_colors = get_model_colors(list(reports.keys()))
@@ -284,7 +292,7 @@ def plot_cluster_counts(reports, ax: Axes):
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
+        ax: matplotlib.axes.Axes object to plot on
     """
     # Generate colors for models
     model_colors = get_model_colors(list(reports.keys()))
@@ -318,7 +326,7 @@ def plot_similarity_metrics(reports, ax: Axes):
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
+        ax: matplotlib.axes.Axes object to plot on
     """
     has_similarity_data = False
 
@@ -490,7 +498,7 @@ def _display_no_powerlaw_message(ax: Axes, small_dataset: bool):
     Display a message when power-law analysis is not available.
 
     Args:
-        ax: Matplotlib axes object to plot on
+        ax: matplotlib.axes.Axes object to plot on
         small_dataset: Whether this is a small dataset
     """
     if small_dataset:
@@ -517,7 +525,7 @@ def plot_powerlaw_fit(reports, ax: Axes):
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
+        ax: matplotlib.axes.Axes object to plot on
     """
     has_powerlaw_data = False
     small_dataset = False
@@ -597,7 +605,7 @@ def plot_outliers(reports, ax: Axes):
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
+        ax: matplotlib.axes.Axes object to plot on
     """
     has_outlier_data = False
 
@@ -658,8 +666,14 @@ def _extract_silhouette_data(reports):
     return models, scores, error_models, zero_score_models
 
 
-def _show_silhouette_message(ax, error_models, zero_score_models):
-    """Display appropriate message when no valid silhouette scores are available."""
+def _show_silhouette_message(ax: Axes, error_models, zero_score_models):
+    """Display appropriate message when no valid silhouette scores are available.
+
+    Args:
+        ax: matplotlib.axes.Axes object to display the message on
+        error_models: List of models with errors
+        zero_score_models: List of models with zero scores
+    """
     if error_models or zero_score_models:
         # Create a more informative message about why scores couldn't be calculated
         message = "Silhouette scores could not be properly calculated\n"
@@ -693,8 +707,14 @@ def _show_silhouette_message(ax, error_models, zero_score_models):
         )
 
 
-def _add_silhouette_note(ax, error_models, zero_score_models):
-    """Add a note about models with errors or zero scores."""
+def _add_silhouette_note(ax: Axes, error_models, zero_score_models):
+    """Add a note about models with errors or zero scores.
+
+    Args:
+        ax: matplotlib.axes.Axes object to add the note to
+        error_models: List of models with errors
+        zero_score_models: List of models with zero scores
+    """
     note_lines = []
     if zero_score_models:
         note_lines.append(f"Models with score=0: {', '.join(zero_score_models)}")
@@ -721,7 +741,7 @@ def plot_silhouette_scores(reports, ax: Axes):
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
+        ax: matplotlib.axes.Axes object to plot on
     """
     # Extract data from reports
     models, scores, error_models, zero_score_models = _extract_silhouette_data(reports)
