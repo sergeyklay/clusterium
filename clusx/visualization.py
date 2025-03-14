@@ -116,7 +116,7 @@ def safe_plot(title: str | None = None, min_dataset_size: int = MIN_DATASET_SIZE
             except Exception as e:  # pylint: disable=broad-except
                 logger.error("Error plotting %s: %s", plot_title, e)
 
-                small_dataset = _is_small_dataset(reports, min_dataset_size)
+                small_dataset = is_small_dataset(reports, min_dataset_size)
                 render_error_message(ax, plot_title, e, small_dataset, min_dataset_size)
 
                 return None
@@ -126,13 +126,29 @@ def safe_plot(title: str | None = None, min_dataset_size: int = MIN_DATASET_SIZE
     return decorator
 
 
-def _is_small_dataset(reports, min_size: int) -> bool:
-    """Check if the dataset is considered small based on the number of texts."""
+def is_small_dataset(reports: dict[str, dict[str, Any]], min_size: int) -> bool:
+    """
+    Check if the dataset is considered small based on the number of texts.
+
+    A dataset is considered small if it's empty or if any report contains fewer
+    than min_size texts. If no reports contain text count information, the dataset
+    is not considered small.
+
+    Args:
+        reports: Dictionary mapping model names to their evaluation reports
+        min_size: Minimum number of texts threshold
+
+    Returns:
+        bool: True if the dataset is considered small, False otherwise
+    """
+    if not reports or not reports.values():
+        return True
+
     for report in reports.values():
         if "cluster_stats" in report and "num_texts" in report["cluster_stats"]:
             if report["cluster_stats"]["num_texts"] < min_size:
-                # Assume we have the same number of texts for all models
                 return True
+
     return False
 
 
@@ -792,7 +808,7 @@ def visualize_evaluation_dashboard(
 
     plt.tight_layout()
 
-    if _is_small_dataset(reports, MIN_DATASET_SIZE):
+    if is_small_dataset(reports, MIN_DATASET_SIZE):
         plt.subplots_adjust(bottom=0.08)
         warning_text = (
             f"Small dataset (fewer than {MIN_DATASET_SIZE} data points).\n"
