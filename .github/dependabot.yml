@@ -1,20 +1,30 @@
 version: 2
 
+enable-beta-ecosystems: true
+
 updates:
   - package-ecosystem: pip
+    versioning-strategy: increase-if-necessary
     directory: '/'
     schedule:
       interval: daily
-    assignees:
-      - sergeyklay
-    versioning-strategy: increase
+    reviewers: [sergeyklay]
+    assignees: [sergeyklay]
     target-branch: main
     open-pull-requests-limit: 20
+    commit-message:
+      prefix: "chore(deps): "
+      prefix-development: "chore(deps-dev): "
 
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
-      interval: daily
+      interval: weekly
+      time: "12:00"
+      timezone: "Etc/UTC"
+      day: monday
+    reviewers: [sergeyklay]
+    assignees: [sergeyklay]
     target-branch: main
-    assignees:
-      - sergeyklay
+    commit-message:
+      prefix: "ci: "
