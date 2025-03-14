@@ -55,6 +55,7 @@ clean:
 .PHONY: docs
 docs: CONTRIBUTING.rst README.rst
 	@echo $(CS)Building documentation for package: $(PKG_NAME)$(CE)
+	@$(MAKE) -C $@ clean
 	$(VENV_PYTHON) -m doctest CONTRIBUTING.rst README.rst
 	$(VENV_PYTHON) -m sphinx --jobs auto --builder html --nitpicky --show-traceback --fail-on-warning --doctree-dir docs/build/doctrees docs/source docs/build/html
 

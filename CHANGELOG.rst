@@ -4,7 +4,7 @@ Changelog
 This file contains a brief summary of new features and dependency changes or
 releases, in reverse chronological order.
 
-0.4.1 - 2025-03-XX
+0.5.0 - 2025-03-XX
 ------------------
 
 Features
@@ -41,6 +41,11 @@ Bug Fixes
   - Add robust handling for edge cases with no valid cluster pairs
   - Implement correct averaging when mixing singleton and non-singleton clusters
   - Fix silent failures on datasets with predominantly singleton clusters
+
+Improvements
+^^^^^^^^^^^^
+
+* Selects appropriate colormaps based on visualization best practices for clustering
 
 Improved Documentation
 ^^^^^^^^^^^^^^^^^^^^^^

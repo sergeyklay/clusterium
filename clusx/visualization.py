@@ -33,7 +33,16 @@ plt.style.use("default")
 def get_model_colors(model_names: list[str]) -> dict[str, Any]:
     """Generate consistent colors for models using academically popular colormaps.
 
-    Uses 'Set1' and 'tab10' colormaps which are standard in academic publications.
+    Selects appropriate colormaps based on visualization best practices for clustering:
+
+    - For typical case (≤10 models): Uses 'tab10' which provides distinct, balanced hues
+      that ensure clear differentiation among groups.
+    - For more models: Uses 'tab20' which provides up to 20 distinct colors, with alpha
+      variation for cases beyond 20 models to maintain visual distinction.
+
+    This approach follows standard practices in clustering visualization where
+    colormap selection is based on the number of clusters to ensure optimal
+    visual clarity and accessibility.
 
     Args:
         model_names: List of model names to generate colors for
@@ -43,24 +52,20 @@ def get_model_colors(model_names: list[str]) -> dict[str, Any]:
     """
     num_models = len(model_names)
 
-    # For fewer models, use Set1 which has distinct colors commonly used in publications
-    if num_models <= 9:
-        cmap = colormaps["Set1"]
-        colors = [cmap(i / max(1, 8)) for i in range(num_models)]
-    # For more models, use tab10 which supports up to 10 distinct colors
-    elif num_models <= 10:
+    # For typical case (up to 10 models), use tab10 colormap
+    if num_models <= 10:
         cmap = colormaps["tab10"]
-        colors = [cmap(i / max(1, 9)) for i in range(num_models)]
-    # For even more models, combine colors from both colormaps
-    else:
-        set1_cmap = colormaps["Set1"]
-        tab10_cmap = colormaps["tab10"]
-        colors = []
-        for i in range(num_models):
-            if i < 9:
-                colors.append(set1_cmap(i / 8))
-            else:
-                colors.append(tab10_cmap((i - 9) / 9))
+        colors = [cmap(i / 9) for i in range(num_models)]
+        return dict(zip(model_names, colors))
+
+    cmap = colormaps["tab20"]
+    colors = []
+    for i in range(num_models):
+        color_idx = i % 20  # Cycle through the 20 colors
+        alpha = 1.0 if i < 20 else 0.7  # Use lower alpha for recycled colors
+        color = list(cmap(color_idx / 19))
+        color[3] = alpha  # Set alpha value
+        colors.append(tuple(color))
 
     return dict(zip(model_names, colors))
 

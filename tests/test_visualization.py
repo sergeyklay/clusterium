@@ -2,7 +2,10 @@
 Unit tests for the visualization module.
 """
 
-from clusx.visualization import MIN_DATASET_SIZE, is_small_dataset
+import numpy as np
+from matplotlib import colormaps
+
+from clusx.visualization import MIN_DATASET_SIZE, get_model_colors, is_small_dataset
 
 
 def test_empty_reports():
@@ -74,8 +77,8 @@ def test_mixed_report_structure():
     """
     reports = {
         "model1": {"cluster_stats": {"num_texts": MIN_DATASET_SIZE + 5}},
-        "model2": {"cluster_stats": {"num_clusters": 10}},  # No num_texts
-        "model3": {"metrics": {"some_metric": 0.5}},  # No cluster_stats
+        "model2": {"cluster_stats": {"num_clusters": 10}},
+        "model3": {"metrics": {"some_metric": 0.5}},
     }
     assert not is_small_dataset(reports, MIN_DATASET_SIZE)
 
@@ -84,8 +87,8 @@ def test_mixed_report_structure_all_small():
     """Test with mixed report structure where all reports with num_texts are small."""
     reports = {
         "model1": {"cluster_stats": {"num_texts": MIN_DATASET_SIZE - 1}},
-        "model2": {"cluster_stats": {"num_clusters": 10}},  # No num_texts
-        "model3": {"metrics": {"some_metric": 0.5}},  # No cluster_stats
+        "model2": {"cluster_stats": {"num_clusters": 10}},
+        "model3": {"metrics": {"some_metric": 0.5}},
     }
     assert is_small_dataset(reports, MIN_DATASET_SIZE)
 
@@ -97,7 +100,6 @@ def test_custom_threshold():
         "model1": {"cluster_stats": {"num_texts": 15}},
         "model2": {"cluster_stats": {"num_texts": 25}},
     }
-    # First model is below custom threshold
     assert is_small_dataset(reports, custom_threshold)
 
 
@@ -107,7 +109,6 @@ def test_zero_threshold():
         "model1": {"cluster_stats": {"num_texts": 0}},
         "model2": {"cluster_stats": {"num_texts": 1}},
     }
-    # No dataset should be considered small with threshold 0
     assert not is_small_dataset(reports, 0)
 
 
@@ -117,5 +118,57 @@ def test_negative_num_texts():
         "model1": {"cluster_stats": {"num_texts": -5}},
         "model2": {"cluster_stats": {"num_texts": MIN_DATASET_SIZE}},
     }
-    # Negative values are less than any positive threshold
     assert is_small_dataset(reports, MIN_DATASET_SIZE)
+
+
+def test_get_model_colors_few_models():
+    """Test get_model_colors with 10 or fewer models.
+
+    When there are 10 or fewer models, the function should use the tab10 colormap.
+    """
+    result = get_model_colors([])
+    assert isinstance(result, dict)
+    assert len(result) == 0
+
+    result = get_model_colors(["model1"])
+    assert isinstance(result, dict)
+    assert len(result) == 1
+    assert "model1" in result
+    assert len(result["model1"]) == 4  # RGBA values
+
+    model_names = [f"model{i}" for i in range(1, 11)]
+    result = get_model_colors(model_names)
+    assert isinstance(result, dict)
+    assert len(result) == 10
+
+    tab10_colors = [colormaps["tab10"](i / 9) for i in range(10)]
+    for i, model in enumerate(model_names):
+        np.testing.assert_almost_equal(result[model], tab10_colors[i])
+
+
+def test_get_model_colors_many_models():
+    """Test get_model_colors with more than 10 models.
+
+    When there are more than 10 models, the function should use the tab20 colormap
+    with alpha variation for models beyond 20.
+    """
+    model_names = [f"model{i}" for i in range(1, 12)]
+    result = get_model_colors(model_names)
+    assert isinstance(result, dict)
+    assert len(result) == 11
+
+    model_names = [f"model{i}" for i in range(1, 21)]
+    result = get_model_colors(model_names)
+    assert isinstance(result, dict)
+    assert len(result) == 20
+
+    model_names = [f"model{i}" for i in range(1, 25)]
+    result = get_model_colors(model_names)
+    assert isinstance(result, dict)
+    assert len(result) == 24
+
+    for i in range(1, 21):
+        assert result[f"model{i}"][3] == 1.0
+
+    for i in range(21, 25):
+        assert result[f"model{i}"][3] == 0.7
