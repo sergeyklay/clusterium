@@ -71,6 +71,9 @@ class DirichletProcess:
                 between embeddings. If None, uses cosine_similarity.
             random_state (Optional[int]): Random seed for reproducibility.
                 If None, then fresh, unpredictable entropy will be pulled from the OS.
+
+        Raises:
+            TypeError: If base_measure is not a dict or does not contain 'variance' key.
         """
         self.alpha = alpha
         _ = sigma  # Help linters understand that sigma is not used in this class
@@ -419,6 +422,7 @@ class PitmanYorProcess(DirichletProcess):
 
         Raises:
             ValueError: If sigma ∉ [0.0, 1.0) or if alpha ≤ -sigma.
+            TypeError: If base_measure is not a dict or does not contain 'variance' key.
         """
         if sigma < 0.0 or sigma >= 1.0:
             raise ValueError(
