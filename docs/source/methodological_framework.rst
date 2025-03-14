@@ -2,12 +2,12 @@
 Methodological Framework
 =========================
 
-This document describes the methodological decisions and theoretical considerations underlying the ``clusx`` implementation. It explains how key algorithms are implemented, why specific  approaches were chosen, and their academic foundations.
+This document describes the methodological decisions and theoretical considerations underlying the Clusterium implementation. It explains how key algorithms are implemented, why specific  approaches were chosen, and their academic foundations.
 
 Evaluation methodology
 ----------------------
 
-This section documents the methodological considerations behind the evaluation metrics implemented in ``clusx``.
+This section documents the methodological considerations behind the evaluation metrics implemented in Clusterium.
 
 Silhouette Score Calculation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -24,7 +24,7 @@ where :math:`a(i)` is the mean distance between sample *i* and all other samples
 
 **Our approach:**
 
-Rather than returning a zero score when any singleton clusters exist (which would effectively discard valuable information about well-formed clusters), ``clusx`` implements a more nuanced
+Rather than returning a zero score when any singleton clusters exist (which would effectively discard valuable information about well-formed clusters), Clusterium implements a more nuanced
 approach that:
 
 1. Identifies valid clusters (those with ≥2 samples)
@@ -54,7 +54,7 @@ Consider a clustering result with 10 samples and 3 clusters:
 
 Without filtering, the silhouette score would be zero because of the singleton cluster.
 
-With filtering, ``clusx`` would:
+With filtering, Clusterium would:
 
 1. Identify the 2 valid clusters (Cluster 1 and Cluster 3)
 2. Filter the samples to include only those in valid clusters
