@@ -188,10 +188,10 @@ for test_num in $(seq 1 $total_tests); do
         # Extract Dirichlet stats
         d_num_clusters=$(jq '.Dirichlet.cluster_stats.num_clusters' "${RUN_DIR}/evaluation_report.json")
 
-        # Extract cluster size distribution for Dirichlet
-        d_size_1=$(jq '.Dirichlet.cluster_stats.cluster_sizes | to_entries | map(select(.key == "1")) | .[0].value // 0' "${RUN_DIR}/evaluation_report.json")
-        d_size_2_5=$(jq '.Dirichlet.cluster_stats.cluster_sizes | to_entries | map(select(.key == "2" or .key == "3" or .key == "4" or .key == "5")) | map(.value) | add // 0' "${RUN_DIR}/evaluation_report.json")
-        d_size_6plus=$(jq '.Dirichlet.cluster_stats.cluster_sizes | to_entries | map(select(.key | tonumber >= 6)) | map(.value) | add // 0' "${RUN_DIR}/evaluation_report.json")
+        # Extract cluster size distribution for Dirichlet - count clusters by their sizes
+        d_size_1=$(jq '.Dirichlet.cluster_stats.cluster_sizes | to_entries | map(select(.value == 1)) | length' "${RUN_DIR}/evaluation_report.json")
+        d_size_2_5=$(jq '.Dirichlet.cluster_stats.cluster_sizes | to_entries | map(select(.value >= 2 and .value <= 5)) | length' "${RUN_DIR}/evaluation_report.json")
+        d_size_6plus=$(jq '.Dirichlet.cluster_stats.cluster_sizes | to_entries | map(select(.value >= 6)) | length' "${RUN_DIR}/evaluation_report.json")
 
         # Extract powerlaw stats for Dirichlet
         d_powerlaw_alpha=$(jq '.Dirichlet.metrics.powerlaw.alpha // 0' "${RUN_DIR}/evaluation_report.json")
@@ -206,10 +206,10 @@ for test_num in $(seq 1 $total_tests); do
         # Extract Pitman-Yor stats
         py_num_clusters=$(jq '."Pitman-Yor".cluster_stats.num_clusters' "${RUN_DIR}/evaluation_report.json")
 
-        # Extract cluster size distribution for Pitman-Yor
-        py_size_1=$(jq '."Pitman-Yor".cluster_stats.cluster_sizes | to_entries | map(select(.key == "1")) | .[0].value // 0' "${RUN_DIR}/evaluation_report.json")
-        py_size_2_5=$(jq '."Pitman-Yor".cluster_stats.cluster_sizes | to_entries | map(select(.key == "2" or .key == "3" or .key == "4" or .key == "5")) | map(.value) | add // 0' "${RUN_DIR}/evaluation_report.json")
-        py_size_6plus=$(jq '."Pitman-Yor".cluster_stats.cluster_sizes | to_entries | map(select(.key | tonumber >= 6)) | map(.value) | add // 0' "${RUN_DIR}/evaluation_report.json")
+        # Extract cluster size distribution for Pitman-Yor - count clusters by their sizes
+        py_size_1=$(jq '."Pitman-Yor".cluster_stats.cluster_sizes | to_entries | map(select(.value == 1)) | length' "${RUN_DIR}/evaluation_report.json")
+        py_size_2_5=$(jq '."Pitman-Yor".cluster_stats.cluster_sizes | to_entries | map(select(.value >= 2 and .value <= 5)) | length' "${RUN_DIR}/evaluation_report.json")
+        py_size_6plus=$(jq '."Pitman-Yor".cluster_stats.cluster_sizes | to_entries | map(select(.value >= 6)) | length' "${RUN_DIR}/evaluation_report.json")
 
         # Extract powerlaw stats for Pitman-Yor
         py_powerlaw_alpha=$(jq '."Pitman-Yor".metrics.powerlaw.alpha // 0' "${RUN_DIR}/evaluation_report.json")
@@ -249,8 +249,15 @@ for test_num in $(seq 1 $total_tests); do
 }
 EOF
     else
-        echo "Warning: evaluation_report.json not found in ${RUN_DIR}"
-        echo "{}" > "${RUN_DIR}/performance_metrics.json"
+        echo "ERROR: evaluation_report.json not found in ${RUN_DIR}" >&2
+        echo "Skipping test case $test_num and continuing with the next one." >&2
+
+        cat > "${RUN_DIR}/performance_metrics.json" << EOF
+{
+  "error": "evaluation_report.json not found for this test case"
+}
+EOF
+        continue
     fi
 
     # Create readme.txt with run information and performance metrics
@@ -308,12 +315,6 @@ echo "test_num,model,dp_alpha,pyp_alpha,pyp_sigma,variance,num_clusters,cluster_
 for test_num in $(seq 1 $total_tests); do
     RUN_DIR="${BATCH_DIR}/${test_num}"
 
-    # Extract parameters from test case
-    dp_alpha=$(echo "${test_cases[$test_num]}" | grep -o "\--dp-alpha [0-9.]*" | awk '{print $2}')
-    pyp_alpha=$(echo "${test_cases[$test_num]}" | grep -o "\--pyp-alpha [0-9.]*" | awk '{print $2}')
-    pyp_sigma=$(echo "${test_cases[$test_num]}" | grep -o "\--pyp-sigma [0-9.]*" | awk '{print $2}')
-    variance=$(echo "${test_cases[$test_num]}" | grep -o "\--variance [0-9.]*" | awk '{print $2}')
-
     # Add to markdown summary
     cat >> "${SUMMARY_FILE}" << EOF
 ### Test $test_num
@@ -325,38 +326,51 @@ $(cat "${RUN_DIR}/performance_metrics.json")
 
 EOF
 
-    # Add to CSV summary if performance_metrics.json exists
-    if [ -f "${RUN_DIR}/performance_metrics.json" ]; then
-        # Dirichlet model
-        d_num_clusters=$(jq '.Dirichlet.num_clusters' "${RUN_DIR}/performance_metrics.json")
-        d_size_1=$(jq '.Dirichlet.cluster_size_distribution."1"' "${RUN_DIR}/performance_metrics.json")
-        d_size_2_5=$(jq '.Dirichlet.cluster_size_distribution."2-5"' "${RUN_DIR}/performance_metrics.json")
-        d_size_6plus=$(jq '.Dirichlet.cluster_size_distribution."6+"' "${RUN_DIR}/performance_metrics.json")
-        d_powerlaw_alpha=$(jq '.Dirichlet.powerlaw.alpha' "${RUN_DIR}/performance_metrics.json")
-        d_is_powerlaw=$(jq '.Dirichlet.powerlaw.is_powerlaw' "${RUN_DIR}/performance_metrics.json")
-        d_silhouette=$(jq '.Dirichlet.silhouette_score' "${RUN_DIR}/performance_metrics.json")
-        d_intra_sim=$(jq '.Dirichlet.similarity.intra' "${RUN_DIR}/performance_metrics.json")
-        d_inter_sim=$(jq '.Dirichlet.similarity.inter' "${RUN_DIR}/performance_metrics.json")
-        d_silhouette_like=$(jq '.Dirichlet.similarity.silhouette_like' "${RUN_DIR}/performance_metrics.json")
+    # Extract metrics from performance_metrics.json
 
-        # Pitman-Yor model
-        py_num_clusters=$(jq '."Pitman-Yor".num_clusters' "${RUN_DIR}/performance_metrics.json")
-        py_size_1=$(jq '."Pitman-Yor".cluster_size_distribution."1"' "${RUN_DIR}/performance_metrics.json")
-        py_size_2_5=$(jq '."Pitman-Yor".cluster_size_distribution."2-5"' "${RUN_DIR}/performance_metrics.json")
-        py_size_6plus=$(jq '."Pitman-Yor".cluster_size_distribution."6+"' "${RUN_DIR}/performance_metrics.json")
-        py_powerlaw_alpha=$(jq '."Pitman-Yor".powerlaw.alpha' "${RUN_DIR}/performance_metrics.json")
-        py_is_powerlaw=$(jq '."Pitman-Yor".powerlaw.is_powerlaw' "${RUN_DIR}/performance_metrics.json")
-        py_silhouette=$(jq '."Pitman-Yor".silhouette_score' "${RUN_DIR}/performance_metrics.json")
-        py_intra_sim=$(jq '."Pitman-Yor".similarity.intra' "${RUN_DIR}/performance_metrics.json")
-        py_inter_sim=$(jq '."Pitman-Yor".similarity.inter' "${RUN_DIR}/performance_metrics.json")
-        py_silhouette_like=$(jq '."Pitman-Yor".similarity.silhouette_like' "${RUN_DIR}/performance_metrics.json")
+    # Dirichlet model
+    d_num_clusters=$(jq '.Dirichlet.num_clusters' "${RUN_DIR}/performance_metrics.json")
+    d_size_1=$(jq '.Dirichlet.cluster_size_distribution."1"' "${RUN_DIR}/performance_metrics.json")
+    d_size_2_5=$(jq '.Dirichlet.cluster_size_distribution."2-5"' "${RUN_DIR}/performance_metrics.json")
+    d_size_6plus=$(jq '.Dirichlet.cluster_size_distribution."6+"' "${RUN_DIR}/performance_metrics.json")
+    d_powerlaw_alpha=$(jq '.Dirichlet.powerlaw.alpha' "${RUN_DIR}/performance_metrics.json")
+    d_is_powerlaw=$(jq '.Dirichlet.powerlaw.is_powerlaw' "${RUN_DIR}/performance_metrics.json")
+    d_silhouette=$(jq '.Dirichlet.silhouette_score' "${RUN_DIR}/performance_metrics.json")
+    d_intra_sim=$(jq '.Dirichlet.similarity.intra' "${RUN_DIR}/performance_metrics.json")
+    d_inter_sim=$(jq '.Dirichlet.similarity.inter' "${RUN_DIR}/performance_metrics.json")
+    d_silhouette_like=$(jq '.Dirichlet.similarity.silhouette_like' "${RUN_DIR}/performance_metrics.json")
 
-        # Add Dirichlet row to CSV
-        echo "$test_num,Dirichlet,$dp_alpha,$pyp_alpha,$pyp_sigma,$variance,$d_num_clusters,$d_size_1,$d_size_2_5,$d_size_6plus,$d_powerlaw_alpha,$d_is_powerlaw,$d_silhouette,$d_intra_sim,$d_inter_sim,$d_silhouette_like" >> "${SUMMARY_CSV}"
+    # Pitman-Yor model
+    py_num_clusters=$(jq '."Pitman-Yor".num_clusters' "${RUN_DIR}/performance_metrics.json")
+    py_size_1=$(jq '."Pitman-Yor".cluster_size_distribution."1"' "${RUN_DIR}/performance_metrics.json")
+    py_size_2_5=$(jq '."Pitman-Yor".cluster_size_distribution."2-5"' "${RUN_DIR}/performance_metrics.json")
+    py_size_6plus=$(jq '."Pitman-Yor".cluster_size_distribution."6+"' "${RUN_DIR}/performance_metrics.json")
+    py_powerlaw_alpha=$(jq '."Pitman-Yor".powerlaw.alpha' "${RUN_DIR}/performance_metrics.json")
+    py_is_powerlaw=$(jq '."Pitman-Yor".powerlaw.is_powerlaw' "${RUN_DIR}/performance_metrics.json")
+    py_silhouette=$(jq '."Pitman-Yor".silhouette_score' "${RUN_DIR}/performance_metrics.json")
+    py_intra_sim=$(jq '."Pitman-Yor".similarity.intra' "${RUN_DIR}/performance_metrics.json")
+    py_inter_sim=$(jq '."Pitman-Yor".similarity.inter' "${RUN_DIR}/performance_metrics.json")
+    py_silhouette_like=$(jq '."Pitman-Yor".similarity.silhouette_like' "${RUN_DIR}/performance_metrics.json")
 
-        # Add Pitman-Yor row to CSV
-        echo "$test_num,Pitman-Yor,$dp_alpha,$pyp_alpha,$pyp_sigma,$variance,$py_num_clusters,$py_size_1,$py_size_2_5,$py_size_6plus,$py_powerlaw_alpha,$py_is_powerlaw,$py_silhouette,$py_intra_sim,$py_inter_sim,$py_silhouette_like" >> "${SUMMARY_CSV}"
+    # Extract parameters from evaluation_report.json if it exists
+    if [ -f "${RUN_DIR}/evaluation_report.json" ]; then
+        dp_alpha=$(jq '.Dirichlet.parameters.alpha' "${RUN_DIR}/evaluation_report.json")
+        pyp_alpha=$(jq '."Pitman-Yor".parameters.alpha' "${RUN_DIR}/evaluation_report.json")
+        pyp_sigma=$(jq '."Pitman-Yor".parameters.sigma' "${RUN_DIR}/evaluation_report.json")
+        variance=$(jq '.Dirichlet.parameters.variance' "${RUN_DIR}/evaluation_report.json")
+    else
+        # This block should never be reached because of the continue in the earlier check,
+        # but we'll keep it as a safeguard
+        echo "ERROR: evaluation_report.json not found in ${RUN_DIR}" >&2
+        echo "Skipping test case $test_num and continuing with the next one." >&2
+        continue
     fi
+
+    # Add Dirichlet row to CSV
+    echo "$test_num,Dirichlet,$dp_alpha,$pyp_alpha,$pyp_sigma,$variance,$d_num_clusters,$d_size_1,$d_size_2_5,$d_size_6plus,$d_powerlaw_alpha,$d_is_powerlaw,$d_silhouette,$d_intra_sim,$d_inter_sim,$d_silhouette_like" >> "${SUMMARY_CSV}"
+
+    # Add Pitman-Yor row to CSV
+    echo "$test_num,Pitman-Yor,$dp_alpha,$pyp_alpha,$pyp_sigma,$variance,$py_num_clusters,$py_size_1,$py_size_2_5,$py_size_6plus,$py_powerlaw_alpha,$py_is_powerlaw,$py_silhouette,$py_intra_sim,$py_inter_sim,$py_silhouette_like" >> "${SUMMARY_CSV}"
 done
 
 echo "Testing completed. Summary available at ${SUMMARY_FILE} and ${SUMMARY_CSV}"
