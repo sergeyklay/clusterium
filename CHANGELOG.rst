@@ -7,6 +7,11 @@ releases, in reverse chronological order.
 0.4.1 - 2025-03-XX
 ------------------
 
+Features
+^^^^^^^^
+
+* Implement ``to_numpy`` helper function to convert PyTorch tensors to NumPy arrays.
+
 Bug Fixes
 ^^^^^^^^^
 

@@ -14,10 +14,17 @@ import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
 
-if TYPE_CHECKING:
-    from typing import Optional
-
 from clusx.logging import get_logger
+from clusx.utils import to_numpy
+
+if TYPE_CHECKING:
+    from typing import Optional, Union
+
+    import torch
+    from numpy.typing import NDArray
+
+    EmbeddingTensor = Union[torch.Tensor, NDArray[np.float32]]
+
 
 logger = get_logger(__name__)
 
@@ -175,21 +182,13 @@ def get_embeddings(texts: list[str]) -> np.ndarray:
 
     logger.info("Computing embeddings for evaluation...")
     # Use default parameters for embedding generation only
-    dp = DirichletProcess(alpha=1.0, base_measure={"variance": 0.1})
+    dp = DirichletProcess(alpha=1.0)
     embeddings = []
 
     # Process texts with progress bar
     for text in tqdm(texts, desc="Computing embeddings", total=len(texts)):
-        embedding = dp.get_embedding(text)
-        # Check if the embedding is a PyTorch tensor or NumPy array
-        if hasattr(embedding, "cpu"):
-            # It's a PyTorch tensor
-            embedding = embedding.cpu().numpy()  # type: ignore
-        elif hasattr(embedding, "numpy"):
-            # It's a tensor with numpy method
-            embedding = embedding.numpy()  # type: ignore
-        # If it's already a NumPy array, we can use it directly
-        embeddings.append(embedding)
+        emb_array = to_numpy(dp.get_embedding(text))
+        embeddings.append(emb_array)
 
     return np.array(embeddings)
 
