@@ -22,7 +22,7 @@ class MissingClusterColumnError(ClusterIntegrityError):
     """Error raised when a cluster assignments file is missing the cluster column.
 
     This error indicates that the file does not contain a column that starts with
-    "Cluster" (such as Cluster_PYP or Cluster_DP), which is required for identifying
+    ``Cluster_`` (such as Cluster_PYP or Cluster_DP), which is required for identifying
     cluster assignments.
     """
 
