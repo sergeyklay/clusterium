@@ -63,3 +63,7 @@ class MissingParametersError(ClusterIntegrityError):
             "or was created with errors. No further processing is possible."
         )
         super().__init__(message)
+
+
+class VisualizationError(ClusxError):
+    """Error raised when a visualization fails."""

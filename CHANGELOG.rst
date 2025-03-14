@@ -12,6 +12,13 @@ Features
 
 * Implement ``to_numpy`` helper function to convert PyTorch tensors to NumPy arrays.
 * Add ``ClusterIntegrityError``, ``MissingClusterColumnError``, and ``MissingParametersError`` for better error handling.
+* Enhance plotting functions with error handling:
+
+  - Handle visualization-specific errors and properly report them.
+  - Implemented ``safe_plot`` decorator for error handling in plotting functions.
+  - Updated plotting functions to raise ``VisualizationError`` for missing or invalid data.
+  - Improved documentation for new functionalities and added examples.
+  - Removed deprecated plotting functions and streamlined visualization dashboard code.
 
 Breaking Changes
 ^^^^^^^^^^^^^^^^^

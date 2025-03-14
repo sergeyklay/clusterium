@@ -67,6 +67,7 @@ The ``visualization`` module
 
 .. automodule:: clusx.visualization
     :members:
+    :special-members:
     :no-undoc-members:
 
 .. currentmodule:: clusx.clustering

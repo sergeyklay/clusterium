@@ -8,7 +8,6 @@ metrics.
 from __future__ import annotations
 
 import os
-import textwrap
 from collections import Counter
 from typing import TYPE_CHECKING
 
@@ -18,10 +17,15 @@ from matplotlib import colormaps
 
 if TYPE_CHECKING:
     from typing import Any
+    from matplotlib.axes import Axes
 
+from .errors import VisualizationError
 from .logging import get_logger
 
 logger = get_logger(__name__)
+
+MIN_DATASET_SIZE = 10
+"""Minimum dataset size for which visualizations are considered safe."""
 
 plt.style.use("default")
 
@@ -61,7 +65,114 @@ def get_model_colors(model_names: list[str]) -> dict[str, Any]:
     return dict(zip(model_names, colors))
 
 
-def _plot_cluster_size_distribution(reports, ax):
+def safe_plot(title: str | None = None, min_dataset_size: int = MIN_DATASET_SIZE):
+    """
+    Decorator for safely executing plotting functions with error handling.
+
+    Wraps plotting functions to catch and handle exceptions gracefully,
+    displaying informative error messages directly on the plot instead of failing.
+    It also detects small datasets and provides appropriate feedback.
+
+    Args:
+        title: Optional title for the plot. If None, the function name will be used.
+        min_dataset_size: Minimum dataset size threshold for small dataset detection.
+            Defaults to :data:`.MIN_DATASET_SIZE`.
+
+    Returns:
+        Decorated function that handles errors and provides visual feedback.
+
+    Example:
+        >>> @safe_plot(title="My Custom Plot")
+        >>> def plot_my_visualization(reports, ax):
+        >>>     # Your plotting code here
+        >>>     # No need for try/except blocks
+        >>>     ax.plot(data)
+        >>>     ax.set_title("My Plot")
+        >>>
+        >>> # Usage remains the same as the original function
+        >>> plot_my_visualization(reports, ax)
+
+    Notes:
+
+        - The decorated function must accept 'reports' and 'ax' as its first two
+          arguments
+        - The decorator automatically sets the plot title
+        - For small datasets, a specific message is displayed
+        - All exceptions are logged with detailed error messages
+    """
+
+    def decorator(plot_func):
+        from functools import wraps
+
+        @wraps(plot_func)
+        def wrapper(reports, ax: Axes, *args, **kwargs):
+            func_name = plot_func.__name__.replace("plot_", "")
+            func_name = func_name.replace("_", " ").strip().title()
+            plot_title = title if title is not None else func_name
+            ax.set_title(plot_title)
+
+            try:
+                return plot_func(reports, ax, *args, **kwargs)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("Error plotting %s: %s", plot_title, e)
+
+                small_dataset = _is_small_dataset(reports, min_dataset_size)
+                render_error_message(ax, plot_title, e, small_dataset, min_dataset_size)
+
+                return None
+
+        return wrapper
+
+    return decorator
+
+
+def _is_small_dataset(reports, min_size: int) -> bool:
+    """Check if the dataset is considered small based on the number of texts."""
+    for report in reports.values():
+        if "cluster_stats" in report and "num_texts" in report["cluster_stats"]:
+            if report["cluster_stats"]["num_texts"] < min_size:
+                # Assume we have the same number of texts for all models
+                return True
+    return False
+
+
+def render_error_message(
+    ax: Axes, plot_title: str, error, small_dataset: bool, min_size: int
+):
+    """Display appropriate error message on the plot."""
+    if small_dataset:
+        message = f"Cannot generate {plot_title} for small datasets"
+        details = f"(Requires at least {min_size} data points)"
+
+    else:
+        message = f"Error plotting {plot_title}"
+        error_msg = str(error)
+        details = error_msg[:50] + ("..." if len(error_msg) > 50 else "")
+
+    ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=11)
+    ax.text(
+        0.5,
+        0.4,
+        details,
+        ha="center",
+        va="center",
+        fontsize=9,
+        color="gray",
+    )
+
+    ax.set_title(f"{plot_title} (Error)")
+
+    # Reset scales if they might have been changed
+    if hasattr(ax, "set_xscale") and hasattr(ax, "set_yscale"):
+        try:
+            ax.set_xscale("linear")
+            ax.set_yscale("linear")
+        except Exception:  # pylint: disable=broad-except
+            pass
+
+
+@safe_plot(title="Cluster Size Distribution (Log-Log Scale)")
+def plot_cluster_size_distribution(reports, ax: Axes):
     """
     Plot cluster size distributions for each model.
 
@@ -125,7 +236,6 @@ def _plot_cluster_size_distribution(reports, ax):
         else:
             logger.warning("No valid cluster sizes for %s", model_name)
 
-    ax.set_title("Cluster Size Distribution (Log-Log Scale)")
     ax.set_xlabel("Cluster Size")
     ax.set_ylabel("Number of Clusters")
     ax.grid(True, which="both", ls="-", alpha=0.2)
@@ -145,40 +255,362 @@ def _plot_cluster_size_distribution(reports, ax):
         ax.set_yscale("linear")
 
 
-def _plot_silhouette_scores(reports, ax):
+@safe_plot(title="Number of Clusters")
+def plot_cluster_counts(reports, ax: Axes):
     """
-    Plot silhouette scores for each model.
+    Plot the number of clusters for each model.
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
         ax: Matplotlib axes object to plot on
     """
-    # Extract data from reports
-    models, scores, error_models, zero_score_models = _extract_silhouette_data(reports)
-
-    # Handle case where no valid scores are available
-    if not models:
-        _show_silhouette_message(ax, error_models, zero_score_models)
-        return
-
     # Generate colors for models
-    model_colors = get_model_colors(models)
-    colors = [model_colors[model] for model in models]
+    model_colors = get_model_colors(list(reports.keys()))
 
-    # Create bar chart
-    ax.bar(models, scores, color=colors)
-    ax.set_title("Silhouette Score Comparison")
-    ax.set_xlabel("Clustering Model")
-    ax.set_ylabel("Silhouette Score")
-    ax.set_ylim(-1, 1)  # Silhouette score range
+    models = []
+    counts = []
+    colors = []
+
+    for model_name, report in reports.items():
+        if "cluster_stats" in report and "num_clusters" in report["cluster_stats"]:
+            models.append(model_name)
+            counts.append(report["cluster_stats"]["num_clusters"])
+            colors.append(model_colors.get(model_name))
+
+    if not models:
+        raise VisualizationError("No cluster count data available")
+
+    ax.bar(models, counts, color=colors)
+    ax.set_xlabel("Model")
+    ax.set_ylabel("Count")
 
     # Add value labels on top of bars
-    for i, score in enumerate(scores):
-        ax.text(i, score + 0.05, f"{score:.4f}", ha="center")
+    for i, count in enumerate(counts):
+        ax.text(i, count + 0.5, str(count), ha="center")
 
-    # If some models had errors or zero scores, add a note
-    if error_models or zero_score_models:
-        _add_silhouette_note(ax, error_models, zero_score_models)
+
+@safe_plot(title="Similarity Comparison")
+def plot_similarity_metrics(reports, ax: Axes):
+    """
+    Plot similarity metrics for each model.
+
+    Args:
+        reports: Dictionary mapping model names to their evaluation reports
+        ax: Matplotlib axes object to plot on
+    """
+    has_similarity_data = False
+
+    # Generate colors for models
+    model_colors = get_model_colors(list(reports.keys()))
+
+    # Prepare data for grouped bar chart
+    model_names = []
+    intra_values = []
+    inter_values = []
+    colors = []
+
+    for model_name, report in reports.items():
+        # Check if we have similarity metrics
+        has_metrics = "metrics" in report and "similarity" in report["metrics"]
+
+        if not has_metrics:
+            logger.warning("No similarity metrics for %s", model_name)
+            continue
+
+        similarity_metrics = report["metrics"]["similarity"]
+
+        if not similarity_metrics:
+            logger.warning("Empty similarity metrics for %s", model_name)
+            continue
+
+        # Extract metrics
+        intra_sim = similarity_metrics.get("intra_cluster_similarity", 0)
+        inter_sim = similarity_metrics.get("inter_cluster_similarity", 0)
+
+        # Store for plotting
+        model_names.append(model_name)
+        intra_values.append(intra_sim)
+        inter_values.append(inter_sim)
+        colors.append(model_colors.get(model_name))
+
+        has_similarity_data = True
+
+    if not has_similarity_data:
+        raise VisualizationError("Similarity metrics not available")
+
+    # Set up positions for the bars
+    x = np.arange(2)  # Two groups: intra and inter
+    width = 0.8 / len(model_names)  # Width of each bar, adjusted for number of models
+
+    # Plot bars for each model
+    for i, (model, intra, inter, color) in enumerate(
+        zip(model_names, intra_values, inter_values, colors)
+    ):
+        # Calculate position offset for this model's bars
+        offset = i * width - (len(model_names) - 1) * width / 2
+
+        # Plot the bars
+        ax.bar(x[0] + offset, intra, width, label=model, color=color)
+        ax.bar(x[1] + offset, inter, width, color=color, alpha=1.0)
+
+    ax.set_ylabel("Cosine Similarity")
+    ax.set_xticks(x)
+    ax.set_xticklabels(["Intra-cluster", "Inter-cluster"])
+    ax.set_ylim(0, 1)
+    ax.legend()
+
+
+def _get_valid_powerlaw_data(
+    report, model_name
+):  # pylint: disable=too-many-return-statements
+    """
+    Extract and validate power law data from a report.
+
+    Args:
+        report: Evaluation report for a model
+        model_name: Name of the model
+
+    Returns:
+        tuple: (alpha, sigma, xmin, valid_sizes, valid_frequencies) or None if invalid
+
+    Raises:
+        VisualizationError: If the powerlaw metrics are not available or invalid
+    """
+    has_metrics = "metrics" in report and "powerlaw" in report["metrics"]
+    if not has_metrics:
+        raise VisualizationError(f"No powerlaw metrics for {model_name}")
+
+    powerlaw_metrics = report["metrics"]["powerlaw"]
+    if not powerlaw_metrics:
+        raise VisualizationError(f"Empty powerlaw metrics for {model_name}")
+
+    # Get parameters
+    alpha = powerlaw_metrics.get("alpha", None)
+    sigma = powerlaw_metrics.get("sigma_error", None)
+    xmin = powerlaw_metrics.get("xmin", None)
+
+    # Check if parameters are intentionally None (small dataset case)
+    if alpha is None and xmin is None:
+        # This is an expected case for small datasets, not an error
+        return None
+
+    # Check for NaN values
+    if (
+        np.isnan(alpha)
+        if alpha is not None
+        else False or np.isnan(xmin) if xmin is not None else False
+    ):
+        raise VisualizationError(
+            f"Invalid powerlaw parameters for {model_name}: alpha={alpha}, xmin={xmin}"
+        )
+
+    # Get cluster size distribution
+    if "cluster_stats" not in report or "cluster_sizes" not in report["cluster_stats"]:
+        raise VisualizationError(f"No cluster size distribution for {model_name}")
+
+    cluster_sizes = report["cluster_stats"]["cluster_sizes"]
+
+    # Convert to frequency distribution
+    size_frequency = Counter(cluster_sizes.values())
+
+    # Convert to lists for plotting
+    sizes = sorted(size_frequency.keys())
+    frequencies = [size_frequency[size] for size in sizes]
+
+    # Filter out zeros for log scale
+    valid_indices = [
+        i for i, freq in enumerate(frequencies) if freq > 0 and sizes[i] > 0
+    ]
+    valid_sizes = [sizes[i] for i in valid_indices]
+    valid_frequencies = [frequencies[i] for i in valid_indices]
+
+    if not valid_sizes:
+        raise VisualizationError(f"No valid sizes for powerlaw fit for {model_name}")
+
+    return alpha, sigma, xmin, valid_sizes, valid_frequencies
+
+
+def _generate_powerlaw_fit_line(
+    valid_sizes, valid_frequencies, alpha, xmin, xmin_index, color, model_name
+):
+    """
+    Generate and plot a power-law fit line.
+
+    Args:
+        valid_sizes: List of valid cluster sizes
+        valid_frequencies: List of frequencies for each size
+        alpha: Power-law exponent
+        xmin: Minimum value for which power-law holds
+        xmin_index: Index of xmin in valid_sizes
+        color: Color to use for the plot
+        model_name: Name of the model for the label
+
+    Returns:
+        tuple: (success, line_data) where success is a boolean and line_data is a tuple
+               containing (x, y, color, label) or None if unsuccessful
+    """
+    try:
+        x = np.logspace(np.log10(xmin), np.log10(max(valid_sizes)), 50)
+        y = [
+            item ** (-alpha) * valid_frequencies[xmin_index] * (xmin**alpha)
+            for item in x
+        ]
+
+        return True, (x, y, color, f"{model_name} (α={alpha:.2f})")
+    except Exception as e:  # pylint: disable=broad-except
+        raise VisualizationError(
+            f"Error generating power-law fit for {model_name}: {e}"
+        ) from e
+
+
+def _display_no_powerlaw_message(ax: Axes, small_dataset: bool):
+    """
+    Display a message when power-law analysis is not available.
+
+    Args:
+        ax: Matplotlib axes object to plot on
+        small_dataset: Whether this is a small dataset
+    """
+    if small_dataset:
+        message = "Power-law analysis requires more data points"
+        ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=11)
+        ax.text(
+            0.5,
+            0.4,
+            "Each cluster size needs multiple occurrences",
+            ha="center",
+            va="center",
+            fontsize=9,
+        )
+    else:
+        ax.text(0.5, 0.5, "No power-law fit data available", ha="center", va="center")
+    ax.set_xscale("linear")
+    ax.set_yscale("linear")
+
+
+@safe_plot(title="Power-law Fit")
+def plot_powerlaw_fit(reports, ax: Axes):
+    """
+    Plot power-law fit for cluster size distributions.
+
+    Args:
+        reports: Dictionary mapping model names to their evaluation reports
+        ax: Matplotlib axes object to plot on
+    """
+    has_powerlaw_data = False
+    small_dataset = False
+
+    # Check if we're dealing with a small dataset
+    for report in reports.values():
+        if "cluster_stats" in report and "num_texts" in report["cluster_stats"]:
+            if report["cluster_stats"]["num_texts"] < MIN_DATASET_SIZE:
+                small_dataset = True
+                break
+
+    # Generate colors for models
+    model_colors = get_model_colors(list(reports.keys()))
+
+    for model_name, report in reports.items():
+        # Get and validate power law data
+        result = _get_valid_powerlaw_data(report, model_name)
+        if result is None:
+            continue
+
+        alpha, _, xmin, valid_sizes, valid_frequencies = result
+        color = model_colors.get(model_name)
+
+        # Plot empirical distribution
+        ax.loglog(
+            valid_sizes,
+            valid_frequencies,
+            "o",
+            color=color,
+            alpha=0.5,
+            label=f"{model_name} (data)",
+        )
+
+        # Check if xmin is in valid_sizes
+        try:
+            xmin_index = valid_sizes.index(xmin)
+        except ValueError:
+            # xmin not in valid_sizes, use the closest value
+            logger.warning(
+                "xmin=%s not in valid sizes for %s, using closest value",
+                xmin,
+                model_name,
+            )
+            closest_idx = min(
+                # pylint: disable=cell-var-from-loop
+                range(len(valid_sizes)),
+                key=lambda i: abs(valid_sizes[i] - xmin),
+            )
+            xmin = valid_sizes[closest_idx]
+            xmin_index = closest_idx
+
+        # Generate and plot power-law fit line
+        success, fit_data = _generate_powerlaw_fit_line(
+            valid_sizes, valid_frequencies, alpha, xmin, xmin_index, color, model_name
+        )
+
+        if success and fit_data is not None:
+            x, y, color, label = fit_data
+            # Plot fit line
+            ax.loglog(x, y, "-", color=color, label=label)
+            has_powerlaw_data = True
+
+    if not has_powerlaw_data:
+        _display_no_powerlaw_message(ax, small_dataset)
+        return
+
+    ax.set_xlabel("Cluster Size")
+    ax.set_ylabel("Probability Density")
+    ax.grid(True, which="both", ls="-", alpha=0.2)
+    ax.legend()
+
+
+@safe_plot(title="Outlier Score Distribution")
+def plot_outliers(reports, ax: Axes):
+    """
+    Plot outlier scores distribution.
+
+    Args:
+        reports: Dictionary mapping model names to their evaluation reports
+        ax: Matplotlib axes object to plot on
+    """
+    has_outlier_data = False
+
+    # Generate colors for models
+    model_colors = get_model_colors(list(reports.keys()))
+
+    for model_name, report in reports.items():
+        # Check if we have outlier metrics
+        has_metrics = "metrics" in report and "outliers" in report["metrics"]
+
+        if not has_metrics or not report["metrics"]["outliers"]:
+            logger.warning("No outlier metrics for %s", model_name)
+            continue
+
+        outlier_scores = report["metrics"]["outliers"]
+
+        if not outlier_scores:
+            logger.warning("Empty outlier scores for %s", model_name)
+            continue
+
+        # Extract scores
+        scores = list(outlier_scores.values())
+
+        # Plot histogram
+        color = model_colors.get(model_name)
+        ax.hist(scores, bins=20, alpha=1.0, label=model_name, color=color)
+
+        has_outlier_data = True
+
+    if not has_outlier_data:
+        raise VisualizationError("No outlier data available")
+
+    ax.set_xlabel("Outlier Score")
+    ax.set_ylabel("Frequency")
+    ax.legend()
 
 
 def _extract_silhouette_data(reports):
@@ -260,413 +692,40 @@ def _add_silhouette_note(ax, error_models, zero_score_models):
     )
 
 
-def _plot_similarity_metrics(reports, ax):
+@safe_plot(title="Silhouette Score Comparison")
+def plot_silhouette_scores(reports, ax: Axes):
     """
-    Plot similarity metrics for each model.
+    Plot silhouette scores for each model.
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
         ax: Matplotlib axes object to plot on
     """
-    has_similarity_data = False
+    # Extract data from reports
+    models, scores, error_models, zero_score_models = _extract_silhouette_data(reports)
 
-    # Generate colors for models
-    model_colors = get_model_colors(list(reports.keys()))
-
-    # Prepare data for grouped bar chart
-    model_names = []
-    intra_values = []
-    inter_values = []
-    colors = []
-
-    for model_name, report in reports.items():
-        # Check if we have similarity metrics
-        has_metrics = "metrics" in report and "similarity" in report["metrics"]
-
-        if not has_metrics:
-            logger.warning("No similarity metrics for %s", model_name)
-            continue
-
-        similarity_metrics = report["metrics"]["similarity"]
-
-        if not similarity_metrics:
-            logger.warning("Empty similarity metrics for %s", model_name)
-            continue
-
-        # Extract metrics
-        intra_sim = similarity_metrics.get("intra_cluster_similarity", 0)
-        inter_sim = similarity_metrics.get("inter_cluster_similarity", 0)
-
-        # Store for plotting
-        model_names.append(model_name)
-        intra_values.append(intra_sim)
-        inter_values.append(inter_sim)
-        colors.append(model_colors.get(model_name))
-
-        has_similarity_data = True
-
-    if not has_similarity_data:
-        ax.text(0.5, 0.5, "Similarity metrics not available", ha="center", va="center")
-        return
-
-    # Set up positions for the bars
-    x = np.arange(2)  # Two groups: intra and inter
-    width = 0.8 / len(model_names)  # Width of each bar, adjusted for number of models
-
-    # Plot bars for each model
-    for i, (model, intra, inter, color) in enumerate(
-        zip(model_names, intra_values, inter_values, colors)
-    ):
-        # Calculate position offset for this model's bars
-        offset = i * width - (len(model_names) - 1) * width / 2
-
-        # Plot the bars
-        ax.bar(x[0] + offset, intra, width, label=model, color=color)
-        ax.bar(x[1] + offset, inter, width, color=color, alpha=1.0)
-
-    # Set labels
-    ax.set_title("Similarity Comparison")
-    ax.set_ylabel("Cosine Similarity")
-    ax.set_xticks(x)
-    ax.set_xticklabels(["Intra-cluster", "Inter-cluster"])
-    ax.set_ylim(0, 1)
-    ax.legend()
-
-
-def _plot_cluster_counts(reports, ax):
-    """
-    Plot the number of clusters for each model.
-
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
-    """
-    # Generate colors for models
-    model_colors = get_model_colors(list(reports.keys()))
-
-    models = []
-    counts = []
-    colors = []
-
-    for model_name, report in reports.items():
-        if "cluster_stats" in report and "num_clusters" in report["cluster_stats"]:
-            models.append(model_name)
-            counts.append(report["cluster_stats"]["num_clusters"])
-            colors.append(model_colors.get(model_name))
-
+    # Handle case where no valid scores are available
     if not models:
-        ax.text(0.5, 0.5, "No cluster count data available", ha="center", va="center")
+        _show_silhouette_message(ax, error_models, zero_score_models)
         return
 
-    ax.bar(models, counts, color=colors)
-    ax.set_title("Number of Clusters")
-    ax.set_xlabel("Model")
-    ax.set_ylabel("Count")
+    # Generate colors for models
+    model_colors = get_model_colors(models)
+    colors = [model_colors[model] for model in models]
+
+    # Create bar chart
+    ax.bar(models, scores, color=colors)
+    ax.set_xlabel("Clustering Model")
+    ax.set_ylabel("Silhouette Score")
+    ax.set_ylim(-1, 1)  # Silhouette score range
 
     # Add value labels on top of bars
-    for i, count in enumerate(counts):
-        ax.text(i, count + 0.5, str(count), ha="center")
+    for i, score in enumerate(scores):
+        ax.text(i, score + 0.05, f"{score:.4f}", ha="center")
 
-
-def _get_valid_powerlaw_data(
-    report, model_name
-):  # pylint: disable=too-many-return-statements
-    """
-    Extract and validate power law data from a report.
-
-    Args:
-        report: Evaluation report for a model
-        model_name: Name of the model
-
-    Returns:
-        tuple: (alpha, sigma, xmin, valid_sizes, valid_frequencies) or None if invalid
-    """
-    # Check if we have powerlaw metrics
-    has_metrics = "metrics" in report and "powerlaw" in report["metrics"]
-
-    if not has_metrics:
-        logger.warning("No powerlaw metrics for %s", model_name)
-        return None
-
-    powerlaw_metrics = report["metrics"]["powerlaw"]
-
-    if not powerlaw_metrics:
-        logger.warning("Empty powerlaw metrics for %s", model_name)
-        return None
-
-    # Get parameters
-    alpha = powerlaw_metrics.get("alpha", None)
-    sigma = powerlaw_metrics.get("sigma_error", None)
-    xmin = powerlaw_metrics.get("xmin", None)
-
-    # Check if parameters are intentionally None (small dataset case)
-    if alpha is None and xmin is None:
-        # This is an expected case for small datasets, not an error
-        return None
-
-    # Check for NaN values
-    if (
-        np.isnan(alpha)
-        if alpha is not None
-        else False or np.isnan(xmin) if xmin is not None else False
-    ):
-        logger.error(
-            "Invalid powerlaw parameters for %s: alpha=%s, xmin=%s",
-            model_name,
-            alpha,
-            xmin,
-        )
-        return None
-
-    # Get cluster size distribution
-    if "cluster_stats" not in report or "cluster_sizes" not in report["cluster_stats"]:
-        logger.warning("No cluster size distribution for %s", model_name)
-        return None
-
-    cluster_sizes = report["cluster_stats"]["cluster_sizes"]
-
-    # Convert to frequency distribution
-    size_frequency = Counter(cluster_sizes.values())
-
-    # Convert to lists for plotting
-    sizes = sorted(size_frequency.keys())
-    frequencies = [size_frequency[size] for size in sizes]
-
-    # Filter out zeros for log scale
-    valid_indices = [
-        i for i, freq in enumerate(frequencies) if freq > 0 and sizes[i] > 0
-    ]
-    valid_sizes = [sizes[i] for i in valid_indices]
-    valid_frequencies = [frequencies[i] for i in valid_indices]
-
-    if not valid_sizes:
-        logger.warning("No valid sizes for powerlaw fit for %s", model_name)
-        return None
-
-    return alpha, sigma, xmin, valid_sizes, valid_frequencies
-
-
-def _generate_powerlaw_fit_line(
-    valid_sizes, valid_frequencies, alpha, xmin, xmin_index, color, model_name
-):
-    """
-    Generate and plot a power-law fit line.
-
-    Args:
-        valid_sizes: List of valid cluster sizes
-        valid_frequencies: List of frequencies for each size
-        alpha: Power-law exponent
-        xmin: Minimum value for which power-law holds
-        xmin_index: Index of xmin in valid_sizes
-        color: Color to use for the plot
-        model_name: Name of the model for the label
-
-    Returns:
-        tuple: (success, line_data) where success is a boolean and line_data is a tuple
-               containing (x, y, color, label) or None if unsuccessful
-    """
-    try:
-        x = np.logspace(np.log10(xmin), np.log10(max(valid_sizes)), 50)
-        y = [
-            item ** (-alpha) * valid_frequencies[xmin_index] * (xmin**alpha)
-            for item in x
-        ]
-
-        return True, (x, y, color, f"{model_name} (α={alpha:.2f})")
-    except Exception as e:  # pylint: disable=broad-except
-        logger.warning("Error generating power-law fit for %s: %s", model_name, e)
-        return False, None
-
-
-def _display_no_powerlaw_message(ax, small_dataset):
-    """
-    Display a message when power-law analysis is not available.
-
-    Args:
-        ax: Matplotlib axes object to plot on
-        small_dataset: Whether this is a small dataset
-    """
-    if small_dataset:
-        message = "Power-law analysis requires more data points"
-        ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=11)
-        ax.text(
-            0.5,
-            0.4,
-            "Each cluster size needs multiple occurrences",
-            ha="center",
-            va="center",
-            fontsize=9,
-        )
-    else:
-        ax.text(0.5, 0.5, "No power-law fit data available", ha="center", va="center")
-    ax.set_xscale("linear")
-    ax.set_yscale("linear")
-
-
-def _plot_powerlaw_fit(reports, ax):
-    """
-    Plot power-law fit for cluster size distributions.
-
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
-    """
-    has_powerlaw_data = False
-    small_dataset = False
-
-    # Check if we're dealing with a small dataset
-    for report in reports.values():
-        if "cluster_stats" in report and "num_texts" in report["cluster_stats"]:
-            if report["cluster_stats"]["num_texts"] < 10:
-                small_dataset = True
-                break
-
-    # Generate colors for models
-    model_colors = get_model_colors(list(reports.keys()))
-
-    for model_name, report in reports.items():
-        # Get and validate power law data
-        result = _get_valid_powerlaw_data(report, model_name)
-        if result is None:
-            continue
-
-        alpha, _, xmin, valid_sizes, valid_frequencies = result
-        color = model_colors.get(model_name)
-
-        # Plot empirical distribution
-        ax.loglog(
-            valid_sizes,
-            valid_frequencies,
-            "o",
-            color=color,
-            alpha=0.5,
-            label=f"{model_name} (data)",
-        )
-
-        # Check if xmin is in valid_sizes
-        try:
-            xmin_index = valid_sizes.index(xmin)
-        except ValueError:
-            # xmin not in valid_sizes, use the closest value
-            logger.warning(
-                "xmin=%s not in valid sizes for %s, using closest value",
-                xmin,
-                model_name,
-            )
-            closest_idx = min(
-                # pylint: disable=cell-var-from-loop
-                range(len(valid_sizes)),
-                key=lambda i: abs(valid_sizes[i] - xmin),
-            )
-            xmin = valid_sizes[closest_idx]
-            xmin_index = closest_idx
-
-        # Generate and plot power-law fit line
-        success, fit_data = _generate_powerlaw_fit_line(
-            valid_sizes, valid_frequencies, alpha, xmin, xmin_index, color, model_name
-        )
-
-        if success and fit_data is not None:
-            x, y, color, label = fit_data
-            # Plot fit line
-            ax.loglog(x, y, "-", color=color, label=label)
-            has_powerlaw_data = True
-
-    if not has_powerlaw_data:
-        _display_no_powerlaw_message(ax, small_dataset)
-        return
-
-    ax.set_title("Power-law Fit")
-    ax.set_xlabel("Cluster Size")
-    ax.set_ylabel("Probability Density")
-    ax.grid(True, which="both", ls="-", alpha=0.2)
-    ax.legend()
-
-
-def _plot_outliers(reports, ax):
-    """
-    Plot outlier scores distribution.
-
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes object to plot on
-    """
-    has_outlier_data = False
-
-    # Generate colors for models
-    model_colors = get_model_colors(list(reports.keys()))
-
-    for model_name, report in reports.items():
-        # Check if we have outlier metrics
-        has_metrics = "metrics" in report and "outliers" in report["metrics"]
-
-        if not has_metrics or not report["metrics"]["outliers"]:
-            logger.warning("No outlier metrics for %s", model_name)
-            continue
-
-        outlier_scores = report["metrics"]["outliers"]
-
-        if not outlier_scores:
-            logger.warning("Empty outlier scores for %s", model_name)
-            continue
-
-        # Extract scores
-        scores = list(outlier_scores.values())
-
-        # Plot histogram
-        color = model_colors.get(model_name)
-        ax.hist(scores, bins=20, alpha=1.0, label=model_name, color=color)
-
-        has_outlier_data = True
-
-    if not has_outlier_data:
-        ax.text(0.5, 0.5, "No outlier data available", ha="center", va="center")
-        return
-
-    ax.set_title("Outlier Score Distribution")
-    ax.set_xlabel("Outlier Score")
-    ax.set_ylabel("Frequency")
-    ax.legend()
-
-
-def _plot_with_error_handling(plot_func, reports, ax, plot_title):
-    """
-    Execute a plotting function with error handling.
-
-    Args:
-        plot_func: Function to execute
-        reports: Reports data
-        ax: Matplotlib axes
-        plot_title: Title of the plot
-    """
-    try:
-        plot_func(reports, ax)
-    except Exception as e:  # pylint: disable=broad-except
-        logger.error("Error plotting %s: %s", plot_title, e)
-
-        # Check if this is likely due to a small dataset
-        small_dataset = False
-        for report in reports.values():
-            if "cluster_stats" in report and "num_texts" in report["cluster_stats"]:
-                if report["cluster_stats"]["num_texts"] < 10:
-                    small_dataset = True
-                    break
-
-        if small_dataset:
-            message = f"Cannot generate {plot_title} for small datasets"
-            ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=11)
-            ax.text(
-                0.5,
-                0.4,
-                "(Insufficient data points)",
-                ha="center",
-                va="center",
-                fontsize=9,
-            )
-        else:
-            ax.text(0.5, 0.5, f"Error plotting {plot_title}", ha="center", va="center")
-
-        ax.set_title(f"{plot_title} (Error)")
+    # If some models had errors or zero scores, add a note
+    if error_models or zero_score_models:
+        _add_silhouette_note(ax, error_models, zero_score_models)
 
 
 def visualize_evaluation_dashboard(
@@ -696,102 +755,53 @@ def visualize_evaluation_dashboard(
     Returns:
         Path to the saved visualization file
     """
-    # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, filename)
 
     # Create figure with 3x2 grid
     fig, axes = plt.subplots(3, 2, figsize=(15, 18))
 
-    # Check if we're dealing with a small dataset
-    small_dataset = False
-    for report in reports.values():
-        if "cluster_stats" in report and "num_texts" in report["cluster_stats"]:
-            if report["cluster_stats"]["num_texts"] < 10:
-                small_dataset = True
-                break
-
-    # Add a warning for small datasets
-    if small_dataset:
-        warning_text = (
-            "Warning: Small Dataset (< 10 texts)\n"
-            "Some visualizations may not be available"
-        )
-        fig.text(
-            0.5,
-            0.95,
-            warning_text,
-            ha="center",
-            va="top",
-            fontsize=12,
-            color="red",
-            bbox={
-                "boxstyle": "round",
-                "facecolor": "#f8f8f8",
-                "edgecolor": "#cccccc",
-                "alpha": 0.95,
-                "pad": 0.7,
-            },
-        )
-
-    # Plot each visualization with error handling
-    _plot_with_error_handling(
-        _plot_cluster_size_distribution,
-        reports,
-        axes[0, 0],
-        "Cluster Size Distribution",
-    )
-    _plot_with_error_handling(
-        _plot_cluster_counts, reports, axes[0, 1], "Number of Clusters"
-    )
-    _plot_with_error_handling(
-        _plot_similarity_metrics, reports, axes[1, 0], "Similarity Metrics"
-    )
-    _plot_with_error_handling(_plot_powerlaw_fit, reports, axes[1, 1], "Power-law Fit")
-    _plot_with_error_handling(
-        _plot_outliers, reports, axes[2, 0], "Outlier Distribution"
-    )
-    _plot_with_error_handling(
-        _plot_silhouette_scores, reports, axes[2, 1], "Silhouette Scores"
-    )
+    # Plot layout visualization (3x2 grid):
+    #
+    #  +-------------------------+-------------------------+
+    #  |                         |                         |
+    #  | Cluster Size            | Number of               |
+    #  | Distribution            | Clusters                |
+    #  | [0,0]                   | [0,1]                   |
+    #  |                         |                         |
+    #  +-------------------------+-------------------------+
+    #  |                         |                         |
+    #  | Similarity              | Power-law               |
+    #  | Metrics                 | Fit                     |
+    #  | [1,0]                   | [1,1]                   |
+    #  |                         |                         |
+    #  +-------------------------+-------------------------+
+    #  |                         |                         |
+    #  | Outlier                 | Silhouette              |
+    #  | Distribution            | Scores                  |
+    #  | [2,0]                   | [2,1]                   |
+    #  |                         |                         |
+    #  +-------------------------+-------------------------+
+    #
+    plot_cluster_size_distribution(reports, axes[0, 0])
+    plot_cluster_counts(reports, axes[0, 1])
+    plot_similarity_metrics(reports, axes[1, 0])
+    plot_powerlaw_fit(reports, axes[1, 1])
+    plot_outliers(reports, axes[2, 0])
+    plot_silhouette_scores(reports, axes[2, 1])
 
     plt.tight_layout()
 
-    # Add a methodological note at the bottom of the figure
-    note = (
-        "Methodological note: α in clustering models (DP, PYP) represents the "
-        "concentration parameter controlling cluster formation propensity, while α "
-        "in power-law analysis denotes the scaling exponent of the cluster size "
-        "distribution. σ in PYP is the discount parameter governing power-law "
-        "behavior, whereas σ-error quantifies uncertainty in the power-law exponent "
-        "estimate."
-    )
+    if _is_small_dataset(reports, MIN_DATASET_SIZE):
+        plt.subplots_adjust(bottom=0.08)
+        warning_text = (
+            f"Small dataset (fewer than {MIN_DATASET_SIZE} data points).\n"
+            "Some visualizations may not be available or may not accurately "
+            "represent the data patterns."
+        )
 
-    # Manually wrap the text to ensure it fits within the figure width
-    wrapped_note = "\n".join(textwrap.wrap(note, width=100))
+        fig.text(0.055, 0.035, warning_text, ha="left", va="bottom", fontsize=11)
 
-    # Add some extra space at the bottom for the note
-    plt.subplots_adjust(bottom=0.08)
-
-    # Create text box with academic styling
-    fig.text(
-        0.05,
-        0.01,
-        wrapped_note,
-        ha="left",
-        va="bottom",
-        fontsize=9,
-        fontstyle="italic",
-        bbox={
-            "boxstyle": "round",
-            "facecolor": "#f8f8f8",
-            "edgecolor": "#cccccc",
-            "alpha": 0.95,
-            "pad": 0.7,
-        },
-    )
-
-    # Save the figure
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     logger.debug("Evaluation dashboard saved to %s", output_path)
 
