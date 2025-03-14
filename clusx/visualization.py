@@ -35,7 +35,7 @@ def get_model_colors(model_names: list[str]) -> dict[str, Any]:
 
     Selects appropriate colormaps based on visualization best practices for clustering:
 
-    - For typical case (≤10 models): Uses 'tab10' which provides distinct, balanced hues
+    - For typical case (≤10 models): Uses 'Set1' which provides distinct, balanced hues
       that ensure clear differentiation among groups.
     - For more models: Uses 'tab20' which provides up to 20 distinct colors, with alpha
       variation for cases beyond 20 models to maintain visual distinction.
@@ -52,9 +52,9 @@ def get_model_colors(model_names: list[str]) -> dict[str, Any]:
     """
     num_models = len(model_names)
 
-    # For typical case (up to 10 models), use tab10 colormap
+    # For typical case, use Set1 colormap
     if num_models <= 10:
-        cmap = colormaps["tab10"]
+        cmap = colormaps["Set1"]
         colors = [cmap(i / 9) for i in range(num_models)]
         return dict(zip(model_names, colors))
 
