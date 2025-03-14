@@ -130,9 +130,11 @@ def is_small_dataset(reports: dict[str, dict[str, Any]], min_size: int) -> bool:
     """
     Check if the dataset is considered small based on the number of texts.
 
-    A dataset is considered small if it's empty or if any report contains fewer
-    than min_size texts. If no reports contain text count information, the dataset
-    is not considered small.
+    A dataset is considered small if:
+    1. It's empty (no reports)
+    2. No reports have 'cluster_stats'
+    3. No reports have 'num_texts' in their 'cluster_stats'
+    4. Any report has fewer than min_size texts
 
     Args:
         reports: Dictionary mapping model names to their evaluation reports
@@ -141,15 +143,17 @@ def is_small_dataset(reports: dict[str, dict[str, Any]], min_size: int) -> bool:
     Returns:
         bool: True if the dataset is considered small, False otherwise
     """
-    if not reports or not reports.values():
+    if not reports:
         return True
 
+    has_text_count_info = False
     for report in reports.values():
         if "cluster_stats" in report and "num_texts" in report["cluster_stats"]:
+            has_text_count_info = True
             if report["cluster_stats"]["num_texts"] < min_size:
                 return True
 
-    return False
+    return not has_text_count_info
 
 
 def render_error_message(
