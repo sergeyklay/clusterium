@@ -8,9 +8,9 @@ on power-law analysis and similarity-based metrics.
 
 Key components:
 
-- ClusterEvaluator: Main class for evaluating clustering results
-- NumpyEncoder: Custom JSON encoder for handling NumPy data types
-- save_evaluation_report: Function to save evaluation results to JSON
+- :class:`ClusterEvaluator`: Main class for evaluating clustering results
+- :class:`NumpyEncoder`: Custom JSON encoder for handling NumPy data types
+- :func:`save_evaluation_report`: Function to save evaluation results to JSON
 
 The evaluation process assesses:
 
@@ -18,6 +18,7 @@ The evaluation process assesses:
 2. Intra-cluster vs. inter-cluster similarity
 3. Power-law characteristics of cluster size distributions
 4. Potential outliers in the clustering results
+5. Cluster size distribution
 
 This module is typically used after running clustering with the Dirichlet Process
 and Pitman-Yor Process models to compare their performance and understand the
@@ -102,11 +103,12 @@ class ClusterEvaluator:
     - Similarity Metrics: Evaluates intra-cluster vs inter-cluster similarity
     - Power-law Analysis: Determines if cluster sizes follow a power-law distribution
     - Outlier Detection: Identifies potential outliers in the clustering results
+    - Cluster Size Distribution: Calculates the distribution of cluster sizes
 
     Used for post-processing analysis of Bayesian nonparametric clustering results.
 
     Note:
-        Parameters like alpha and d in clustering algorithms significantly impact
+        Parameters like alpha and sigma in clustering algorithms significantly impact
         the resulting cluster distributions.
     """
 
@@ -166,6 +168,9 @@ class ClusterEvaluator:
         """
         Calculate the silhouette score for the clustering data.
 
+        This method calculates the silhouette score only for valid clusters
+        (those with ≥2 samples). Invalid clusters are excluded from the calculation.
+
         Cosine distance is used because the data is represented by text embeddings.
 
         The silhouette score measures how similar an object is to its own cluster
@@ -178,44 +183,48 @@ class ClusterEvaluator:
 
         This method handles edge cases:
 
-        - Returns 0.0 if there are fewer than 2 clusters
-        - Returns 0.0 if any cluster has fewer than 2 samples
+        - Returns 0.0 if there are fewer than 2 valid clusters
         - An error occurs during calculation
-
-        Cosine distance is used because the data is represented by text embeddings.
 
         Returns:
             float: Silhouette score as a float between -1 and 1, or 0.0 if calculation
-                  is not possible
+            is not possible
         """
-        # We need at least 2 clusters and each cluster must have at least 2 samples
-        if len(self.unique_clusters) < 2:
-            logger.warning(
-                "Cannot calculate silhouette score: only %d cluster found",
-                len(self.unique_clusters),
-            )
-            return 0.0
-
         # Count samples per cluster
         cluster_counts = {}
         for cluster_id in self.cluster_assignments:
             cluster_counts[cluster_id] = cluster_counts.get(cluster_id, 0) + 1
 
-        # Check if any cluster has only one sample
-        single_sample_clusters = [c for c, count in cluster_counts.items() if count < 2]
-        if single_sample_clusters:
+        # Identify valid clusters (those with at least 2 samples)
+        valid_clusters = {c for c, count in cluster_counts.items() if count >= 2}
+
+        # We need at least 2 valid clusters for silhouette score
+        if len(valid_clusters) < 2:
             logger.warning(
-                "Cannot calculate silhouette score: "
-                "%d clusters have fewer than 2 samples",
-                len(single_sample_clusters),
+                "Cannot calculate silhouette score: fewer than 2 valid clusters found"
             )
             return 0.0
 
+        # Filter embeddings and assignments to include only those in valid clusters
+        valid_indices = [
+            i for i, c in enumerate(self.cluster_assignments) if c in valid_clusters
+        ]
+        valid_embeddings = self.embeddings[valid_indices]
+        valid_assignments = [self.cluster_assignments[i] for i in valid_indices]
+
         try:
             score = silhouette_score(
-                self.embeddings, self.cluster_assignments, metric="cosine"
+                valid_embeddings, valid_assignments, metric="cosine"
             )
-            logger.info("Silhouette score for %s: %.4f", self.model_name, score)
+            logger.info(
+                "Silhouette score for %s: %.4f (using %d/%d samples in %d/%d clusters)",
+                self.model_name,
+                score,
+                len(valid_indices),
+                len(self.cluster_assignments),
+                len(valid_clusters),
+                len(self.unique_clusters),
+            )
             return float(score)
         except Exception as err:  # pylint: disable=broad-except
             logger.error("Error calculating silhouette score: %s", err)
@@ -243,12 +252,14 @@ class ClusterEvaluator:
 
         Returns:
             dict[str, Union[float, numpy.floating]]: Dictionary with the following keys:
-                - intra_cluster_similarity: Average similarity within clusters
-                - inter_cluster_similarity: Average similarity between clusters
-                - silhouette_like_score: Difference between intra and inter similarity
-                - valid_cluster_ratio: Fraction of valid clusters
-                - analyzed_pairs: Number of analyzed intra and inter cluster pairs
-                  (intra: intra-cluster pairs, inter: inter-cluster pairs)
+
+            - ``intra_cluster_similarity``: Average similarity within clusters
+            - ``inter_cluster_similarity``: Average similarity between clusters
+            - ``silhouette_like_score``: Difference between intra and inter similarity
+            - ``valid_cluster_ratio``: Fraction of valid clusters
+            - ``analyzed_pairs``: Number of analyzed intra and inter cluster pairs
+              (``intra``: intra-cluster pairs, ``inter``: inter-cluster pairs)
+
         """
         default_results = {
             "intra_cluster_similarity": 0.0,
@@ -351,11 +362,13 @@ class ClusterEvaluator:
 
         Returns:
             dict[str, Any]: A dictionary with power-law parameters:
-                - alpha: Power-law exponent (higher values indicate steeper distribution)
-                - xmin: Minimum value for which power-law holds
-                - is_powerlaw: Boolean indicating if distribution follows power-law
-                - sigma_error: Standard error of the alpha estimate
-                - p_value: P-value from comparison with exponential distribution
+
+            - ``alpha``: Power-law exponent (higher values indicate steeper distribution)
+            - ``xmin``: Minimum value for which power-law holds
+            - ``is_powerlaw``: Boolean indicating if distribution follows power-law
+            - ``sigma_error``: Standard error of the alpha estimate
+            - ``p_value``: P-value from comparison with exponential distribution
+
         """  # noqa: E501
         default_powerlaw_results = {
             "alpha": None,
@@ -484,7 +497,7 @@ class ClusterEvaluator:
 
         Returns:
             dict[str, int]: Dictionary mapping cluster IDs (as strings) to their sizes,
-                           where size represents the number of texts in each cluster
+            where size represents the number of texts in each cluster
         """
         cluster_sizes = {}
         for cluster_id in self.unique_clusters:
