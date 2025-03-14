@@ -26,6 +26,13 @@ The ``cli`` module
     :members:
     :no-undoc-members:
 
+The ``errors`` module
+---------------------
+
+.. automodule:: clusx.errors
+    :members:
+    :no-undoc-members:
+
 The ``evaluation`` module
 -------------------------
 

@@ -14,6 +14,7 @@ from clusx.clustering.utils import (
     save_clusters_to_csv,
     save_clusters_to_json,
 )
+from clusx.errors import MissingClusterColumnError, MissingParametersError
 
 
 def test_load_data_from_csv_basic(basic_qa_csv):
@@ -151,8 +152,10 @@ def test_load_cluster_assignments(cluster_assignments_csv):
     assert isinstance(params, dict)
     assert "alpha" in params
     assert "sigma" in params
+    assert "variance" in params
     assert params["alpha"] == 1.0  # Default value
     assert params["sigma"] == 0.0  # Default value
+    assert params["variance"] == 0.1  # Default value
 
 
 def test_load_cluster_assignments_custom_column(cluster_assignments_custom_column_csv):
@@ -172,5 +175,58 @@ def test_load_cluster_assignments_no_cluster_column(
     cluster_assignments_no_cluster_column_csv,
 ):
     """Test load_cluster_assignments with a non-existent cluster column."""
-    with pytest.raises(ValueError):
+    with pytest.raises(MissingClusterColumnError) as excinfo:
         load_cluster_assignments(str(cluster_assignments_no_cluster_column_csv))
+
+    # Verify the error message contains the file path
+    assert str(cluster_assignments_no_cluster_column_csv) in str(excinfo.value)
+    # Verify the error message mentions the missing cluster column
+    assert "No cluster column" in str(excinfo.value)
+    assert "Integrity error" in str(excinfo.value)
+
+
+def test_load_cluster_assignments_missing_parameters(tmp_path):
+    """Test load_cluster_assignments with missing required parameters."""
+    # Create a CSV file with a cluster column but missing parameters
+    csv_path = tmp_path / "missing_params.csv"
+    with open(csv_path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Text", "Cluster_DP"])  # Missing Alpha, Sigma, Variance
+        writer.writerow(["What is Python?", "0"])
+        writer.writerow(["What is TensorFlow?", "1"])
+
+    with pytest.raises(MissingParametersError) as excinfo:
+        load_cluster_assignments(str(csv_path))
+
+    # Verify the error message contains the file path
+    assert str(csv_path) in str(excinfo.value)
+    # Verify the error message mentions the missing parameters
+    assert "Required parameters" in str(excinfo.value)
+    assert "alpha" in str(excinfo.value)
+    assert "sigma" in str(excinfo.value)
+    assert "variance" in str(excinfo.value)
+    assert "Integrity error" in str(excinfo.value)
+
+    # Verify the missing_params attribute of the exception
+    assert "missing_params" in dir(excinfo.value)
+    assert "alpha" in excinfo.value.missing_params
+    assert "sigma" in excinfo.value.missing_params
+    assert "variance" in excinfo.value.missing_params
+
+
+def test_error_classes_store_file_path():
+    """Test that error classes correctly store the file path."""
+    # Test MissingClusterColumnError
+    file_path = "/path/to/file.csv"
+    error1 = MissingClusterColumnError(file_path)
+    assert error1.file_path == file_path
+    assert file_path in str(error1)
+
+    # Test MissingParametersError
+    missing_params = ["alpha", "sigma"]
+    error2 = MissingParametersError(file_path, missing_params)
+    assert error2.file_path == file_path
+    assert error2.missing_params == missing_params
+    assert file_path in str(error2)
+    assert "alpha" in str(error2)
+    assert "sigma" in str(error2)

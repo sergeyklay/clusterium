@@ -11,6 +11,18 @@ Features
 ^^^^^^^^
 
 * Implement ``to_numpy`` helper function to convert PyTorch tensors to NumPy arrays.
+* Add ``ClusterIntegrityError``, ``MissingClusterColumnError``, and ``MissingParametersError`` for better error handling.
+
+Breaking Changes
+^^^^^^^^^^^^^^^^^
+
+* Refactored ``load_cluster_assignments`` function:
+
+  - Now raises specific custom exceptions (``MissingClusterColumnError`` and ``MissingParametersError``) instead of generic ``ValueError``
+  - Requires all parameters (alpha, sigma, variance) to be present in the CSV file
+  - Removed fallback mechanism to extract parameters from filename
+  - More specific cluster column detection (looking for "cluster_" prefix)
+  - Improved docstring with better description of function behavior and exceptions
 
 Bug Fixes
 ^^^^^^^^^

@@ -119,7 +119,7 @@ def test_evaluate_command_show_plot_option(basic_text_file, tmp_path, monkeypatc
         patch("clusx.clustering.utils.load_data", return_value=["text1", "text2"]),
         patch(
             "clusx.clustering.utils.load_cluster_assignments",
-            return_value=([0, 1], {"alpha": 0.5, "sigma": 0.0}),
+            return_value=([0, 1], {"alpha": 0.5, "sigma": 0.0, "variance": 0.3}),
         ),
         patch(
             "clusx.clustering.utils.get_embeddings",
