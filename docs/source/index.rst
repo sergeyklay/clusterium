@@ -45,12 +45,12 @@ Clusterium ecosystem and community.
 The API Documentation / Guide
 -----------------------------
 
-If you are looking for information on a specific function, class, or method,
-this part of the documentation is for you.
+If you are looking for information on a specific function, class, method, or algorithm, this part of the documentation is for you.
 
 .. toctree::
    :maxdepth: 3
 
+   methodological_framework
    api
 
 The Contributor Guide
