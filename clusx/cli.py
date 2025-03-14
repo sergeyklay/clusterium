@@ -30,6 +30,33 @@ logger = get_logger(__name__)
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = BASE_DIR / "output"
 
+BANNER = r"""
+
+
+              ████
+             ░░███
+      ██████  ░███  █████ ████  █████  █████ █████
+     ███░░███ ░███ ░░███ ░███  ███░░  ░░███ ░░███
+    ░███ ░░░  ░███  ░███ ░███ ░░█████  ░░░█████░
+    ░███  ███ ░███  ░███ ░███  ░░░░███  ███░░░███
+    ░░██████  █████ ░░████████ ██████  █████ █████
+     ░░░░░░  ░░░░░   ░░░░░░░░ ░░░░░░  ░░░░░ ░░░░░
+
+
+
+"""
+
+
+class RichGroup(click.Group):
+    """Custom Click group that displays a banner before the help text."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def format_help(self, ctx, formatter):
+        click.secho(BANNER, nl=False)
+        super().format_help(ctx, formatter)
+
 
 def common_options(func: Callable) -> Callable:
     """Common options for all clusx CLI commands."""
@@ -42,7 +69,10 @@ def common_options(func: Callable) -> Callable:
     return func
 
 
-@click.group(help="Text Clustering Toolkit for Bayesian Nonparametric Analysis")
+@click.group(
+    help="Text Clustering Toolkit for Bayesian Nonparametric Analysis",
+    cls=RichGroup,
+)
 @click.version_option(
     version=__version__,
     prog_name="clusx",
