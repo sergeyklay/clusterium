@@ -466,12 +466,25 @@ class ClusterEvaluator:
             logger.error("Error detecting outliers: %s", err)
             return {}
 
-    def _get_cluster_sizes(self) -> dict[str, int]:
+    def calculate_cluster_size_distribution(self) -> dict[str, int]:
         """
-        Get the size distribution of clusters.
+        Calculate the distribution of cluster sizes across all clusters.
+
+        This method counts the number of texts assigned to each cluster and returns
+        a mapping of cluster IDs to their respective sizes. The distribution is useful
+        for:
+
+        - Analyzing the balance of cluster assignments
+        - Identifying dominant vs. minor clusters
+        - Providing input for power-law distribution analysis
+        - Visualizing the cluster size distribution
+
+        The cluster IDs are converted to strings in the returned dictionary to ensure
+        compatibility with JSON serialization.
 
         Returns:
-            dict[str, int]: Dictionary mapping cluster IDs to their sizes
+            dict[str, int]: Dictionary mapping cluster IDs (as strings) to their sizes,
+                           where size represents the number of texts in each cluster
         """
         cluster_sizes = {}
         for cluster_id in self.unique_clusters:
@@ -490,6 +503,7 @@ class ClusterEvaluator:
         similarity_metrics = self.calculate_similarity_metrics()
         powerlaw_metrics = self.detect_powerlaw_distribution()
         outliers = self.find_outliers()
+        cluster_sizes = self.calculate_cluster_size_distribution()
 
         # Compile the report
         report = {
@@ -503,7 +517,7 @@ class ClusterEvaluator:
             "cluster_stats": {
                 "num_clusters": len(self.unique_clusters),
                 "num_texts": len(self.texts),
-                "cluster_sizes": self._get_cluster_sizes(),
+                "cluster_sizes": cluster_sizes,
             },
             "metrics": {
                 "silhouette_score": silhouette,
