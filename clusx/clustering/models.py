@@ -395,7 +395,7 @@ class DirichletProcess:
 
         return cluster_id, probs
 
-    def fit(self, documents, y: Union[Any, None] = None):
+    def fit(self, documents, _y: Union[Any, None] = None):
         """
         Train the clustering model on the given text data.
 
@@ -406,7 +406,7 @@ class DirichletProcess:
         Args:
             documents: array-like of shape (n_samples,)
                 The text documents or embeddings to cluster.
-            y: Ignored. Added for compatibility with scikit-learn API.
+            _y: Ignored. Added for compatibility with scikit-learn API.
 
         Returns:
             self: The fitted model instance.
@@ -480,7 +480,7 @@ class DirichletProcess:
 
         return np.array(predictions)
 
-    def fit_predict(self, documents, y: Union[Any, None] = None):
+    def fit_predict(self, documents, _y: Union[Any, None] = None):
         """
         Fit the model and predict cluster labels for documents.
 
@@ -490,7 +490,7 @@ class DirichletProcess:
         Args:
             documents: array-like of shape (n_samples,)
                 The text documents or embeddings to cluster.
-            y: Ignored. Added for compatibility with scikit-learn API.
+            _y: Ignored. Added for compatibility with scikit-learn API.
 
         Returns:
             ndarray of shape (n_samples,): Cluster labels for each document.
