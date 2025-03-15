@@ -171,7 +171,7 @@ def cluster(
     pyp_sigma: float,
     random_seed: Optional[int],
     column: Optional[str],
-) -> None:
+):
     """Cluster text data using Dirichlet Process and Pitman-Yor Process."""
     from .clustering import (
         DirichletProcess,
@@ -214,8 +214,10 @@ def cluster(
             sigma=pyp_sigma,
             random_state=random_seed,
         )
-        pyp.fit(texts)
-        logger.info("PYP clustering complete. Found %d clusters", len(set(pyp.labels_)))
+        clusters_pyp = pyp.fit_predict(texts)
+        logger.info(
+            "PYP clustering complete. Found %d clusters", len(set(clusters_pyp))
+        )
 
         # Save results
         output_basename = os.path.basename(output)
@@ -237,7 +239,7 @@ def cluster(
         save_clusters_to_csv(
             pyp_output,
             texts,
-            pyp.labels_,
+            clusters_pyp,
             "PYP",
             alpha=pyp_alpha,
             sigma=pyp_sigma,
@@ -252,7 +254,7 @@ def cluster(
         save_clusters_to_json(
             dp_json,
             texts,
-            dp.labels_,
+            clusters_dp,
             "DP",
             alpha=dp_alpha,
             sigma=0.0,
@@ -261,7 +263,7 @@ def cluster(
         save_clusters_to_json(
             pyp_json,
             texts,
-            pyp.labels_,
+            clusters_pyp,
             "PYP",
             alpha=pyp_alpha,
             sigma=pyp_sigma,
@@ -326,7 +328,7 @@ def evaluate(
     show_plot: bool,
     random_seed: Optional[int],
     column: Optional[str],
-) -> None:
+):
     """Evaluate clustering results using established metrics."""
     from .clustering.utils import (
         get_embeddings,
