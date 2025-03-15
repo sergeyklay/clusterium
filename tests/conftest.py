@@ -48,13 +48,13 @@ def patch_sentence_transformer():
 @pytest.fixture
 def dp_instance():
     """Return a pre-configured DirichletProcess instance."""
-    return DirichletProcess(alpha=1.0)
+    return DirichletProcess(alpha=1.0, kappa=1.0)
 
 
 @pytest.fixture
 def pyp_instance():
     """Return a pre-configured PitmanYorProcess instance."""
-    return PitmanYorProcess(alpha=1.0, sigma=0.5)
+    return PitmanYorProcess(alpha=1.0, sigma=0.5, kappa=1.0)
 
 
 @pytest.fixture

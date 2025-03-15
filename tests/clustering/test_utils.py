@@ -39,6 +39,7 @@ def test_load_data_from_csv_empty_rows(csv_with_empty_rows):
     """Test load_data with empty rows in CSV."""
     texts = load_data(str(csv_with_empty_rows), column="question")
 
+    # The load_data function now filters out empty/NaN values from CSV files
     assert len(texts) == 2
     assert texts[0] == "What is Python?"
     assert texts[1] == "What is TensorFlow?"
@@ -64,7 +65,15 @@ def test_save_clusters_to_csv(tmp_path, sample_texts, sample_clusters):
     """Test basic functionality of save_clusters_to_csv."""
     output_path = tmp_path / "clusters.csv"
 
-    save_clusters_to_csv(str(output_path), sample_texts, sample_clusters, "DP")
+    save_clusters_to_csv(
+        str(output_path),
+        sample_texts,
+        sample_clusters,
+        "DP",
+        alpha=1.0,
+        sigma=0.0,
+        kappa=0.1,
+    )
 
     assert output_path.exists()
 
@@ -73,13 +82,13 @@ def test_save_clusters_to_csv(tmp_path, sample_texts, sample_clusters):
         header = next(reader)
         rows = list(reader)
 
-    assert header == ["Text", "Cluster_DP", "Alpha", "Sigma", "Variance"]
+    assert header == ["Text", "Cluster_DP", "Alpha", "Sigma", "Kappa"]
     assert len(rows) == 3
     assert rows[0][0] == "What is Python?"
     assert rows[0][1] == "0"
     assert rows[0][2] == "1.0"  # Default alpha value
     assert rows[0][3] == "0.0"  # Default sigma value
-    assert rows[0][4] == "0.1"  # Default variance value
+    assert rows[0][4] == "0.1"  # Default kappa value (was variance)
     assert rows[1][0] == "What is TensorFlow?"
     assert rows[1][1] == "1"
     assert rows[2][0] == "What is PyTorch?"
@@ -90,7 +99,15 @@ def test_save_clusters_to_json(tmp_path, sample_texts, sample_clusters):
     """Test basic functionality of save_clusters_to_json."""
     output_path = tmp_path / "clusters.json"
 
-    save_clusters_to_json(str(output_path), sample_texts, sample_clusters, "DP")
+    save_clusters_to_json(
+        str(output_path),
+        sample_texts,
+        sample_clusters,
+        "DP",
+        alpha=1.0,
+        sigma=0.0,
+        kappa=0.1,
+    )
 
     assert output_path.exists()
 
@@ -119,7 +136,7 @@ def test_save_clusters_to_json(tmp_path, sample_texts, sample_clusters):
     assert data["metadata"]["model_name"] == "DP"
     assert data["metadata"]["alpha"] == 1.0
     assert data["metadata"]["sigma"] == 0.0
-    assert data["metadata"]["variance"] == 0.1
+    assert data["metadata"]["kappa"] == 0.1
 
 
 @patch("clusx.clustering.DirichletProcess")
@@ -152,10 +169,10 @@ def test_load_cluster_assignments(cluster_assignments_csv):
     assert isinstance(params, dict)
     assert "alpha" in params
     assert "sigma" in params
-    assert "variance" in params
-    assert params["alpha"] == 1.0  # Default value
-    assert params["sigma"] == 0.0  # Default value
-    assert params["variance"] == 0.1  # Default value
+    assert "kappa" in params
+    assert params["alpha"] == 1.0
+    assert params["sigma"] == 0.0
+    assert params["kappa"] == 0.1
 
 
 def test_load_cluster_assignments_custom_column(cluster_assignments_custom_column_csv):
@@ -191,7 +208,7 @@ def test_load_cluster_assignments_missing_parameters(tmp_path):
     csv_path = tmp_path / "missing_params.csv"
     with open(csv_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Text", "Cluster_DP"])  # Missing Alpha, Sigma, Variance
+        writer.writerow(["Text", "Cluster_DP"])  # Missing Alpha, Sigma, Kappa
         writer.writerow(["What is Python?", "0"])
         writer.writerow(["What is TensorFlow?", "1"])
 
@@ -204,14 +221,14 @@ def test_load_cluster_assignments_missing_parameters(tmp_path):
     assert "Required parameters" in str(excinfo.value)
     assert "alpha" in str(excinfo.value)
     assert "sigma" in str(excinfo.value)
-    assert "variance" in str(excinfo.value)
+    assert "kappa" in str(excinfo.value)
     assert "Integrity error" in str(excinfo.value)
 
     # Verify the missing_params attribute of the exception
     assert "missing_params" in dir(excinfo.value)
     assert "alpha" in excinfo.value.missing_params
     assert "sigma" in excinfo.value.missing_params
-    assert "variance" in excinfo.value.missing_params
+    assert "kappa" in excinfo.value.missing_params
 
 
 def test_error_classes_store_file_path():
