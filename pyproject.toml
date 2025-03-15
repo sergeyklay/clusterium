@@ -138,6 +138,11 @@ disable = [
     "too-many-positional-arguments",
     "too-many-arguments",
     "too-many-instance-attributes",
+
+    # I'm personally fine with this, it's a matter of taste.
+    # I use TODOs to mark the places that need to be improved.
+    # It's my tool, not a bug.
+    "fixme",
 ]
 
 [tool.black]
