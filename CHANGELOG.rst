@@ -4,7 +4,7 @@ Changelog
 This file contains a brief summary of new features and dependency changes or
 releases, in reverse chronological order.
 
-0.5.0 - 2025-03-XX
+0.5.0 - 2025-03-15
 ------------------
 
 Features
