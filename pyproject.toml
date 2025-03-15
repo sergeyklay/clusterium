@@ -115,9 +115,6 @@ format-jinja = "{% if distance == 0 %}{{ base }}{% else %}{{ base }}.dev{{ dista
 
 [tool.pytest.ini_options]
 addopts = "--verbose --durations=25 --junitxml=junit.xml -o junit_family=legacy"
-markers = [
-    "integration: integration tests"
-]
 
 [tool.pylint.MAIN]
 # Use multiple processes to speed up Pylint. Specifying 0 will auto-detect the
