@@ -30,18 +30,31 @@ logger = get_logger(__name__)
 
 
 def is_csv_file(input_file: str) -> bool:
+    """
+    Determine if a file is a CSV file based on extension and content.
+
+    Args:
+        input_file: Path to the input file
+
+    Returns:
+        bool: True if the file is likely a CSV, False otherwise
+    """
+    # First check file extension
+    if input_file.lower().endswith(".csv"):
+        return True
+
+    # For files without .csv extension, try to detect CSV format
     is_csv = False
     try:
         with open(input_file, "r", encoding="utf-8") as f:
             # Read a sample of the file to determine if it's CSV
             sample = f.read(4096)  # Read a reasonable sample size
             if sample:  # Check if we got any content
-                # Reset file pointer
-                f.seek(0)
                 # Try to detect CSV with Sniffer
                 try:
-                    csv.Sniffer().sniff(sample)
-                    is_csv = True
+                    dialect = csv.Sniffer().sniff(sample)
+                    if dialect.delimiter in [",", ";", "\t"]:
+                        is_csv = True
                 except csv.Error:
                     # Not a CSV according to the sniffer
                     pass
@@ -150,7 +163,7 @@ def save_clusters_to_json(
     """
     # Group texts by cluster
     cluster_groups = defaultdict(list)
-    for text, cluster_id in zip(texts, clusters):
+    for text, cluster_id in zip(texts or [], clusters or []):
         cluster_groups[cluster_id].append(text)
 
     clusters_json = {
