@@ -59,7 +59,6 @@ def is_csv_file(input_file: str) -> bool:
                     # Not a CSV according to the sniffer
                     pass
     except OSError:
-        # Handle file access errors
         logger.warning("Error accessing file %s", input_file)
 
     return is_csv
@@ -84,9 +83,10 @@ def load_data(input_file: str, column: Optional[str] = None) -> list[str]:
         if column is None:
             raise ValueError("Column name must be specified when using a CSV file")
 
-        df = pd.read_csv(input_file)
+        df = pd.read_csv(input_file, skip_blank_lines=True)
         if column in df.columns:
-            texts = df[column].tolist()
+            # Drop NaN values and convert to list
+            texts = df[column].dropna().tolist()
         else:
             logger.warning(
                 "Column '%s' not found in CSV. Available columns: %s",
@@ -97,10 +97,8 @@ def load_data(input_file: str, column: Optional[str] = None) -> list[str]:
     else:
         # Process as a text file (one text per line)
         with open(input_file, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:  # Skip empty lines
-                    texts.append(line)
+            # Read all lines at once and filter out empty lines
+            texts = [line.strip() for line in f.readlines() if line.strip()]
 
     return texts
 
