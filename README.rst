@@ -17,7 +17,7 @@ Features
 
 - **Dirichlet Process Clustering**: Implements the Dirichlet Process for text clustering
 - **Pitman-Yor Process Clustering**: Implements the Pitman-Yor Process for text clustering with improved performance
-- **Evaluation**: Evaluates clustering results using a variety of metrics, including Silhouette Score, Davies-Bouldin Index, and Power-law Analysis
+- **Evaluation**: Evaluates clustering results using a variety of metrics, including Silhouette Score, Similarity Analysis (intra/inter-cluster), Power-law Analysis, Outlier Detection, and Cluster Size Distribution
 - **Visualization**: Generates plots of cluster size distributions
 
 Quick Start
