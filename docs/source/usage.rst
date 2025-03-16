@@ -498,6 +498,14 @@ The following parameter combinations were found to work well for a dataset of ap
 * **Kappa Range**: Values between 15-35 balanced cluster tightness and avoided overfitting. Higher kappa created more distinct but fewer clusters.
 * **Discount (Sigma)**: Values between 0.4-0.6 for PYP ensured it outperformed DP in capturing power-law distributions without fragmenting clusters excessively.
 
+The image below shows the result of running tests for Dirichlet Process with different alpha and kappa values for a collection of 10,000 English sentences sourced from `C4 <https://huggingface.co/datasets/allenai/c4>`_ and `FineWeb <https://huggingface.co/datasets/HuggingFaceFW/fineweb>`_ datasets:
+
+.. image:: _static/dp_clusters_heatmap.png
+   :alt: Heatmap of Dirichlet Process Clustering Results with Different Parameters
+   :width: 100%
+
+This visualization clearly demonstrates how changing alpha and kappa parameters affects the resulting number of clusters. As observed in the heatmap, higher alpha values consistently produce more clusters across all kappa settings, with the effect being most pronounced at lower kappa values. Conversely, increasing the kappa parameter tends to reduce the number of clusters, particularly at higher alpha values, as it makes the model more sensitive to semantic differences between texts. This empirical evidence supports the theoretical understanding of these parameters and provides practical guidance for parameter selection based on desired clustering granularity.
+
 Optimizing Clustering Parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -10,27 +10,41 @@ class EvaluationError(ClusxError):
 
 
 class ClusterIntegrityError(ClusxError):
-    """Error raised when a cluster assignments file has integrity issues.
+    """
+    Error raised when a cluster assignments file has integrity issues.
 
     This error indicates that the cluster assignments file is corrupted,
     was created with errors, or is missing critical information needed
     for further processing.
+
+    See Also
+    --------
+    :class:`MissingClusterColumnError`, :class:`MissingParametersError`
     """
 
 
 class MissingClusterColumnError(ClusterIntegrityError):
-    """Error raised when a cluster assignments file is missing the cluster column.
+    """
+    Error raised when a cluster assignments file is missing the cluster column.
 
     This error indicates that the file does not contain a column that starts with
     ``Cluster_`` (such as Cluster_PYP or Cluster_DP), which is required for identifying
     cluster assignments.
+
+    See Also
+    --------
+    ClusterIntegrityError : Parent class for integrity errors
+    MissingParametersError : Related error for missing parameters
     """
 
     def __init__(self, file_path: str):
-        """Initialize the error with the path to the problematic file.
+        """
+        Initialize the error with the path to the problematic file.
 
-        Args:
-            file_path: Path to the file missing the cluster column
+        Parameters
+        ----------
+        file_path : str
+            Path to the file missing the cluster column
         """
         self.file_path = file_path
         message = (
@@ -42,18 +56,35 @@ class MissingClusterColumnError(ClusterIntegrityError):
 
 
 class MissingParametersError(ClusterIntegrityError):
-    """Error raised when a cluster assignments file is missing required parameters.
+    """
+    Error raised when a cluster assignments file is missing required parameters.
 
     This error indicates that the file is missing one or more of the required
     parameters (alpha, sigma, variance) needed for further processing.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the file with missing parameters
+    missing_params : list[str]
+        List of parameter names that are missing
+
+    See Also
+    --------
+    ClusterIntegrityError : Parent class for integrity errors
+    MissingClusterColumnError : Related error for missing cluster columns
     """
 
     def __init__(self, file_path: str, missing_params: list[str]):
-        """Initialize the error with the path to the problematic file and missing parameters.
+        """
+        Initialize the error with the path to the problematic file and missing parameters.
 
-        Args:
-            file_path: Path to the file with missing parameters
-            missing_params: List of parameter names that are missing
+        Parameters
+        ----------
+        file_path : str
+            Path to the file with missing parameters
+        missing_params : list[str]
+            List of parameter names that are missing
         """  # noqa: E501
         self.file_path = file_path
         self.missing_params = missing_params

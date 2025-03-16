@@ -55,18 +55,14 @@ def get_logger(name: str) -> logging.Logger:
     """
     Get a logger with the specified name.
 
-    This function returns a logger instance configured with the specified name,
-    which is typically the module name (__name__). Using named loggers allows for
-    hierarchical logging configuration and makes it easier to identify the source
-    of log messages.
+    Parameters
+    ----------
+    name : str
+        The name for the logger (typically ``__name__``).
 
-    The returned logger inherits settings from the root logger configured by
-    setup_logging(), but can be further customized if needed.
-
-    Args:
-        name: The name for the logger (typically __name__)
-
-    Returns:
-        logging.Logger: A configured logger instance ready for use
+    Returns
+    -------
+    logging.Logger
+        A configured logger instance ready for use.
     """
     return logging.getLogger(name)
