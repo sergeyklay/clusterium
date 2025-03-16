@@ -4,6 +4,15 @@ Changelog
 This file contains a brief summary of new features and dependency changes or
 releases, in reverse chronological order.
 
+0.7.0 - 2025-03-xx
+------------------
+
+Trivial/Internal Changes
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Refactor type hints to use ``NDArray`` instead of ``EmbeddingTensor`` alias for better clarity and consistency in the ``DirichletProcess`` and ``PitmanYorProcess`` classes.
+* Update logging for ``DirichletProcess`` and ``PitmanYorProcess`` to use the standard :mod:`logging` module.
+
 0.6.0 - 2025-03-16
 ------------------
 
