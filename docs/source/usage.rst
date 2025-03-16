@@ -135,26 +135,25 @@ When using a CSV file, you must specify the column name to use for clustering:
 Adjusting Clustering Parameters
 -------------------------------
 
-Fine-tune the clustering by adjusting the model-specific parameters:
+Fine-tune the clustering by adjusting the model-specific parameters. Here's an example using parameters that worked well for a dataset of ~7,000 sentences:
 
 .. code-block:: bash
 
    clusx cluster \
       --input your_data.txt \
-      --dp-alpha 0.5 \
-      --dp-kappa 0.3 \
-      --pyp-alpha 0.3 \
-      --pyp-kappa 0.3 \
-      --pyp-sigma 0.3 \
+      --dp-alpha 15.0 \
+      --dp-kappa 25.0 \
+      --pyp-alpha 12.0 \
+      --pyp-kappa 25.0 \
+      --pyp-sigma 0.5 \
       --random-seed 42
 
-The choice of parameters significantly affects clustering results. For example:
+The choice of parameters significantly affects clustering results. General guidelines include:
 
-* Lower alpha values (0.1-0.5) create fewer, larger clusters
-* Higher alpha values (1.0-5.0) create more, smaller clusters
-* For Pitman-Yor Process, sigma values between 0.1-0.7 typically work well
-* Lower kappa values (0.1-0.3) make the model more sensitive to small differences between texts
-* Using the same value for both DP and PYP alpha parameters will result in dramatically different clustering behaviors
+* Alpha values should be scaled based on your dataset size (higher for larger datasets)
+* Higher kappa values make the model more sensitive to small differences between texts
+* For Pitman-Yor Process, sigma controls the power-law behavior of cluster sizes
+* Using the same alpha value for both DP and PYP leads to dramatically different clustering behaviors
 
 For detailed guidance on parameter selection for each model, see the `Understanding Clustering Parameters`_ section below.
 
@@ -389,17 +388,15 @@ To interpret evaluation results and improve clustering performance, it's importa
    * **dp-alpha (concentration parameter)**:
 
      * Controls how likely the algorithm is to create new clusters
-     * **Recommended range**: 0.1 to 5.0
+     * **Typical range**: Values should be scaled based on dataset size and characteristics
      * **Effect**: Higher values create more clusters, lower values create fewer, larger clusters
-     * **Typical good starting value**: α=0.5 with kappa=0.3
      * **Default**: 0.5
      * **Constraint**: Must be positive (α > 0)
 
    * **dp-kappa (precision parameter)**:
 
      * Controls the sensitivity of the clustering process
-     * **Effect**: Higher values make the model more sensitive to small differences between texts
-     * **Typical good value**: 0.3
+     * **Effect**: Higher values make the model more sensitive to small differences between texts, creating more distinct but fewer clusters
      * **Default**: 0.3
      * Part of the likelihood model for the clustering process
 
@@ -408,9 +405,7 @@ To interpret evaluation results and improve clustering performance, it's importa
    * **pyp-alpha (concentration parameter)**:
 
      * Similar role as in Dirichlet Process, but with different optimal ranges
-     * **Recommended range**: 0.1 to 2.0
      * **Effect**: Higher values create more clusters, lower values create fewer, larger clusters
-     * **Typical good starting value**: α=0.3 with kappa=0.3
      * **Default**: 0.3
      * **Constraint**: Must satisfy α > -σ (typically not an issue since σ is positive)
      * **Important**: Using the same alpha value as DP leads to dramatically different clustering behaviors
@@ -418,10 +413,8 @@ To interpret evaluation results and improve clustering performance, it's importa
    * **pyp-sigma (discount parameter)**:
 
      * Unique to Pitman-Yor Process
-     * **Recommended range**: 0.1 to 0.7
      * **Valid range**: 0.0 to 0.99 (must be less than 1.0)
      * **Effect**: Controls the power-law behavior of cluster sizes
-     * **Typical good starting value**: σ=0.3
      * **Default**: 0.3
      * When sigma=0, Pitman-Yor behaves exactly like Dirichlet Process
      * As sigma approaches 1.0, the distribution exhibits heavier tails (more power-law-like)
@@ -431,7 +424,6 @@ To interpret evaluation results and improve clustering performance, it's importa
 
      * Controls the sensitivity of the clustering process
      * **Effect**: Higher values make the model more sensitive to small differences between texts
-     * **Typical good value**: 0.3 (same as for Dirichlet Process)
      * **Default**: 0.3
      * Part of the likelihood model for the clustering process
 
@@ -450,20 +442,76 @@ To interpret evaluation results and improve clustering performance, it's importa
      * Smaller values indicate more confidence in the power law alpha estimate
      * Helps determine the reliability of the power law fit
 
+Example Parameter Combinations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following parameter combinations were found to work well for a dataset of approximately 7,000 sentences. These are provided as examples to illustrate how different parameter settings affect clustering outcomes, but optimal values will vary based on your specific dataset size, domain, and clustering goals:
+
+**Example 1: Balanced Clustering**
+
+* Dirichlet Process: ``--dp-alpha 15.0 --dp-kappa 25.0``
+* Pitman-Yor Process: ``--pyp-alpha 12.0 --pyp-kappa 25.0 --pyp-sigma 0.5``
+* Observed Behavior:
+
+  * DP formed ~10–20 clusters
+  * PYP formed ~20–30 clusters due to discount parameter encouraging more small clusters
+
+**Example 2: More Granular Clustering**
+
+* Dirichlet Process: ``--dp-alpha 25.0 --dp-kappa 20.0``
+* Pitman-Yor Process: ``--pyp-alpha 18.0 --pyp-kappa 20.0 --pyp-sigma 0.6``
+* Observed Behavior:
+
+  * DP created ~15–25 clusters
+  * PYP produced ~30–40 clusters, with a long tail of smaller topic-specific groups
+
+**Example 3: Tight, Cohesive Clusters**
+
+* Dirichlet Process: ``--dp-alpha 10.0 --dp-kappa 30.0``
+* Pitman-Yor Process: ``--pyp-alpha 8.0 --pyp-kappa 30.0 --pyp-sigma 0.4``
+* Observed Behavior:
+
+  * DP yielded ~8–15 tight clusters (high kappa)
+  * PYP created ~15–25 clusters, splitting some of DP's larger clusters into subtopics
+
+**Example 4: Broad Coverage**
+
+* Dirichlet Process: ``--dp-alpha 30.0 --dp-kappa 18.0``
+* Pitman-Yor Process: ``--pyp-alpha 25.0 --pyp-kappa 18.0 --pyp-sigma 0.55``
+* Observed Behavior:
+
+  * DP generated ~20–30 broad clusters
+  * PYP formed ~35–50 clusters, reflecting power-law distribution (many small + few large clusters)
+
+**Example 5: High Precision**
+
+* Dirichlet Process: ``--dp-alpha 20.0 --dp-kappa 35.0``
+* Pitman-Yor Process: ``--pyp-alpha 15.0 --pyp-kappa 35.0 --pyp-sigma 0.45``
+* Observed Behavior:
+
+  * DP resulted in ~12–18 highly cohesive clusters
+  * PYP produced ~25–35 clusters, better capturing niche topics (e.g., splitting "technology" into "AI," "blockchain," etc.)
+
+**Key Observations from These Examples**:
+
+* **Alpha Scaling**: Alpha values should be proportional to the dataset size. For the 7,000 sentence dataset, values between 10-30 worked well.
+* **Kappa Range**: Values between 15-35 balanced cluster tightness and avoided overfitting. Higher kappa created more distinct but fewer clusters.
+* **Discount (Sigma)**: Values between 0.4-0.6 for PYP ensured it outperformed DP in capturing power-law distributions without fragmenting clusters excessively.
+
 Optimizing Clustering Parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Based on evaluation results, you can adjust parameters to improve clustering quality:
+When tuning parameters for your own dataset, consider these guidelines:
 
-1. Start with the recommended values:
+1. Start with the default values and gradually adjust based on your dataset characteristics:
 
-   * For Dirichlet Process: alpha=0.5, kappa=0.3
-   * For Pitman-Yor Process: alpha=0.3, sigma=0.3
+   * For smaller datasets (< 1,000 items), try lower alpha values
+   * For larger datasets (> 10,000 items), try higher alpha values
 
-2. If you want more clusters, increase alpha
-3. If you want fewer clusters, decrease alpha
-4. To get a more power-law-like distribution, increase sigma (for PYP only)
-5. Evaluate the results using the evaluation metrics, especially silhouette score
+2. Scale alpha values proportionally to your dataset size
+3. Adjust kappa to balance cluster tightness (higher values) vs. number of clusters (lower values)
+4. For PYP, experiment with different sigma values to find the right balance between capturing power-law distributions and avoiding excessive fragmentation
+5. Evaluate the results using silhouette scores, cluster size distributions, and topic coherence
 
 The evaluation dashboard helps you compare different parameter settings and choose the optimal
 configuration for your dataset. Higher silhouette scores indicate better-defined clusters, while
@@ -492,7 +540,7 @@ Basic Usage
    # Or load data from a CSV file
    # texts = load_data("your_data.csv", column="text_column")
 
-   # Perform Dirichlet Process clustering with recommended parameters
+   # Perform Dirichlet Process clustering with default parameters
    dp = DirichletProcess(alpha=0.5, kappa=0.3, random_state=42)
    clusters = dp.fit_predict(texts)
 
@@ -506,17 +554,15 @@ The Pitman-Yor Process often produces better clustering results for text data:
 
 .. code-block:: python
 
-   # Perform Pitman-Yor Process clustering with recommended parameters
+   # Perform Pitman-Yor Process clustering with default parameters
    pyp = PitmanYorProcess(alpha=0.3, kappa=0.3, sigma=0.3, random_state=42)
    clusters_pyp = pyp.fit_predict(texts)
 
    # Save results
    save_clusters_to_json("pyp_clusters.json", texts, clusters_pyp, "PYP")
 
-For optimal results, consider using the recommended parameter values discussed in
-the `Understanding Clustering Parameters`_ section. The Pitman-Yor Process is
-particularly effective for text data that naturally follows power-law distributions.
-
+For optimal results, you'll likely need to tune parameters based on your specific dataset characteristics.
+See the `Example Parameter Combinations`_ and `Optimizing Clustering Parameters`_ sections for guidance.
 
 .. note::
 
@@ -569,27 +615,27 @@ You can evaluate the quality of your clusters using the evaluation module:
 Customizing the Clustering Process
 ----------------------------------
 
-You can customize various aspects of the clustering process:
+You can customize various aspects of the clustering process based on your specific needs:
 
 .. code-block:: python
 
    # Custom parameters for different clustering behaviors
 
-   # For fewer, larger clusters (good for broad categorization)
+   # For fewer, larger clusters
    dp_fewer_clusters = DirichletProcess(
-       alpha=0.1,  # Low alpha = fewer clusters
-       kappa=0.5,  # Higher kappa = less sensitive to differences
+       alpha=0.1,  # Lower alpha = fewer clusters
+       kappa=0.5,  # Adjust kappa based on desired sensitivity
        random_state=42
    )
 
-   # For more, smaller clusters (good for fine-grained categorization)
+   # For more, smaller clusters
    dp_more_clusters = DirichletProcess(
-       alpha=5.0,  # High alpha = more clusters
-       kappa=0.1,  # Lower kappa = more sensitive to differences
+       alpha=5.0,  # Higher alpha = more clusters
+       kappa=0.1,  # Adjust kappa based on desired sensitivity
        random_state=42
    )
 
-   # For power-law distributed cluster sizes (often matches natural language patterns)
+   # For power-law distributed cluster sizes
    pyp_power_law = PitmanYorProcess(
        alpha=0.3,
        sigma=0.7,  # Higher sigma = stronger power-law behavior

@@ -51,12 +51,14 @@ For interactive visualization during evaluation, add the ``--show-plot`` option:
 
 .. note::
 
-   The default parameters are optimized based on extensive testing:
+   The package comes with sensible defaults, but optimal parameters depend on your dataset:
 
-   * Dirichlet Process: α=0.5, kappa=0.3
-   * Pitman-Yor Process: α=0.3, σ=0.3, kappa=0.3
+   * Default values: DP (α=0.5, κ=0.3), PYP (α=0.3, κ=0.3, σ=0.3)
+   * For a dataset of ~7,000 sentences, these values worked well:
+     * Dirichlet Process: α=15.0, κ=25.0 (formed ~10-20 clusters)
+     * Pitman-Yor Process: α=12.0, κ=25.0, σ=0.5 (formed ~20-30 clusters)
 
-   For advanced usage and parameter tuning, see the `Usage Guide <https://clusterium.readthedocs.io/en/latest/usage.html>`_.
+   For guidance on parameter tuning for your specific dataset, see the `Usage Guide <https://clusterium.readthedocs.io/en/latest/usage.html>`_.
 
 Python API Example
 ------------------
@@ -70,10 +72,10 @@ Python API Example
    texts = load_data("your_data.txt")
 
    # Perform clustering with default parameters
-   dp = DirichletProcess(alpha=0.5, kappa=0.3)  # Dirichlet Process
+   dp = DirichletProcess(alpha=0.5, kappa=0.3)  # Default parameters
    clusters_dp = dp.fit_predict(texts)
 
-   pyp = PitmanYorProcess(alpha=0.3, sigma=0.3, kappa=0.3)  # Pitman-Yor Process
+   pyp = PitmanYorProcess(alpha=0.3, kappa=0.3, sigma=0.3)  # Default parameters
    clusters_pyp = pyp.fit_predict(texts)
 
    # Print number of clusters found
