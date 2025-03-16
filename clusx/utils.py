@@ -21,8 +21,8 @@ def to_numpy(embedding: EmbeddingTensor) -> NDArray[np.float32]:
     """
     Convert a tensor to a numpy array.
 
-    This function uses duck typing to detect PyTorch tensors by checking for
-    the presence of the `detach()` method.
+    If embedding is already a numpy array (or compatible), it is returned as is.
+    Otherwise, it is converted to a numpy array.
 
     Parameters
     ----------
