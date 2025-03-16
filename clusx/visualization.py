@@ -3,6 +3,7 @@ Visualization module for Clusterium.
 
 This module provides functions for visualizing clustering results and evaluation
 metrics.
+
 """
 
 from __future__ import annotations
@@ -27,7 +28,14 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 MIN_DATASET_SIZE = 10
-"""Minimum dataset size for which visualizations are considered safe."""
+"""
+Minimum dataset size for which visualizations are considered safe.
+
+Note
+----
+Visualizations may not be meaningful or could be misleading when applied to datasets
+smaller than this threshold.
+"""
 
 plt.style.use("default")
 
@@ -46,11 +54,17 @@ def get_model_colors(model_names: list[str]) -> dict[str, Any]:
     colormap selection is based on the number of clusters to ensure optimal
     visual clarity and accessibility.
 
-    Args:
-        model_names: List of model names to generate colors for
+    Parameters
+    ----------
+    model_names : list[str]
+        List of model names to generate colors for
 
-    Returns:
+    Returns
+    -------
+    dict
         Dictionary mapping model names to their assigned colors
+
+
     """
     num_models = len(model_names)
 
@@ -76,36 +90,38 @@ def safe_plot(title: str | None = None, min_dataset_size: int = MIN_DATASET_SIZE
     """
     Decorator for safely executing plotting functions with error handling.
 
-    Wraps plotting functions to catch and handle exceptions gracefully,
-    displaying informative error messages directly on the plot instead of failing.
-    It also detects small datasets and provides appropriate feedback.
+    Parameters
+    ----------
+    title : str or None
+        Title for the plot. If None, the function name will be used.
+    min_dataset_size : int
+        Minimum dataset size threshold for small dataset detection.
+        Default is :const:`MIN_DATASET_SIZE`.
 
-    Args:
-        title: Optional title for the plot. If None, the function name will be used.
-        min_dataset_size: Minimum dataset size threshold for small dataset detection.
-            Defaults to :data:`.MIN_DATASET_SIZE`.
-
-    Returns:
+    Returns
+    -------
+    collections.abc.Callable
         Decorated function that handles errors and provides visual feedback.
 
-    Example:
-        >>> @safe_plot(title="My Custom Plot")
-        >>> def plot_my_visualization(reports, ax):
-        >>>     # Your plotting code here
-        >>>     # No need for try/except blocks
-        >>>     ax.plot(data)
-        >>>     ax.set_title("My Plot")
-        >>>
-        >>> # Usage remains the same as the original function
-        >>> plot_my_visualization(reports, ax)
+    Examples
+    --------
+    >>> @safe_plot(title="My Custom Plot")
+    >>> def plot_my_visualization(reports, ax):
+    >>>     # Your plotting code here
+    >>>     # No need for try/except blocks
+    >>>     ax.plot(data)
+    >>>     ax.set_title("My Plot")
+    >>>
+    >>> # Usage remains the same as the original function
+    >>> plot_my_visualization(reports, ax)
 
-    Notes:
-
-        - The decorated function must accept 'reports' and 'ax' as its first two
-          arguments
-        - The decorator automatically sets the plot title
-        - For small datasets, a specific message is displayed
-        - All exceptions are logged with detailed error messages
+    Notes
+    -----
+    - The decorated function must accept 'reports' and 'ax' as its first two
+      arguments
+    - The decorator automatically sets the plot title
+    - For small datasets, a specific message is displayed
+    - All exceptions are logged with detailed error messages
     """
 
     def decorator(plot_func):
@@ -137,6 +153,20 @@ def is_small_dataset(reports: dict[str, dict[str, Any]], min_size: int) -> bool:
     """
     Check if the dataset is considered small based on the number of texts.
 
+    Parameters
+    ----------
+    reports : dict
+        Dictionary mapping model names to their evaluation reports.
+    min_size : int
+        Minimum number of texts threshold.
+
+    Returns
+    -------
+    bool
+        True if the dataset is considered small, False otherwise.
+
+    Notes
+    -----
     A dataset is considered small if:
 
     1. It's empty (no reports) or not a dictionary
@@ -144,13 +174,6 @@ def is_small_dataset(reports: dict[str, dict[str, Any]], min_size: int) -> bool:
     3. No reports have 'num_texts' in their 'cluster_stats'
     4. Any report has fewer than min_size texts (assuming we have the same dataset
        for all reports)
-
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        min_size: Minimum number of texts threshold
-
-    Returns:
-        bool: True if the dataset is considered small, False otherwise
     """
     if not reports or not isinstance(reports, dict):
         return True
@@ -168,14 +191,26 @@ def is_small_dataset(reports: dict[str, dict[str, Any]], min_size: int) -> bool:
 def render_error_message(
     ax: Axes, plot_title: str, error, small_dataset: bool, min_size: int
 ):
-    """Display appropriate error message on the plot.
+    """
+    Display appropriate error message on the plot.
 
-    Args:
-        ax: Matplotlib axes to display the error message on
-        plot_title: Title of the plot
-        error: The exception that was raised
-        small_dataset: Whether the dataset is considered small
-        min_size: Minimum dataset size threshold
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes to display the error message on.
+    plot_title : str
+        Title of the plot.
+    error : Exception
+        The exception that was raised.
+    small_dataset : bool
+        Whether the dataset is considered small.
+    min_size : int
+        Minimum dataset size threshold.
+
+    Returns
+    -------
+    None
+        This function modifies the provided axes in-place.
     """
     if small_dataset:
         message = f"Cannot generate {plot_title} for small datasets"
@@ -213,9 +248,17 @@ def plot_cluster_size_distribution(reports, ax: Axes):
     """
     Plot cluster size distributions for each model.
 
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes to plot on
+    Parameters
+    ----------
+    reports : dict
+        Dictionary mapping model names to their evaluation reports.
+    ax :Axes
+        Matplotlib axes to plot on.
+
+    Returns
+    -------
+    None
+        The function modifies the provided axes in-place.
     """
     # Generate colors for models
     model_colors = get_model_colors(list(reports.keys()))
@@ -297,9 +340,16 @@ def plot_cluster_counts(reports, ax: Axes):
     """
     Plot the number of clusters for each model.
 
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes to plot on
+    Parameters
+    ----------
+    reports : dict
+        Dictionary mapping model names to their evaluation reports.
+    ax : Axes
+        Matplotlib axes to plot on.
+
+    Returns
+    -------
+    None
     """
     # Generate colors for models
     model_colors = get_model_colors(list(reports.keys()))
@@ -331,9 +381,16 @@ def plot_similarity_metrics(reports, ax: Axes):
     """
     Plot similarity metrics for each model.
 
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes to plot on
+    Parameters
+    ----------
+    reports : dict
+        Dictionary mapping model names to their evaluation reports.
+    ax : Axes
+        Matplotlib axes to plot on.
+
+    Returns
+    -------
+    None
     """
     has_similarity_data = False
 
@@ -414,15 +471,23 @@ def _get_valid_powerlaw_data(
     """
     Extract and validate power law data from a report.
 
-    Args:
-        report: Evaluation report for a model
-        model_name: Name of the model
+    Parameters
+    ----------
+    report : dict
+        Evaluation report for a model.
+    model_name : str
+        Name of the model.
 
-    Returns:
-        tuple: (alpha, sigma, xmin, valid_sizes, valid_frequencies) or None if invalid
+    Returns
+    -------
+    tuple or None
+        If valid, returns (alpha, sigma, xmin, valid_sizes, valid_frequencies).
+        Returns None if the data is intentionally invalid (e.g., small dataset case).
 
-    Raises:
-        VisualizationError: If the powerlaw metrics are not available or invalid
+    Raises
+    ------
+    VisualizationError
+        If the powerlaw metrics are not available or contain invalid values.
     """
     has_metrics = "metrics" in report and "powerlaw" in report["metrics"]
     if not has_metrics:
@@ -484,18 +549,28 @@ def _generate_powerlaw_fit_line(
     """
     Generate and plot a power-law fit line.
 
-    Args:
-        valid_sizes: List of valid cluster sizes
-        valid_frequencies: List of frequencies for each size
-        alpha: Power-law exponent
-        xmin: Minimum value for which power-law holds
-        xmin_index: Index of xmin in valid_sizes
-        color: Color to use for the plot
-        model_name: Name of the model for the label
+    Parameters
+    ----------
+    valid_sizes : list
+        List of valid cluster sizes.
+    valid_frequencies : list
+        List of frequencies for each size.
+    alpha : float
+        Power-law exponent.
+    xmin : float
+        Minimum value for which power-law holds.
+    xmin_index : int
+        Index of xmin in valid_sizes.
+    color : str or tuple
+        Color to use for the plot.
+    model_name : str
+        Name of the model for the label.
 
-    Returns:
-        tuple: (success, line_data) where success is a boolean and line_data is a tuple
-               containing (x, y, color, label) or None if unsuccessful
+    Returns
+    -------
+    tuple
+        (success, line_data) where success is a boolean and line_data is a tuple
+        containing (x, y, color, label) or None if unsuccessful.
     """
     try:
         x = np.logspace(np.log10(xmin), np.log10(max(valid_sizes)), 50)
@@ -541,9 +616,17 @@ def plot_powerlaw_fit(reports, ax: Axes):
     """
     Plot power-law fit for cluster size distributions.
 
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes to plot on
+    Parameters
+    ----------
+    reports : dict
+        Dictionary mapping model names to their evaluation reports.
+    ax : Axes
+        Matplotlib axes to plot on.
+
+    Returns
+    -------
+    None
+        The function plots directly on the provided axes.
     """
     has_powerlaw_data = False
     small_dataset = False
@@ -621,9 +704,16 @@ def plot_outliers(reports, ax: Axes):
     """
     Plot outlier scores distribution.
 
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes to plot on
+    Parameters
+    ----------
+    reports : dict
+        Dictionary mapping model names to their evaluation reports.
+    ax : Axes
+        Matplotlib axes to plot on.
+
+    Returns
+    -------
+    None
     """
     has_outlier_data = False
 
@@ -687,10 +777,18 @@ def _extract_silhouette_data(reports):
 def _show_silhouette_message(ax: Axes, error_models, zero_score_models):
     """Display appropriate message when no valid silhouette scores are available.
 
-    Args:
-        ax: Matplotlib axes to display the message on
-        error_models: List of models with errors
-        zero_score_models: List of models with zero scores
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes to display the message on.
+    error_models : list
+        List of models with errors.
+    zero_score_models : list
+        List of models with zero scores.
+
+    Returns
+    -------
+    None
     """
     if error_models or zero_score_models:
         # Create a more informative message about why scores couldn't be calculated
@@ -728,10 +826,18 @@ def _show_silhouette_message(ax: Axes, error_models, zero_score_models):
 def _add_silhouette_note(ax: Axes, error_models, zero_score_models):
     """Add a note about models with errors or zero scores.
 
-    Args:
-        ax: Matplotlib axes to add the note to
-        error_models: List of models with errors
-        zero_score_models: List of models with zero scores
+    Parameters
+    ----------
+    ax : Axes
+        Matplotlib axes to add the note to.
+    error_models : list
+        List of models with errors.
+    zero_score_models : list
+        List of models with zero scores.
+
+    Returns
+    -------
+    None
     """
     note_lines = []
     if zero_score_models:
@@ -754,12 +860,18 @@ def _add_silhouette_note(ax: Axes, error_models, zero_score_models):
 
 @safe_plot(title="Silhouette Score Comparison")
 def plot_silhouette_scores(reports, ax: Axes):
-    """
-    Plot silhouette scores for each model.
+    """Plot silhouette scores for each model.
 
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        ax: Matplotlib axes to plot on
+    Parameters
+    ----------
+    reports : dict
+        Dictionary mapping model names to their evaluation reports.
+    ax : Axes
+        Matplotlib axes to plot on.
+
+    Returns
+    -------
+    None
     """
     # Extract data from reports
     models, scores, error_models, zero_score_models = _extract_silhouette_data(reports)
@@ -794,8 +906,7 @@ def visualize_evaluation_dashboard(
     filename: str = "evaluation_dashboard.png",
     show_plot: bool = False,
 ) -> str:
-    """
-    Generate a comprehensive dashboard visualization of evaluation metrics.
+    """Generate a comprehensive dashboard visualization of evaluation metrics.
 
     This creates a 3x2 grid of plots showing:
 
@@ -806,14 +917,23 @@ def visualize_evaluation_dashboard(
     5. Outlier distribution
     6. Number of clusters comparison
 
-    Args:
-        reports: Dictionary mapping model names to their evaluation reports
-        output_dir: Directory to save the visualization
-        filename: Name of the output file
-        show_plot: Whether to display the plot interactively
+    Parameters
+    ----------
+    reports : dict[str, dict[str, Any]]
+        Dictionary mapping model names to their evaluation reports.
+    output_dir : str
+        Directory to save the visualization.
+    filename : str
+        Name of the output file.
+        Default is ``evaluation_dashboard.png``
+    show_plot : bool
+        Whether to display the plot interactively.
+        Default is ``False``.
 
-    Returns:
-        Path to the saved visualization file
+    Returns
+    -------
+    str
+        Path to the saved visualization file.
     """
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, filename)

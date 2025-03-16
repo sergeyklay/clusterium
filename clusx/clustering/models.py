@@ -10,18 +10,19 @@ von Mises-Fisher distribution for modeling document embeddings on the unit hyper
 
 Classes
 -------
-DirichletProcess
+:class:`DirichletProcess`
     Implements clustering using the Dirichlet Process with concentration parameter
     alpha and precision parameter kappa.
-PitmanYorProcess
+:class:`PitmanYorProcess`
     Extends DirichletProcess with an additional discount parameter for more flexible
     power-law behavior in cluster size distributions.
 
 Notes
 -----
-Both implementations follow a scikit-learn compatible API with fit(), predict(),
-and fit_predict() methods. The Pitman-Yor Process is generally better suited for
-text data as it can model the power-law distributions common in natural language.
+Both implementations follow a scikit-learn compatible API with ``fit()``,
+``predict()``, and ``fit_predict()`` methods. The Pitman-Yor Process is generally
+better suited for text data as it can model the power-law distributions common in
+natural language.
 """
 
 from __future__ import annotations
@@ -598,7 +599,7 @@ class DirichletProcess:
 
         Notes
         -----
-        This method is a convenience function that calls fit() followed by
+        This method is a convenience function that calls :func:`fit` followed by
         returning the cluster labels from the fitting process.
         """
         self.fit(documents)

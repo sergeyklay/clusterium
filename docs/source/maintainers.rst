@@ -395,7 +395,7 @@ Use type annotations for all function parameters and return values:
 Documentation Standards
 -----------------------
 
-* Use Google-style docstrings for all public functions, classes, and methods
+* Use `Numpy-style docstrings <https://numpydoc.readthedocs.io/en/latest/format.html>`_ for all public functions, classes, and methods
 * Include examples in docstrings where appropriate
 * Keep the documentation up-to-date with code changes
 
@@ -406,16 +406,22 @@ Example docstring:
    def calculate_similarity(text1: str, text2: str) -> float:
        """Calculate the semantic similarity between two texts.
 
-       Args:
-           text1: The first text string
-           text2: The second text string
+       Parameters
+       ----------
+       text1 : str
+           The first text string
+       text2 : str
+           The second text string
 
-       Returns:
+       Returns
+       -------
+       float
            A float between 0 and 1 representing similarity
 
-       Example:
-           >>> calculate_similarity("Hello world", "Hi world")
-           0.85
+       Examples
+       --------
+       >>> calculate_similarity("Hello world", "Hi world")
+       0.85
        """
        # Implementation
 
