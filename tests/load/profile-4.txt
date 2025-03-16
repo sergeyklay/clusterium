@@ -1,0 +1,5 @@
+--dp-alpha 10 --dp-kappa 5 --pyp-alpha 5 --pyp-kappa 10 --pyp-sigma 0.5
+--dp-alpha 15 --dp-kappa 10 --pyp-alpha 12 --pyp-kappa 10 --pyp-sigma 0.7
+--dp-alpha 25 --dp-kappa 8 --pyp-alpha 20 --pyp-kappa 8 --pyp-sigma 0.8
+--dp-alpha 18 --dp-kappa 12 --pyp-alpha 15 --pyp-kappa 12 --pyp-sigma 0.7
+--dp-alpha 30 --dp-kappa 6 --pyp-alpha 20 --pyp-kappa 6 --pyp-sigma 0.9

@@ -161,7 +161,7 @@ def save_clusters_to_json(
     """
     # Group texts by cluster
     cluster_groups = defaultdict(list)
-    for text, cluster_id in zip(texts or [], clusters or []):
+    for text, cluster_id in zip(texts, clusters):
         cluster_groups[cluster_id].append(text)
 
     clusters_json = {
