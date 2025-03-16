@@ -55,14 +55,17 @@ Command Line Options for ``cluster``
    * - ``--dp-alpha``
      - Concentration parameter for Dirichlet Process
      - 0.5
+   * - ``--dp-kappa``
+     - Precision parameter for Dirichlet Process likelihood model
+     - 0.3
    * - ``--pyp-alpha``
      - Concentration parameter for Pitman-Yor Process
      - 0.3
+   * - ``--pyp-kappa``
+     - Precision parameter for Pitman-Yor Process likelihood model
+     - 0.3
    * - ``--pyp-sigma``
      - Discount parameter for Pitman-Yor Process (0.0 ≤ σ < 1.0)
-     - 0.3
-   * - ``--variance``
-     - Sensitivity parameter for the clustering model
      - 0.3
    * - ``--random-seed``
      - Random seed for reproducible clustering
@@ -101,6 +104,9 @@ Command Line Options for ``evaluate``
    * - ``--output-dir``
      - Directory to save output files
      - ``output``
+   * - ``--random-seed``
+     - Random seed for reproducible evaluation
+     - None
 
 Examples
 ========
@@ -136,9 +142,10 @@ Fine-tune the clustering by adjusting the model-specific parameters:
    clusx cluster \
       --input your_data.txt \
       --dp-alpha 0.5 \
+      --dp-kappa 0.3 \
       --pyp-alpha 0.3 \
+      --pyp-kappa 0.3 \
       --pyp-sigma 0.3 \
-      --variance 0.3 \
       --random-seed 42
 
 The choice of parameters significantly affects clustering results. For example:
@@ -146,7 +153,7 @@ The choice of parameters significantly affects clustering results. For example:
 * Lower alpha values (0.1-0.5) create fewer, larger clusters
 * Higher alpha values (1.0-5.0) create more, smaller clusters
 * For Pitman-Yor Process, sigma values between 0.1-0.7 typically work well
-* Lower variance values (0.1-0.3) make the model more sensitive to small differences between texts
+* Lower kappa values (0.1-0.3) make the model more sensitive to small differences between texts
 * Using the same value for both DP and PYP alpha parameters will result in dramatically different clustering behaviors
 
 For detailed guidance on parameter selection for each model, see the `Understanding Clustering Parameters`_ section below.
@@ -195,7 +202,7 @@ The JSON output follows this structure:
        "model_name": "DP",
        "alpha": 1.0,
        "sigma": 0.0,
-       "variance": 0.1
+       "kappa": 0.3
      }
    }
 
@@ -212,11 +219,11 @@ The CSV output format provides a simple tabular view of cluster assignments:
 
 .. code-block:: text
 
-   Text,Cluster_DP,Alpha,Sigma,Variance
-   "What is the capital of France?",0,1.0,0.0,0.1
-   "What city is the capital of France?",0,1.0,0.0,0.1
-   "How tall is the Eiffel Tower?",1,1.0,0.0,0.1
-   "What is the height of the Eiffel Tower?",1,1.0,0.0,0.1
+   Text,Cluster_DP,Alpha,Sigma,Kappa
+   "What is the capital of France?",0,1.0,0.0,0.3
+   "What city is the capital of France?",0,1.0,0.0,0.3
+   "How tall is the Eiffel Tower?",1,1.0,0.0,0.3
+   "What is the height of the Eiffel Tower?",1,1.0,0.0,0.3
 
 Evaluating Clustering Results
 -----------------------------
@@ -310,7 +317,7 @@ for further analysis or integration with other tools. Example evaluation report
        "parameters": {
          "alpha": 1.0,
          "sigma": 0.0,
-         "variance": 0.1,
+         "kappa": 0.3,
          "random_state": 42
        },
        "cluster_stats": {
@@ -340,7 +347,7 @@ for further analysis or integration with other tools. Example evaluation report
        "parameters": {
          "alpha": 1.0,
          "sigma": 0.5,
-         "variance": 0.1,
+         "kappa": 0.3,
          "random_state": 42
        },
        "cluster_stats": {
@@ -384,17 +391,17 @@ To interpret evaluation results and improve clustering performance, it's importa
      * Controls how likely the algorithm is to create new clusters
      * **Recommended range**: 0.1 to 5.0
      * **Effect**: Higher values create more clusters, lower values create fewer, larger clusters
-     * **Typical good starting value**: α=0.5 with variance=0.3
+     * **Typical good starting value**: α=0.5 with kappa=0.3
      * **Default**: 0.5
      * **Constraint**: Must be positive (α > 0)
 
-   * **variance**:
+   * **dp-kappa (precision parameter)**:
 
      * Controls the sensitivity of the clustering process
-     * **Effect**: Lower values make the model more sensitive to small differences between texts
+     * **Effect**: Higher values make the model more sensitive to small differences between texts
      * **Typical good value**: 0.3
      * **Default**: 0.3
-     * Part of the base measure for the clustering model
+     * Part of the likelihood model for the clustering process
 
 2. **Pitman-Yor Process Parameters**:
 
@@ -403,7 +410,7 @@ To interpret evaluation results and improve clustering performance, it's importa
      * Similar role as in Dirichlet Process, but with different optimal ranges
      * **Recommended range**: 0.1 to 2.0
      * **Effect**: Higher values create more clusters, lower values create fewer, larger clusters
-     * **Typical good starting value**: α=0.3 with variance=0.5
+     * **Typical good starting value**: α=0.3 with kappa=0.3
      * **Default**: 0.3
      * **Constraint**: Must satisfy α > -σ (typically not an issue since σ is positive)
      * **Important**: Using the same alpha value as DP leads to dramatically different clustering behaviors
@@ -420,13 +427,13 @@ To interpret evaluation results and improve clustering performance, it's importa
      * As sigma approaches 1.0, the distribution exhibits heavier tails (more power-law-like)
      * Higher sigma values tend to produce more small clusters and fewer large clusters
 
-   * **variance**:
+   * **pyp-kappa (precision parameter)**:
 
      * Controls the sensitivity of the clustering process
-     * **Effect**: Lower values make the model more sensitive to small differences between texts
-     * **Typical good value**: 0.5 (slightly higher than for Dirichlet Process)
-     * **Default**: 0.3 (same as for Dirichlet Process)
-     * Part of the base measure for the clustering model
+     * **Effect**: Higher values make the model more sensitive to small differences between texts
+     * **Typical good value**: 0.3 (same as for Dirichlet Process)
+     * **Default**: 0.3
+     * Part of the likelihood model for the clustering process
 
 3. **Power Law Parameters** (detected in the evaluation results, not passed as a parameter):
 
@@ -450,8 +457,8 @@ Based on evaluation results, you can adjust parameters to improve clustering qua
 
 1. Start with the recommended values:
 
-   * For Dirichlet Process: alpha=0.5, variance=0.3
-   * For Pitman-Yor Process: alpha=0.3, sigma=0.3, variance=0.5
+   * For Dirichlet Process: alpha=0.5, kappa=0.3
+   * For Pitman-Yor Process: alpha=0.3, sigma=0.3
 
 2. If you want more clusters, increase alpha
 3. If you want fewer clusters, decrease alpha
@@ -461,6 +468,10 @@ Based on evaluation results, you can adjust parameters to improve clustering qua
 The evaluation dashboard helps you compare different parameter settings and choose the optimal
 configuration for your dataset. Higher silhouette scores indicate better-defined clusters, while
 power-law characteristics often suggest natural language patterns in your data.
+
+.. note::
+
+   Given that clustering is stochastic, you should run multiple trials with the same parameters to get reliable and reproducible results. This helps identify stable clusters that consistently appear across runs and reduces the impact of random initialization. Using the ``--random-seed`` parameter ensures reproducibility for a specific run, but comparing results across multiple seeds provides more robust insights into the true underlying cluster structure.
 
 Python API
 ==========
@@ -482,9 +493,8 @@ Basic Usage
    # texts = load_data("your_data.csv", column="text_column")
 
    # Perform Dirichlet Process clustering with recommended parameters
-   base_measure = {"variance": 0.3}  # Controls sensitivity to text differences
-   dp = DirichletProcess(alpha=0.5, base_measure=base_measure, random_state=42)
-   clusters, _ = dp.fit(texts)
+   dp = DirichletProcess(alpha=0.5, kappa=0.3, random_state=42)
+   clusters = dp.fit_predict(texts)
 
    # Save results
    save_clusters_to_json("clusters.json", texts, clusters, "DP")
@@ -497,9 +507,8 @@ The Pitman-Yor Process often produces better clustering results for text data:
 .. code-block:: python
 
    # Perform Pitman-Yor Process clustering with recommended parameters
-   base_measure = {"variance": 0.5}  # Typically higher for PYP
-   pyp = PitmanYorProcess(alpha=0.3, sigma=0.3, base_measure=base_measure, random_state=42)
-   clusters_pyp, _ = pyp.fit(texts)
+   pyp = PitmanYorProcess(alpha=0.3, kappa=0.3, sigma=0.3, random_state=42)
+   clusters_pyp = pyp.fit_predict(texts)
 
    # Save results
    save_clusters_to_json("pyp_clusters.json", texts, clusters_pyp, "PYP")
@@ -569,14 +578,14 @@ You can customize various aspects of the clustering process:
    # For fewer, larger clusters (good for broad categorization)
    dp_fewer_clusters = DirichletProcess(
        alpha=0.1,  # Low alpha = fewer clusters
-       base_measure={"variance": 0.5},  # Higher variance = less sensitive to differences
+       kappa=0.5,  # Higher kappa = less sensitive to differences
        random_state=42
    )
 
    # For more, smaller clusters (good for fine-grained categorization)
    dp_more_clusters = DirichletProcess(
        alpha=5.0,  # High alpha = more clusters
-       base_measure={"variance": 0.1},  # Lower variance = more sensitive to differences
+       kappa=0.1,  # Lower kappa = more sensitive to differences
        random_state=42
    )
 
@@ -584,7 +593,7 @@ You can customize various aspects of the clustering process:
    pyp_power_law = PitmanYorProcess(
        alpha=0.3,
        sigma=0.7,  # Higher sigma = stronger power-law behavior
-       base_measure={"variance": 0.5},
+       kappa=0.3,
        random_state=42
    )
 
@@ -593,8 +602,8 @@ You can customize various aspects of the clustering process:
    custom_model = SentenceTransformer("all-mpnet-base-v2")  # Different model
 
    # To use a custom model with DirichletProcess:
-   dp_custom = DirichletProcess(alpha=0.5)
-   dp_custom.embedding_model = custom_model
+   dp_custom = DirichletProcess(alpha=0.5, kappa=0.3)
+   dp_custom.model = custom_model
 
    # Custom similarity function (advanced)
    def custom_similarity(text, cluster_param):

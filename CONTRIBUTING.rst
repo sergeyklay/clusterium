@@ -103,6 +103,7 @@ This project uses:
 * `Black <https://black.readthedocs.io/>`_ for code formatting
 * `isort <https://pycqa.github.io/isort/>`_ for import sorting
 * `flake8 <https://flake8.pycqa.org/>`_ for linting
+* `pylint <https://pylint.org/>`_ for static type checking
 
 These tools are automatically run when you use pre-commit hooks.
 

@@ -53,8 +53,8 @@ For interactive visualization during evaluation, add the ``--show-plot`` option:
 
    The default parameters are optimized based on extensive testing:
 
-   * Dirichlet Process: α=0.5, variance=0.3
-   * Pitman-Yor Process: α=0.3, σ=0.3, variance=0.3
+   * Dirichlet Process: α=0.5, kappa=0.3
+   * Pitman-Yor Process: α=0.3, σ=0.3, kappa=0.3
 
    For advanced usage and parameter tuning, see the `Usage Guide <https://clusterium.readthedocs.io/en/latest/usage.html>`_.
 
@@ -70,11 +70,11 @@ Python API Example
    texts = load_data("your_data.txt")
 
    # Perform clustering with default parameters
-   dp = DirichletProcess(alpha=0.5)  # Dirichlet Process
-   clusters_dp, _ = dp.fit(texts)
+   dp = DirichletProcess(alpha=0.5, kappa=0.3)  # Dirichlet Process
+   clusters_dp = dp.fit_predict(texts)
 
-   pyp = PitmanYorProcess(alpha=0.3, sigma=0.3)  # Pitman-Yor Process
-   clusters_pyp, _ = pyp.fit(texts)
+   pyp = PitmanYorProcess(alpha=0.3, sigma=0.3, kappa=0.3)  # Pitman-Yor Process
+   clusters_pyp = pyp.fit_predict(texts)
 
    # Print number of clusters found
    print(f"DP found {len(set(clusters_dp))} clusters")
