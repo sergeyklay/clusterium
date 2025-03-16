@@ -4,6 +4,51 @@ Changelog
 This file contains a brief summary of new features and dependency changes or
 releases, in reverse chronological order.
 
+0.6.0 - 2025-03-XX
+------------------
+
+Features
+^^^^^^^^
+
+* Implemented von Mises-Fisher distribution for text embeddings, replacing Gaussian likelihood for better directional similarity
+* Improved cluster initialization and updates with proper normalization techniques
+* Added ``kappa`` parameter for explicit control over cluster cohesion
+* Implemented global mean embedding as base measure for new clusters in CRP models
+
+
+Breaking Changes
+^^^^^^^^^^^^^^^^^
+
+* Completely redesigned Dirichlet Process and Pitman-Yor Process implementations with incompatible APIs
+* Removed ``variance`` parameter, replaced with more theoretically sound ``kappa`` parameter
+* Changed cluster assignment methodology to use normalized embeddings and proper directional statistics
+* Modified method signatures across clustering models for better scikit-learn compatibility
+
+
+Bug Fixes
+^^^^^^^^^
+
+* Fixed incorrect Gaussian likelihood calculation that caused bias against new clusters
+* Resolved numerical stability issues by implementing consistent log-space calculations
+* Fixed "singleton cluster dominance" issue with proper cluster mean initialization
+* Corrected PYP prior calculation to handle edge cases with small clusters appropriately
+
+
+Improvements
+^^^^^^^^^^^^
+
+* Rewritten clustering core algorithm to properly handle directional text embeddings on the unit hypersphere
+* Optimized embedding processing with efficient normalization and similarity calculations
+* Enhanced API with scikit-learn compatible ``fit()``, ``predict()``, and ``fit_predict()`` methods
+* Improved theoretical soundness with proper Bayesian inference for cluster assignments
+
+
+Improved Documentation
+^^^^^^^^^^^^^^^^^^^^^^
+
+* Enhanced methodological framework with academic foundations and mathematical rigor
+* Added detailed parameter tuning guidelines with practical ranges
+
 0.5.0 - 2025-03-15
 ------------------
 
