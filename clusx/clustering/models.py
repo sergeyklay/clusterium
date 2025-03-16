@@ -1,5 +1,27 @@
 """
 Clustering models for text data using Dirichlet Process and Pitman-Yor Process.
+
+This module implements nonparametric Bayesian clustering algorithms for text data,
+specifically the Dirichlet Process and Pitman-Yor Process. These methods automatically
+determine the appropriate number of clusters based on the data.
+
+The implementation uses the Chinese Restaurant Process formulation with
+von Mises-Fisher distribution for modeling document embeddings on the unit hypersphere.
+
+Classes
+-------
+DirichletProcess
+    Implements clustering using the Dirichlet Process with concentration parameter
+    alpha and precision parameter kappa.
+PitmanYorProcess
+    Extends DirichletProcess with an additional discount parameter for more flexible
+    power-law behavior in cluster size distributions.
+
+Notes
+-----
+Both implementations follow a scikit-learn compatible API with fit(), predict(),
+and fit_predict() methods. The Pitman-Yor Process is generally better suited for
+text data as it can model the power-law distributions common in natural language.
 """
 
 from __future__ import annotations
@@ -39,23 +61,33 @@ class DirichletProcess:
     create new clusters, and a precision parameter kappa to control the
     concentration of points around cluster means in the von Mises-Fisher distribution.
 
-    Attributes:
-        alpha (float): Concentration parameter for new cluster creation.
-            Higher values lead to more clusters.
-        kappa (float): Precision parameter for the von Mises-Fisher distribution.
-            Higher values lead to tighter, more concentrated clusters.
-        model (SentenceTransformer): Sentence transformer model used for text
-            embeddings.
-        random_state (numpy.random.Generator): Random state for reproducibility.
-        clusters (list[int]): List of cluster assignments for each processed text.
-        cluster_params (dict): Dictionary of cluster parameters for each cluster.
-            Contains 'mean' (centroid) and 'count' (number of points).
-        global_mean (ndarray): Global mean of all document embeddings.
-        next_id (int): Next available cluster ID.
-        embeddings_ (ndarray): Document embeddings after fitting.
-        labels_ (ndarray): Cluster assignments after fitting.
-        text_embeddings (dict): Cache of text to embedding mappings.
-        embedding_dim (Optional[int]): Dimension of the embedding vectors.
+    Attributes
+    ----------
+    alpha : float
+        Concentration parameter for new cluster creation.
+    kappa : float
+        Precision parameter for the von Mises-Fisher distribution.
+    model : SentenceTransformer
+        Sentence transformer model used for text embeddings.
+    random_state : numpy.random.Generator
+        Random state for reproducibility.
+    clusters : list of int
+        List of cluster assignments for each processed text.
+    cluster_params : dict
+        Dictionary of cluster parameters for each cluster.
+        Contains 'mean' (centroid) and 'count' (number of points).
+    global_mean : ndarray
+        Global mean of all document embeddings.
+    next_id : int
+        Next available cluster ID.
+    embeddings_ : ndarray
+        Document embeddings after fitting.
+    labels_ : ndarray
+        Cluster assignments after fitting.
+    text_embeddings : dict
+        Cache of text to embedding mappings.
+    embedding_dim : int or None
+        Dimension of the embedding vectors.
     """
 
     def __init__(
@@ -68,15 +100,20 @@ class DirichletProcess:
         """
         Initialize a Dirichlet Process model with von Mises-Fisher likelihood.
 
-        Args:
-            alpha (float): Concentration parameter for new cluster creation.
-                Higher values lead to more clusters.
-            kappa (float): Precision parameter for the von Mises-Fisher distribution.
-                Higher values lead to tighter, more concentrated clusters.
-            model_name (Optional[str]): Name of the sentence transformer model to use.
-                Defaults to "all-MiniLM-L6-v2".
-            random_state (Optional[int]): Random seed for reproducibility.
-                If None, then fresh, unpredictable entropy will be pulled from the OS.
+        Parameters
+        ----------
+        alpha : float
+            Concentration parameter for new cluster creation.
+            Higher values lead to more clusters.
+        kappa : float
+            Precision parameter for the von Mises-Fisher distribution.
+            Higher values lead to tighter, more concentrated clusters.
+        model_name : str, optional
+            Name of the sentence transformer model to use.
+            Default is "all-MiniLM-L6-v2".
+        random_state : int, optional
+            Random seed for reproducibility.
+            If None, fresh, unpredictable entropy will be pulled from the OS.
         """
         self.alpha = alpha
         self.kappa = kappa
@@ -104,13 +141,17 @@ class DirichletProcess:
         model. It implements caching to avoid recomputing embeddings for previously
         seen texts. The method can handle both single text strings and lists of texts.
 
-        Args:
-            text (Union[str, list[str]]): Text or list of texts to embed.
+        Parameters
+        ----------
+        text : str or list of str
+            Text or list of texts to embed.
 
-        Returns:
-            EmbeddingTensor: The normalized embedding vector(s) for the text.
-                If input is a single string, returns a single embedding vector.
-                If input is a list, returns an array of embedding vectors.
+        Returns
+        -------
+        numpy.ndarray
+            The normalized embedding vector(s) for the text.
+            If input is a single string, returns a single embedding vector.
+            If input is a list, returns an array of embedding vectors.
         """
         # Handle single text vs list
         is_single = isinstance(text, str)
@@ -157,20 +198,22 @@ class DirichletProcess:
         The von Mises-Fisher distribution is defined on the unit hypersphere, so
         all vectors must be normalized to unit length.
 
-        Args:
-            embedding (EmbeddingTensor): The embedding vector to normalize.
+        Parameters
+        ----------
+        embedding : EmbeddingTensor
+            The embedding vector to normalize.
 
-        Returns:
-            EmbeddingTensor: The normalized embedding vector with unit length.
+        Returns
+        -------
+        EmbeddingTensor
+            The normalized embedding vector with unit length.
         """
         norm = np.linalg.norm(embedding)
         # Convert to numpy array to ensure division works properly
         embedding_np = to_numpy(embedding)
         return embedding_np / norm if norm > 0 else embedding_np
 
-    def _log_likelihood_base(
-        self, embedding: EmbeddingTensor, cluster_id: int
-    ) -> float:
+    def _log_likelihood_vmf(self, embedding: EmbeddingTensor, cluster_id: int) -> float:
         """
         Calculate von Mises-Fisher log-likelihood for a document in a cluster.
 
@@ -178,15 +221,20 @@ class DirichletProcess:
         unit hypersphere. For unit vectors x and μ, the log-likelihood is proportional
         to κ·(x·μ), where κ is the concentration parameter and (x·μ) is the dot product.
 
-        Args:
-            embedding (EmbeddingTensor): Document embedding vector (normalized).
-            cluster_id (int): The cluster ID to calculate likelihood for.
-                If the cluster doesn't exist and global_mean is None, returns 0.0.
-                If the cluster doesn't exist but global_mean is available, uses
-                global_mean.
+        Parameters
+        ----------
+        embedding : EmbeddingTensor
+            Document embedding vector (normalized).
+        cluster_id : int
+            The cluster ID to calculate likelihood for.
+            If the cluster doesn't exist and global_mean is None, returns 0.0.
+            If the cluster doesn't exist but global_mean is available, uses
+            global_mean.
 
-        Returns:
-            float: Log-likelihood of the document under the cluster's vMF distribution.
+        Returns
+        -------
+        float
+            Log-likelihood of the document under the cluster's vMF distribution.
         """
         embedding = self._normalize(embedding)
 
@@ -209,13 +257,32 @@ class DirichletProcess:
         clustering, it provides a prior probability for assigning a document to
         an existing cluster or creating a new one.
 
-        Args:
-            cluster_id (Optional[int]): The cluster ID.
-                If provided, calculate prior for an existing cluster.
-                If None, calculate prior for a new cluster.
+        The CRP is a key component of Bayesian nonparametric models, particularly
+        the Dirichlet Process. For more details, see [1]_, [2]_.
 
-        Returns:
-            float: Log probability of the cluster under the CRP prior.
+        Parameters
+        ----------
+        cluster_id : int, optional
+            The cluster ID.
+            If provided, calculate prior for an existing cluster.
+            If None, calculate prior for a new cluster.
+
+        Returns
+        -------
+        float
+            Log probability of the cluster under the CRP prior.
+
+        References
+        ----------
+        .. [1] Aldous, D. J. (1985). "Exchangeability and related topics."
+               In École d'Été de Probabilités de Saint-Flour XIII—1983, pp. 1-198.
+               Springer, Berlin, Heidelberg.
+               https://doi.org/10.1007/BFb0099421
+
+        .. [2] Teh, Y. W. (2010). "Dirichlet Process."
+               In Encyclopedia of Machine Learning, pp. 280-287.
+               Springer, Boston, MA.
+               https://doi.org/10.1007/978-0-387-30164-8_219
         """
         total_documents = len(self.clusters)
         denominator = self.alpha + total_documents
@@ -237,24 +304,27 @@ class DirichletProcess:
         existing cluster's von Mises-Fisher distribution, as well as under a potential
         new cluster.
 
-        Args:
-            embedding (EmbeddingTensor): Document embedding vector.
+        Parameters
+        ----------
+        embedding : EmbeddingTensor
+            Document embedding vector.
 
-        Returns:
-            tuple: A tuple containing:
-                - dict[int, float]: Dictionary mapping cluster IDs to their
-                  log-likelihoods.
-                - float: Log-likelihood for a new cluster.
+        Returns
+        -------
+        existing_likelihoods : dict[int, float]
+            Dictionary mapping cluster IDs to their log-likelihoods.
+        new_cluster_likelihood : float
+            Log-likelihood for a new cluster.
         """
         embedding = self._normalize(embedding)
         existing_likelihoods = {}
 
         # Calculate likelihood for each existing cluster
         for cid in self.cluster_params:
-            existing_likelihoods[cid] = self._log_likelihood_base(embedding, cid)
+            existing_likelihoods[cid] = self._log_likelihood_vmf(embedding, cid)
 
         # Calculate likelihood for a new cluster
-        new_cluster_likelihood = self._log_likelihood_base(embedding, -1)
+        new_cluster_likelihood = self._log_likelihood_vmf(embedding, -1)
 
         return existing_likelihoods, new_cluster_likelihood
 
@@ -269,15 +339,18 @@ class DirichletProcess:
         Restaurant Process. It computes probabilities for assigning the document
         to each existing cluster or creating a new one.
 
-        Args:
-            embedding (EmbeddingTensor): Document embedding vector.
+        Parameters
+        ----------
+        embedding : EmbeddingTensor
+            Document embedding vector.
 
-        Returns:
-            tuple: A tuple containing:
-                - list[Union[int, None]]: List of existing cluster IDs, with None
-                  representing a potential new cluster.
-                - np.ndarray: Probability distribution over clusters
-                  (including new cluster).
+        Returns
+        -------
+        cluster_ids : list[Union[int, None]]
+            List of existing cluster IDs, with None representing a potential new
+            cluster.
+        probabilities : np.ndarray
+            Probability distribution over clusters (including new cluster).
         """
         embedding = self._normalize(embedding)
 
@@ -320,14 +393,19 @@ class DirichletProcess:
         initial mean, or updates an existing cluster's parameters by incorporating
         the new embedding.
 
-        Args:
-            embedding (EmbeddingTensor): Document embedding vector.
-            is_new_cluster (bool): Whether to create a new cluster.
-            existing_cluster_id (Optional[int]): ID of existing cluster to update,
-                if is_new_cluster is False.
+        Parameters
+        ----------
+        embedding : EmbeddingTensor
+            Document embedding vector.
+        is_new_cluster : bool
+            Whether to create a new cluster.
+        existing_cluster_id : int, optional
+            ID of existing cluster to update, if is_new_cluster is False.
 
-        Returns:
-            int: The ID of the created or updated cluster.
+        Returns
+        -------
+        int
+            The ID of the created or updated cluster.
         """
         # TODO: Looks like we can just check if existing_cluster_id is None
         #       instead of having is_new_cluster flag
@@ -362,14 +440,17 @@ class DirichletProcess:
         from this probability distribution. The probabilities combine the CRP prior
         and the von Mises-Fisher likelihood.
 
-        Args:
-            embedding (EmbeddingTensor): Document embedding vector.
+        Parameters
+        ----------
+        embedding : EmbeddingTensor
+            Document embedding vector.
 
-        Returns:
-            tuple: A tuple containing:
-                - int: The assigned cluster ID.
-                - np.ndarray: Probability distribution over clusters used for
-                  assignment.
+        Returns
+        -------
+        cluster_id : int
+            The assigned cluster ID.
+        probs : np.ndarray
+            Probability distribution over clusters used for assignment.
         """
         # Calculate probabilities over all clusters (including a possible new one)
         extended_cluster_ids, probs = self._calculate_cluster_probabilities(embedding)
@@ -403,18 +484,30 @@ class DirichletProcess:
         and assigning it to a cluster using Bayesian inference with the Chinese
         Restaurant Process. It supports both text inputs and pre-computed embeddings.
 
-        Args:
-            documents: array-like of shape (n_samples,)
-                The text documents or embeddings to cluster.
-            _y: Ignored. Added for compatibility with scikit-learn API.
+        Parameters
+        ----------
+        documents : array-like of shape (n_samples,)
+            The text documents or embeddings to cluster.
+        _y : Any, optional
+            Ignored. Added for compatibility with scikit-learn API.
 
-        Returns:
-            self: The fitted model instance.
+        Returns
+        -------
+        self : object
+            The fitted estimator.
 
-        Side effects:
-            Sets self.embeddings_ with the document embeddings.
-            Sets self.labels_ with the cluster assignments.
-            Updates self.clusters and self.cluster_params with cluster information.
+        Note
+        ----
+        After fitting, the following attributes are set:
+
+        - :data:`embeddings_` : ndarray of shape (n_samples, n_features)
+            The document embeddings.
+        - :data:`labels_` : ndarray of shape (n_samples,)
+            The cluster assignments for each document.
+        - :data:`clusters` : list
+            List of cluster IDs for each document.
+        - :data:`cluster_params` : dict
+            Dictionary containing parameters for each cluster.
         """
         # TODO: from tqdm.auto import tqdm
         # Generate embeddings from text
@@ -445,17 +538,22 @@ class DirichletProcess:
         """
         Predict the closest cluster for each sample in documents.
 
+        Parameters
+        ----------
+        documents : array-like of shape (n_samples,)
+            The text documents or embeddings to predict clusters for.
+
+        Returns
+        -------
+        labels : ndarray of shape (n_samples,)
+            Cluster labels for each document.
+            Returns -1 if no clusters exist yet.
+
+        Note
+        ----
         This method computes the most likely cluster assignment for each document
         based on the von Mises-Fisher likelihood, without updating the cluster
         parameters. It supports both text inputs and pre-computed embeddings.
-
-        Args:
-            documents: array-like of shape (n_samples,)
-                The text documents or embeddings to predict clusters for.
-
-        Returns:
-            ndarray of shape (n_samples,): Cluster labels for each document.
-                Returns -1 if no clusters exist yet.
         """
         # Generate embeddings from text
         if isinstance(documents[0], str):
@@ -469,7 +567,7 @@ class DirichletProcess:
             # For prediction, we use a deterministic approach (max probability)
             scores = []
             for cid in self.cluster_params:
-                likelihood = self._log_likelihood_base(emb, cid)
+                likelihood = self._log_likelihood_vmf(emb, cid)
                 scores.append((cid, likelihood))
 
             if not scores:  # If no clusters exist yet
@@ -484,16 +582,22 @@ class DirichletProcess:
         """
         Fit the model and predict cluster labels for documents.
 
+        Parameters
+        ----------
+        documents : array-like of shape (n_samples,)
+            The text documents or embeddings to cluster.
+        _y : Ignored
+            This parameter exists only for compatibility with scikit-learn API.
+
+        Returns
+        -------
+        labels : ndarray of shape (n_samples,)
+            Cluster labels for each document.
+
+        Notes
+        -----
         This method is a convenience function that calls fit() followed by
         returning the cluster labels from the fitting process.
-
-        Args:
-            documents: array-like of shape (n_samples,)
-                The text documents or embeddings to cluster.
-            _y: Ignored. Added for compatibility with scikit-learn API.
-
-        Returns:
-            ndarray of shape (n_samples,): Cluster labels for each document.
         """
         self.fit(documents)
         return self.labels_
@@ -501,8 +605,40 @@ class DirichletProcess:
 
 class PitmanYorProcess(DirichletProcess):
     """
-    PYP clustering implementation for text data using von Mises-Fisher distribution.
+    Pitman-Yor Process clustering for text data using von Mises-Fisher distribution.
 
+    Attributes
+    ----------
+    alpha : float
+        Concentration parameter for new cluster creation.
+    kappa : float
+        Precision parameter for the von Mises-Fisher distribution.
+    sigma : float
+        Discount parameter controlling power-law behavior (0 ≤ σ < 1).
+    model : SentenceTransformer
+        Sentence transformer model used for text embeddings.
+    random_state : numpy.random.Generator
+        Random state for reproducibility.
+    clusters : list[int]
+        List of cluster assignments for each processed text.
+    cluster_params : dict
+        Dictionary of cluster parameters for each cluster.
+        Contains 'mean' (centroid) and 'count' (number of points).
+    global_mean : ndarray
+        Global mean of all document embeddings.
+    next_id : int
+        Next available cluster ID.
+    embeddings_ : ndarray
+        Document embeddings after fitting.
+    labels_ : ndarray
+        Cluster assignments after fitting.
+    text_embeddings : dict
+        Cache of text to embedding mappings.
+    embedding_dim : int, optional
+        Dimension of the embedding vectors.
+
+    Notes
+    -----
     The Pitman-Yor Process is a generalization of the Dirichlet Process that introduces
     a discount parameter (sigma) to control the power-law behavior of the cluster
     size distribution. It is particularly effective for modeling natural language
@@ -516,31 +652,12 @@ class PitmanYorProcess(DirichletProcess):
 
     The mathematical foundation of the Pitman-Yor Process involves two key parameters:
 
-        - The concentration parameter alpha (α > -σ), controlling the overall
-          tendency to create new clusters
-        - The discount parameter sigma (0 ≤ σ < 1), controlling the power-law behavior
+    - The concentration parameter alpha (α > -σ), controlling the overall
+      tendency to create new clusters
+    - The discount parameter sigma (0 ≤ σ < 1), controlling the power-law behavior
 
     As σ approaches 1, the distribution exhibits heavier tails (more small clusters),
     while σ = 0 reduces to the standard Dirichlet Process.
-
-    Attributes:
-        alpha (float): Concentration parameter for new cluster creation.
-            Higher values lead to more clusters.
-        kappa (float): Precision parameter for the von Mises-Fisher distribution.
-            Higher values lead to tighter, more concentrated clusters.
-        sigma (float): Discount parameter controlling power-law behavior (0 ≤ σ < 1).
-        model (SentenceTransformer): Sentence transformer model used for text
-            embeddings.
-        random_state (numpy.random.Generator): Random state for reproducibility.
-        clusters (list[int]): List of cluster assignments for each processed text.
-        cluster_params (dict): Dictionary of cluster parameters for each cluster.
-            Contains 'mean' (centroid) and 'count' (number of points).
-        global_mean (ndarray): Global mean of all document embeddings.
-        next_id (int): Next available cluster ID.
-        embeddings_ (ndarray): Document embeddings after fitting.
-        labels_ (ndarray): Cluster assignments after fitting.
-        text_embeddings (dict): Cache of text to embedding mappings.
-        embedding_dim (Optional[int]): Dimension of the embedding vectors.
     """
 
     def __init__(
@@ -554,6 +671,34 @@ class PitmanYorProcess(DirichletProcess):
         """
         Initialize a PYP clustering model with von Mises-Fisher likelihood.
 
+        Parameters
+        ----------
+        alpha : float
+            Concentration parameter for the Pitman-Yor Process.
+            Higher values encourage formation of more clusters.
+            Must satisfy: α > -σ.
+        kappa : float
+            Precision parameter for the von Mises-Fisher distribution.
+            Higher values lead to tighter, more concentrated clusters.
+        sigma : float
+            Discount parameter for the Pitman-Yor Process (0 ≤ σ < 1).
+            Controls the power-law behavior. Higher values create more
+            power-law-like cluster size distributions. When σ=0, the model
+            reduces to a Dirichlet Process.
+        model_name : str, optional
+            Name of the sentence transformer model to use.
+            Default is "all-MiniLM-L6-v2".
+        random_state : int, optional
+            Random seed for reproducibility.
+            If None, fresh, unpredictable entropy will be pulled from the OS.
+
+        Raises
+        ------
+        ValueError
+            If sigma ∉ [0.0, 1.0) or if alpha ≤ -sigma.
+
+        Notes
+        -----
         The mathematical requirement for the Pitman-Yor Process is:
 
         - The discount parameter σ must be in [0,1)
@@ -562,24 +707,6 @@ class PitmanYorProcess(DirichletProcess):
         The constraint α > -σ ensures that the numerator in the new
         table probability calculation (α + K*σ) remains positive even
         when K=0. This is essential for proper probabilistic behavior of the model.
-
-        Args:
-            alpha (float): Concentration parameter for the Pitman-Yor Process.
-                Higher values encourage formation of more clusters.
-                Must satisfy: α > -σ.
-            kappa (float): Precision parameter for the von Mises-Fisher distribution.
-                Higher values lead to tighter, more concentrated clusters.
-            sigma (float): Discount parameter for the Pitman-Yor Process (0 ≤ σ < 1).
-                Controls the power-law behavior. Higher values create more
-                power-law-like cluster size distributions. When σ=0, the model
-                reduces to a Dirichlet Process.
-            model_name (Optional[str]): Name of the sentence transformer model to use.
-                Defaults to "all-MiniLM-L6-v2".
-            random_state (Optional[int]): Random seed for reproducibility.
-                If None, then fresh, unpredictable entropy will be pulled from the OS.
-
-        Raises:
-            ValueError: If sigma ∉ [0.0, 1.0) or if alpha ≤ -sigma.
         """
         if sigma < 0.0 or sigma >= 1.0:
             raise ValueError(
@@ -602,6 +729,20 @@ class PitmanYorProcess(DirichletProcess):
         """
         Calculate the Pitman-Yor Process prior probability.
 
+        Parameters
+        ----------
+        cluster_id : int or None
+            The cluster ID.
+            If provided, calculate prior for an existing cluster.
+            If None, calculate prior for a new cluster.
+
+        Returns
+        -------
+        float
+            Log probability of the cluster under the PYP prior.
+
+        Notes
+        -----
         The Pitman-Yor Process generalizes the Chinese Restaurant Process with the
         introduction of a discount parameter σ. The probability of a new customer
         (document) joining an existing table (cluster) k or starting a new table is:
@@ -615,14 +756,6 @@ class PitmanYorProcess(DirichletProcess):
         - K is the current number of tables
         - σ is the discount parameter
         - α is the concentration parameter
-
-        Args:
-            cluster_id (Optional[int]): The cluster ID.
-                If provided, calculate prior for an existing cluster.
-                If None, calculate prior for a new cluster.
-
-        Returns:
-            float: Log probability of the cluster under the PYP prior.
         """
         total_documents = len(self.clusters)
 
@@ -664,15 +797,19 @@ class PitmanYorProcess(DirichletProcess):
         prior, which introduces the discount parameter σ to create power-law behavior
         in the cluster size distribution.
 
-        Args:
-            embedding (EmbeddingTensor): Document embedding vector.
+        Parameters
+        ----------
+        embedding : EmbeddingTensor
+            Document embedding vector.
 
-        Returns:
-            tuple: A tuple containing:
-                - list[Union[int, None]]: List of existing cluster IDs, with None
-                  representing a potential new cluster.
-                - np.ndarray: Probability distribution over clusters
-                  (including new cluster).
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            - list[Union[int, None]]: List of existing cluster IDs, with None
+              representing a potential new cluster.
+            - np.ndarray: Probability distribution over clusters
+              (including new cluster).
         """
         # Normalize input vector
         embedding = self._normalize(embedding)
