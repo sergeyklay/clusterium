@@ -71,30 +71,30 @@ def test_dp_normalize(dp_instance):
     assert np.isclose(normalized[1], 0.8)
 
 
-def test_dp_log_likelihood_base(dp_instance, embedding_fx):
+def test_dp_log_likelihood_vmf(dp_instance, embedding_fx):
     """Test log likelihood calculation for a cluster."""
     cluster_id = 0
     dp_instance.cluster_params[cluster_id] = {"mean": embedding_fx, "count": 1}
-    likelihood = dp_instance._log_likelihood_base(embedding_fx, cluster_id)
+    likelihood = dp_instance._log_likelihood_vmf(embedding_fx, cluster_id)
 
     assert isinstance(likelihood, float)
     assert likelihood > 0
 
     orthogonal = np.array([0.0, 0.0, 0.0, 1.0])
-    likelihood_orthogonal = dp_instance._log_likelihood_base(orthogonal, cluster_id)
+    likelihood_orthogonal = dp_instance._log_likelihood_vmf(orthogonal, cluster_id)
 
     assert likelihood_orthogonal < likelihood
 
 
-def test_dp_log_likelihood_base_nonexistent_cluster(dp_instance, embedding_fx):
+def test_dp_log_likelihood_vmf_nonexistent_cluster(dp_instance, embedding_fx):
     """Test log likelihood for a nonexistent cluster."""
     dp_instance.global_mean = embedding_fx
-    likelihood = dp_instance._log_likelihood_base(embedding_fx, 999)
+    likelihood = dp_instance._log_likelihood_vmf(embedding_fx, 999)
 
     assert isinstance(likelihood, float)
 
     dp_instance.global_mean = None
-    likelihood = dp_instance._log_likelihood_base(embedding_fx, 999)
+    likelihood = dp_instance._log_likelihood_vmf(embedding_fx, 999)
     assert likelihood == 0.0
 
 
@@ -233,7 +233,7 @@ def test_dp_predict(dp_instance, embedding_fx):
 
     with (
         patch.object(dp_instance, "get_embedding") as mock_embed,
-        patch.object(dp_instance, "_log_likelihood_base") as mock_likelihood,
+        patch.object(dp_instance, "_log_likelihood_vmf") as mock_likelihood,
     ):
         mock_embed.return_value = np.array(
             [
@@ -410,7 +410,7 @@ def test_pyp_predict(pyp_instance, embedding_fx):
 
     with (
         patch.object(pyp_instance, "get_embedding") as mock_embed,
-        patch.object(pyp_instance, "_log_likelihood_base") as mock_likelihood,
+        patch.object(pyp_instance, "_log_likelihood_vmf") as mock_likelihood,
     ):
         mock_embed.return_value = np.array(
             [
