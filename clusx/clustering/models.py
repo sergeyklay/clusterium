@@ -27,24 +27,19 @@ natural language.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.special import logsumexp
 from sentence_transformers import SentenceTransformer
 
-from clusx.logging import get_logger
-from clusx.utils import to_numpy
-
 if TYPE_CHECKING:
     from typing import Optional, Union
 
-    import torch
     from numpy.typing import NDArray
 
-    EmbeddingTensor = Union[torch.Tensor, NDArray[np.float32]]
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 # TODO: Get rid of assert statements, use type checking and raise errors
@@ -74,18 +69,18 @@ class DirichletProcess:
         Random state for reproducibility.
     clusters : list of int
         List of cluster assignments for each processed text.
-    cluster_params : dict
+    cluster_params : dict[int, dict[str, NDArray[np.float32] | int]]
         Dictionary of cluster parameters for each cluster.
         Contains 'mean' (centroid) and 'count' (number of points).
-    global_mean : Optional[EmbeddingTensor]
+    global_mean : Optional[NDArray[np.float32]]
         Global mean of all document embeddings.
     next_id : int
         Next available cluster ID.
-    embeddings_ : Optional[EmbeddingTensor]
+    embeddings_ : Optional[NDArray[np.float32]]
         Document embeddings after fitting.
     labels_ : Optional[NDArray[np.int64]]
         Cluster assignments after fitting.
-    text_embeddings : dict[str, EmbeddingTensor]
+    text_embeddings : dict[str, NDArray[np.float32]]
         Cache of text to embedding mappings.
     embedding_dim : Optional[int]
         Dimension of the embedding vectors.
@@ -124,17 +119,17 @@ class DirichletProcess:
         self.random_state = np.random.default_rng(seed=random_state)
 
         self.clusters: list[int] = []
-        self.cluster_params: dict[int, dict[str, EmbeddingTensor | int]] = {}
-        self.global_mean: Optional[EmbeddingTensor] = None
+        self.cluster_params: dict[int, dict[str, NDArray[np.float32] | int]] = {}
+        self.global_mean: Optional[NDArray[np.float32]] = None
         self.next_id = 0
-        self.embeddings_: Optional[EmbeddingTensor] = None
+        self.embeddings_: Optional[NDArray[np.float32]] = None
         self.labels_: Optional[NDArray[np.int64]] = None
 
         # For tracking processed texts and their embeddings
-        self.text_embeddings: dict[str, EmbeddingTensor] = {}
+        self.text_embeddings: dict[str, NDArray[np.float32]] = {}
         self.embedding_dim: Optional[int] = None  # Will be set on first embedding
 
-    def get_embedding(self, text: Union[str, list[str]]) -> EmbeddingTensor:
+    def get_embedding(self, text: Union[str, list[str]]) -> NDArray[np.float32]:
         """
         Get the embedding for a text or list of texts with caching.
 
@@ -149,17 +144,20 @@ class DirichletProcess:
 
         Returns
         -------
-        EmbeddingTensor
+        NDArray[np.float32]
             The normalized embedding vector(s) for the text.
             If input is a single string, returns a single embedding vector.
             If input is a list, returns an array of embedding vectors.
         """
         # Handle single text vs list
         is_single = isinstance(text, str)
-        texts = [text] if is_single else text
+        if isinstance(text, str):
+            texts: list[str] = [text]
+        else:
+            texts = text
 
         # Get embeddings (using cache when available)
-        results = []
+        results: list[NDArray[np.float32]] = []
         uncached_texts = []
         uncached_indices = []
 
@@ -192,7 +190,7 @@ class DirichletProcess:
         # Return single embedding or list based on input
         return results[0] if is_single else np.array(results)
 
-    def _normalize(self, embedding: EmbeddingTensor) -> NDArray[np.float32]:
+    def _normalize(self, embedding: NDArray[np.float32]) -> NDArray[np.float32]:
         """
         Normalize vector to unit length for use with von Mises-Fisher distribution.
 
@@ -201,7 +199,7 @@ class DirichletProcess:
 
         Parameters
         ----------
-        embedding : EmbeddingTensor
+        embedding : NDArray[np.float32]
             The embedding vector to normalize.
 
         Returns
@@ -211,12 +209,14 @@ class DirichletProcess:
         """
         norm = np.linalg.norm(embedding)
         # Convert to numpy array to ensure division works properly
-        embedding_np = to_numpy(embedding)
+        embedding_np = np.asarray(embedding)
         # Ensure the result is float32 to match the return type
         result = embedding_np / norm if norm > 0 else embedding_np
         return result.astype(np.float32)
 
-    def _log_likelihood_vmf(self, embedding: EmbeddingTensor, cluster_id: int) -> float:
+    def _log_likelihood_vmf(
+        self, embedding: NDArray[np.float32], cluster_id: int
+    ) -> float:
         """
         Calculate von Mises-Fisher log-likelihood for a document in a cluster.
 
@@ -226,7 +226,7 @@ class DirichletProcess:
 
         Parameters
         ----------
-        embedding : EmbeddingTensor
+        embedding : NDArray[np.float32]
             Document embedding vector (normalized).
         cluster_id : int
             The cluster ID to calculate likelihood for.
@@ -295,10 +295,10 @@ class DirichletProcess:
 
         assert "mean" in self.cluster_params[cluster_id]
         count = self.cluster_params[cluster_id]["count"]
-        return np.log(count / denominator)
+        return float(np.log(count / denominator))
 
     def log_likelihood(
-        self, embedding: EmbeddingTensor
+        self, embedding: NDArray[np.float32]
     ) -> tuple[dict[int, float], float]:
         """
         Calculate log-likelihoods for an embedding across all clusters.
@@ -309,7 +309,7 @@ class DirichletProcess:
 
         Parameters
         ----------
-        embedding : EmbeddingTensor
+        embedding : NDArray[np.float32]
             Document embedding vector.
 
         Returns
@@ -332,7 +332,7 @@ class DirichletProcess:
         return existing_likelihoods, new_cluster_likelihood
 
     def _calculate_cluster_probabilities(
-        self, embedding: EmbeddingTensor
+        self, embedding: NDArray[np.float32]
     ) -> tuple[list[Union[int, None]], np.ndarray]:
         """
         Calculate the probability distribution over clusters for a document.
@@ -344,7 +344,7 @@ class DirichletProcess:
 
         Parameters
         ----------
-        embedding : EmbeddingTensor
+        embedding : NDArray[np.float32]
             Document embedding vector.
 
         Returns
@@ -385,7 +385,7 @@ class DirichletProcess:
 
     def _create_or_update_cluster(
         self,
-        embedding: EmbeddingTensor,
+        embedding: NDArray[np.float32],
         is_new_cluster: bool,
         existing_cluster_id: Optional[int] = None,
     ) -> int:
@@ -398,7 +398,7 @@ class DirichletProcess:
 
         Parameters
         ----------
-        embedding : EmbeddingTensor
+        embedding : NDArray[np.float32]
             Document embedding vector.
         is_new_cluster : bool
             Whether to create a new cluster.
@@ -416,7 +416,7 @@ class DirichletProcess:
             # Create new cluster
             cid = self.next_id
             # Convert to numpy array to ensure compatibility
-            embedding_np = to_numpy(embedding)
+            embedding_np = np.asarray(embedding)
             self.cluster_params[cid] = {"mean": embedding_np, "count": 1}
             self.next_id += 1
             self.clusters.append(cid)
@@ -434,7 +434,7 @@ class DirichletProcess:
 
         return cid
 
-    def assign_cluster(self, embedding: EmbeddingTensor) -> tuple[int, np.ndarray]:
+    def assign_cluster(self, embedding: NDArray[np.float32]) -> tuple[int, np.ndarray]:
         """
         Assign a document embedding to a cluster using Bayesian inference.
 
@@ -445,7 +445,7 @@ class DirichletProcess:
 
         Parameters
         ----------
-        embedding : EmbeddingTensor
+        embedding : NDArray[np.float32]
             Document embedding vector.
 
         Returns
@@ -489,7 +489,7 @@ class DirichletProcess:
 
         Parameters
         ----------
-        documents : Union[list[str], list[EmbeddingTensor]]
+        documents : Union[list[str], list[NDArray[np.float32]]]
             The text documents or embeddings to cluster.
         _y
             Ignored. Added for compatibility with scikit-learn API.
@@ -503,7 +503,7 @@ class DirichletProcess:
         ----
         After fitting, the following attributes are set:
 
-        - :data:`embeddings_` : Optional[EmbeddingTensor]
+        - :data:`embeddings_` : Optional[NDArray[np.float32]]
             The document embeddings.
         - :data:`labels_` : NDArray[np.int64]
             The cluster assignments for each document.
@@ -543,7 +543,7 @@ class DirichletProcess:
 
         Parameters
         ----------
-        documents : Union[list[str], list[EmbeddingTensor]]
+        documents : Union[list[str], list[NDArray[np.float32]]]
             The text documents or embeddings to predict clusters for.
 
         Returns
@@ -587,7 +587,7 @@ class DirichletProcess:
 
         Parameters
         ----------
-        documents : Union[list[str], list[EmbeddingTensor]]
+        documents : Union[list[str], list[NDArray[np.float32]]]
             The text documents or embeddings to cluster.
         _y
             This parameter exists only for compatibility with scikit-learn API.
@@ -624,18 +624,18 @@ class PitmanYorProcess(DirichletProcess):
         Random state for reproducibility.
     clusters : list[int]
         List of cluster assignments for each processed text.
-    cluster_params : dict
+    cluster_params : dict[int, dict[str, NDArray[np.float32] | int]]
         Dictionary of cluster parameters for each cluster.
         Contains 'mean' (centroid) and 'count' (number of points).
-    global_mean : Optional[EmbeddingTensor]
+    global_mean : Optional[NDArray[np.float32]]
         Global mean of all document embeddings.
     next_id : int
         Next available cluster ID.
-    embeddings_ : Optional[EmbeddingTensor]
+    embeddings_ : Optional[NDArray[np.float32]]
         Document embeddings after fitting.
     labels_ : Optional[NDArray[np.int64]]
         Cluster assignments after fitting.
-    text_embeddings : dict[str, EmbeddingTensor]
+    text_embeddings : dict[str, NDArray[np.float32]]
         Cache of text to embedding mappings.
     embedding_dim : Optional[int]
         Dimension of the embedding vectors.
@@ -784,10 +784,10 @@ class PitmanYorProcess(DirichletProcess):
         if numerator <= 0:
             numerator = 1e-10
 
-        return np.log(numerator / denominator)
+        return float(np.log(numerator / denominator))
 
     def _calculate_cluster_probabilities(
-        self, embedding: EmbeddingTensor
+        self, embedding: NDArray[np.float32]
     ) -> tuple[list[Union[int, None]], np.ndarray]:
         """
         Calculate the probability distribution over clusters for a document using PYP.
@@ -802,7 +802,7 @@ class PitmanYorProcess(DirichletProcess):
 
         Parameters
         ----------
-        embedding : EmbeddingTensor
+        embedding : NDArray[np.float32]
             Document embedding vector.
 
         Returns
