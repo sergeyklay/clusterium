@@ -32,16 +32,17 @@ import os
 from typing import TYPE_CHECKING
 
 import numpy as np
-from sklearn.metrics import silhouette_score
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics import silhouette_score  # type: ignore
+from sklearn.metrics.pairwise import cosine_similarity  # type: ignore
+from sklearn.neighbors import NearestNeighbors  # type: ignore
+
+from clusx.errors import EvaluationError
+from clusx.logging import get_logger
 
 if TYPE_CHECKING:
-    import numpy  # pylint: disable=reimported
     from typing import Any, Union
 
-from .errors import EvaluationError
-from .logging import get_logger
+    import numpy  # pylint: disable=reimported
 
 logger = get_logger(__name__)
 
@@ -152,9 +153,10 @@ class ClusterEvaluator:
 
         # Validate inputs
         if len(texts) != len(embeddings) or len(texts) != len(cluster_assignments):
-            raise ValueError(
+            raise EvaluationError(
                 "Length mismatch: texts, embeddings, and cluster_assignments "
-                "must have the same length"
+                f"must have the same length, got {len(texts)}, {len(embeddings)}, "
+                f"and {len(cluster_assignments)} respectively",
             )
 
         logger.info(
@@ -191,7 +193,7 @@ class ClusterEvaluator:
             is not possible
         """
         # Count samples per cluster
-        cluster_counts = {}
+        cluster_counts: dict[int, int] = {}
         for cluster_id in self.cluster_assignments:
             cluster_counts[cluster_id] = cluster_counts.get(cluster_id, 0) + 1
 
@@ -294,6 +296,7 @@ class ClusterEvaluator:
 
             # Calculate intra-cluster similarities
             intra_sims = []
+            # TODO: On a file of 170000 lines at this point we die.
             for cluster_indices in valid_clusters.values():
                 cluster_embeddings = self.embeddings[cluster_indices]
                 sim_matrix = cosine_similarity(cluster_embeddings)
@@ -379,7 +382,7 @@ class ClusterEvaluator:
         }
 
         try:
-            import powerlaw
+            import powerlaw  # type: ignore
 
             # 1. Get cluster sizes
             cluster_sizes = []

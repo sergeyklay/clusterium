@@ -32,16 +32,16 @@ import numpy as np
 from scipy.special import logsumexp
 from sentence_transformers import SentenceTransformer
 
+from clusx.logging import get_logger
+from clusx.utils import to_numpy
+
 if TYPE_CHECKING:
-    from typing import Any, Optional, Union
+    from typing import Optional, Union
 
     import torch
     from numpy.typing import NDArray
 
     EmbeddingTensor = Union[torch.Tensor, NDArray[np.float32]]
-
-from clusx.logging import get_logger
-from clusx.utils import to_numpy
 
 logger = get_logger(__name__)
 
@@ -122,8 +122,8 @@ class DirichletProcess:
         # For reproducibility
         self.random_state = np.random.default_rng(seed=random_state)
 
-        self.clusters = []
-        self.cluster_params = {}
+        self.clusters: list[int] = []
+        self.cluster_params: dict[int, dict[str, EmbeddingTensor | int]] = {}
         self.global_mean: Optional[EmbeddingTensor] = None
         self.next_id = 0
         self.embeddings_: Optional[EmbeddingTensor] = None
@@ -374,7 +374,7 @@ class DirichletProcess:
 
         # Convert log scores to probabilities
         scores = np.array(scores)
-        scores -= logsumexp(scores)
+        scores -= logsumexp(scores)  # type: ignore
         probabilities = np.exp(scores)  # type: np.ndarray
 
         # Add placeholder for new cluster ID
@@ -478,7 +478,7 @@ class DirichletProcess:
 
         return cluster_id, probs
 
-    def fit(self, documents, _y: Union[Any, None] = None):
+    def fit(self, documents, _y=None):
         """
         Train the clustering model on the given text data.
 
@@ -490,7 +490,7 @@ class DirichletProcess:
         ----------
         documents : Union[list[str], list[EmbeddingTensor]]
             The text documents or embeddings to cluster.
-        _y : Union[Any, None]
+        _y
             Ignored. Added for compatibility with scikit-learn API.
 
         Returns
@@ -580,7 +580,7 @@ class DirichletProcess:
 
         return np.array(predictions)
 
-    def fit_predict(self, documents, _y: Union[Any, None] = None):
+    def fit_predict(self, documents, _y=None):
         """
         Fit the model and predict cluster labels for documents.
 
@@ -588,7 +588,7 @@ class DirichletProcess:
         ----------
         documents : Union[list[str], list[EmbeddingTensor]]
             The text documents or embeddings to cluster.
-        _y : Union[Any, None]
+        _y
             This parameter exists only for compatibility with scikit-learn API.
 
         Returns
@@ -837,7 +837,7 @@ class PitmanYorProcess(DirichletProcess):
 
         # Convert log scores to probabilities
         scores = np.array(scores)
-        scores -= logsumexp(scores)
+        scores -= logsumexp(scores)  # type: ignore
         probabilities = np.exp(scores)
 
         # Add placeholder for new cluster ID

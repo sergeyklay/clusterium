@@ -15,12 +15,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colormaps
 
+from clusx.errors import VisualizationError
+from clusx.logging import get_logger
+
 if TYPE_CHECKING:
     from typing import Any
+
     from matplotlib.axes import Axes
 
-from .errors import VisualizationError
-from .logging import get_logger
 
 logger = get_logger(__name__)
 
