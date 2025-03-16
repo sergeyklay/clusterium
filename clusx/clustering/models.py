@@ -76,17 +76,17 @@ class DirichletProcess:
     cluster_params : dict
         Dictionary of cluster parameters for each cluster.
         Contains 'mean' (centroid) and 'count' (number of points).
-    global_mean : ndarray
+    global_mean : Optional[EmbeddingTensor]
         Global mean of all document embeddings.
     next_id : int
         Next available cluster ID.
-    embeddings_ : ndarray
+    embeddings_ : Optional[EmbeddingTensor]
         Document embeddings after fitting.
-    labels_ : ndarray
+    labels_ : Optional[NDArray[np.int64]]
         Cluster assignments after fitting.
-    text_embeddings : dict
+    text_embeddings : dict[str, EmbeddingTensor]
         Cache of text to embedding mappings.
-    embedding_dim : int or None
+    embedding_dim : Optional[int]
         Dimension of the embedding vectors.
     """
 
@@ -108,10 +108,10 @@ class DirichletProcess:
         kappa : float
             Precision parameter for the von Mises-Fisher distribution.
             Higher values lead to tighter, more concentrated clusters.
-        model_name : str, optional
+        model_name : Optional[str]
             Name of the sentence transformer model to use.
             Default is "all-MiniLM-L6-v2".
-        random_state : int, optional
+        random_state : Optional[int]
             Random seed for reproducibility.
             If None, fresh, unpredictable entropy will be pulled from the OS.
         """
@@ -124,10 +124,10 @@ class DirichletProcess:
 
         self.clusters = []
         self.cluster_params = {}
-        self.global_mean = None
+        self.global_mean: Optional[EmbeddingTensor] = None
         self.next_id = 0
-        self.embeddings_ = None
-        self.labels_ = None
+        self.embeddings_: Optional[EmbeddingTensor] = None
+        self.labels_: Optional[NDArray[np.int64]] = None
 
         # For tracking processed texts and their embeddings
         self.text_embeddings: dict[str, EmbeddingTensor] = {}
@@ -148,7 +148,7 @@ class DirichletProcess:
 
         Returns
         -------
-        numpy.ndarray
+        EmbeddingTensor
             The normalized embedding vector(s) for the text.
             If input is a single string, returns a single embedding vector.
             If input is a list, returns an array of embedding vectors.
@@ -191,7 +191,7 @@ class DirichletProcess:
         # Return single embedding or list based on input
         return results[0] if is_single else np.array(results)
 
-    def _normalize(self, embedding: EmbeddingTensor) -> EmbeddingTensor:
+    def _normalize(self, embedding: EmbeddingTensor) -> NDArray[np.float32]:
         """
         Normalize vector to unit length for use with von Mises-Fisher distribution.
 
@@ -205,13 +205,15 @@ class DirichletProcess:
 
         Returns
         -------
-        EmbeddingTensor
-            The normalized embedding vector with unit length.
+        NDArray[np.float32]
+            The normalized embedding vector with unit length as a NumPy array.
         """
         norm = np.linalg.norm(embedding)
         # Convert to numpy array to ensure division works properly
         embedding_np = to_numpy(embedding)
-        return embedding_np / norm if norm > 0 else embedding_np
+        # Ensure the result is float32 to match the return type
+        result = embedding_np / norm if norm > 0 else embedding_np
+        return result.astype(np.float32)
 
     def _log_likelihood_vmf(self, embedding: EmbeddingTensor, cluster_id: int) -> float:
         """
@@ -262,7 +264,7 @@ class DirichletProcess:
 
         Parameters
         ----------
-        cluster_id : int, optional
+        cluster_id : Optional[int]
             The cluster ID.
             If provided, calculate prior for an existing cluster.
             If None, calculate prior for a new cluster.
@@ -399,7 +401,7 @@ class DirichletProcess:
             Document embedding vector.
         is_new_cluster : bool
             Whether to create a new cluster.
-        existing_cluster_id : int, optional
+        existing_cluster_id : Optional[int]
             ID of existing cluster to update, if is_new_cluster is False.
 
         Returns
@@ -486,9 +488,9 @@ class DirichletProcess:
 
         Parameters
         ----------
-        documents : array-like of shape (n_samples,)
+        documents : Union[list[str], list[EmbeddingTensor]]
             The text documents or embeddings to cluster.
-        _y : Any, optional
+        _y : Union[Any, None]
             Ignored. Added for compatibility with scikit-learn API.
 
         Returns
@@ -500,9 +502,9 @@ class DirichletProcess:
         ----
         After fitting, the following attributes are set:
 
-        - :data:`embeddings_` : ndarray of shape (n_samples, n_features)
+        - :data:`embeddings_` : Optional[EmbeddingTensor]
             The document embeddings.
-        - :data:`labels_` : ndarray of shape (n_samples,)
+        - :data:`labels_` : NDArray[np.int64]
             The cluster assignments for each document.
         - :data:`clusters` : list
             List of cluster IDs for each document.
@@ -540,12 +542,12 @@ class DirichletProcess:
 
         Parameters
         ----------
-        documents : array-like of shape (n_samples,)
+        documents : Union[list[str], list[EmbeddingTensor]]
             The text documents or embeddings to predict clusters for.
 
         Returns
         -------
-        labels : ndarray of shape (n_samples,)
+        labels : NDArray[np.int64]
             Cluster labels for each document.
             Returns -1 if no clusters exist yet.
 
@@ -584,14 +586,14 @@ class DirichletProcess:
 
         Parameters
         ----------
-        documents : array-like of shape (n_samples,)
+        documents : Union[list[str], list[EmbeddingTensor]]
             The text documents or embeddings to cluster.
-        _y : Ignored
+        _y : Union[Any, None]
             This parameter exists only for compatibility with scikit-learn API.
 
         Returns
         -------
-        labels : ndarray of shape (n_samples,)
+        labels : NDArray[np.int64]
             Cluster labels for each document.
 
         Notes
@@ -624,17 +626,17 @@ class PitmanYorProcess(DirichletProcess):
     cluster_params : dict
         Dictionary of cluster parameters for each cluster.
         Contains 'mean' (centroid) and 'count' (number of points).
-    global_mean : ndarray
+    global_mean : Optional[EmbeddingTensor]
         Global mean of all document embeddings.
     next_id : int
         Next available cluster ID.
-    embeddings_ : ndarray
+    embeddings_ : Optional[EmbeddingTensor]
         Document embeddings after fitting.
-    labels_ : ndarray
+    labels_ : Optional[NDArray[np.int64]]
         Cluster assignments after fitting.
-    text_embeddings : dict
+    text_embeddings : dict[str, EmbeddingTensor]
         Cache of text to embedding mappings.
-    embedding_dim : int, optional
+    embedding_dim : Optional[int]
         Dimension of the embedding vectors.
 
     Notes
@@ -685,10 +687,10 @@ class PitmanYorProcess(DirichletProcess):
             Controls the power-law behavior. Higher values create more
             power-law-like cluster size distributions. When σ=0, the model
             reduces to a Dirichlet Process.
-        model_name : str, optional
+        model_name : Optional[str]
             Name of the sentence transformer model to use.
             Default is "all-MiniLM-L6-v2".
-        random_state : int, optional
+        random_state : Optional[int]
             Random seed for reproducibility.
             If None, fresh, unpredictable entropy will be pulled from the OS.
 

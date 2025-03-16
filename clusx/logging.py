@@ -40,7 +40,6 @@ def setup_logging(level: Optional[int] = None) -> None:
 
     Args:
         level: The logging level (defaults to logging.INFO if None).
-              Common levels: DEBUG(10), INFO(20), WARNING(30), ERROR(40), CRITICAL(50)
     """
     if level is None:
         level = logging.INFO
