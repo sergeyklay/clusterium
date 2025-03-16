@@ -1,5 +1,5 @@
 """
-Visualization module for QA Dataset Clustering.
+Visualization module for Clusterium.
 
 This module provides functions for visualizing clustering results and evaluation
 metrics.
