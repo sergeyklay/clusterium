@@ -7,6 +7,11 @@ releases, in reverse chronological order.
 0.7.0 - 2025-03-xx
 ------------------
 
+Breaking Changes
+^^^^^^^^^^^^^^^^^
+
+* Removed ``clusx.utils`` module as it is no longer used by the project.
+
 Trivial/Internal Changes
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -26,7 +31,7 @@ Features
 
 
 Breaking Changes
-^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
 
 * Completely redesigned Dirichlet Process and Pitman-Yor Process implementations with incompatible APIs
 * Removed ``variance`` parameter, replaced with more theoretically sound ``kappa`` parameter
@@ -75,7 +80,7 @@ Features
   - Removed deprecated plotting functions and streamlined visualization dashboard code.
 
 Breaking Changes
-^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
 
 * Refactored ``load_cluster_assignments`` function:
 
