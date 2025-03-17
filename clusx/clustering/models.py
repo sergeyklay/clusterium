@@ -374,9 +374,9 @@ class DirichletProcess:
         scores.append(prior_new + new_cluster_likelihood)
 
         # Convert log scores to probabilities
-        scores = np.array(scores)
-        scores -= logsumexp(scores)  # type: ignore
-        probabilities = np.exp(scores)  # type: np.ndarray
+        scores_array = np.array(scores)
+        scores_array -= logsumexp(scores_array)  # type: ignore
+        probabilities = np.exp(scores_array)
 
         # Add placeholder for new cluster ID
         extended_cluster_ids = cluster_ids + [None]  # None represents new cluster
@@ -424,15 +424,14 @@ class DirichletProcess:
 
         # Update existing cluster
         assert existing_cluster_id is not None
-        cid = existing_cluster_id
-        params = self.cluster_params[cid]
+        params = self.cluster_params[existing_cluster_id]
         params["count"] += 1
-        params["mean"] = self._normalize(
-            params["mean"] * (params["count"] - 1) + embedding
-        )
-        self.clusters.append(cid)
 
-        return cid
+        result = (params["mean"] * (params["count"] - 1) + embedding).astype(np.float32)
+        params["mean"] = self._normalize(result)
+        self.clusters.append(existing_cluster_id)
+
+        return existing_cluster_id
 
     def assign_cluster(self, embedding: NDArray[np.float32]) -> tuple[int, np.ndarray]:
         """
@@ -777,7 +776,7 @@ class PitmanYorProcess(DirichletProcess):
 
         # Prior for an existing cluster: (n_k - sigma) / (n + alpha)
         assert "count" in self.cluster_params[cluster_id]
-        count = self.cluster_params[cluster_id]["count"]
+        count = int(self.cluster_params[cluster_id]["count"])
         numerator = count - self.sigma
 
         # If numerator is negative or zero, use a small positive value
@@ -837,9 +836,9 @@ class PitmanYorProcess(DirichletProcess):
         scores.append(prior_new + new_cluster_likelihood)
 
         # Convert log scores to probabilities
-        scores = np.array(scores)
-        scores -= logsumexp(scores)  # type: ignore
-        probabilities = np.exp(scores)
+        scores_array = np.array(scores)
+        scores_array -= logsumexp(scores_array)  # type: ignore
+        probabilities = np.exp(scores_array)
 
         # Add placeholder for new cluster ID
         extended_cluster_ids = cluster_ids + [None]  # None represents new cluster
