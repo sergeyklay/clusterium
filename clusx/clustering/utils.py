@@ -15,15 +15,9 @@ from tqdm.auto import tqdm
 
 from clusx.errors import MissingClusterColumnError, MissingParametersError
 from clusx.logging import get_logger
-from clusx.utils import to_numpy
 
 if TYPE_CHECKING:
-    from typing import Optional, Union
-
-    import torch
-    from numpy.typing import NDArray
-
-    EmbeddingTensor = Union[torch.Tensor, NDArray[np.float32]]
+    from typing import Optional
 
 
 logger = get_logger(__name__)
@@ -219,7 +213,7 @@ def get_embeddings(texts: list[str]) -> np.ndarray:
         disable=None,  # Disable on non-TTY
         unit=" texts",
     ):
-        emb_array = to_numpy(dp.get_embedding(text))
+        emb_array = np.asarray(dp.get_embedding(text))
         embeddings.append(emb_array)
 
     return np.array(embeddings)
