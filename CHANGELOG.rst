@@ -17,6 +17,7 @@ Trivial/Internal Changes
 
 * Refactor type hints to use ``NDArray`` instead of ``EmbeddingTensor`` alias for better clarity and consistency in the ``DirichletProcess`` and ``PitmanYorProcess`` classes.
 * Update logging for ``DirichletProcess`` and ``PitmanYorProcess`` to use the standard :mod:`logging` module.
+* ``EmbeddingTensor`` type alias is no longer used in the project.
 
 0.6.0 - 2025-03-16
 ------------------

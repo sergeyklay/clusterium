@@ -43,7 +43,6 @@ nitpick_ignore = [
     ("py:class", "np.ndarray"),
     ("py:class", "numpy.bool_"),
     ("py:class", "NDArray"),
-    ("py:class", "EmbeddingTensor"),
     ("py:class", "Axes"),
     ("py:class", "SentenceTransformer"),
 ]
