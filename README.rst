@@ -84,7 +84,7 @@ For more advanced usage, including saving results and evaluation, see the `Usage
 Project Information
 ===================
 
-Clusterium is released under the `MIT License <https://choosealicense.com/licenses/mit/>`_, its documentation lives at `Read the Docs <https://clusterium.readthedocs.io/>`_, the code on `GitHub <https://github.com/sergeyklay/clusterium>`_, and the latest release on `PyPI <https://pypi.org/project/clusterium/>`_. It's rigorously tested on Python 3.11+.
+Clusterium is released under the `MIT License <https://choosealicense.com/licenses/mit/>`_, its documentation lives at `Read the Docs <https://clusterium.readthedocs.io/>`_, the code on `GitHub <https://github.com/sergeyklay/clusterium>`_, and the latest release on `PyPI <https://pypi.org/project/clusx/>`_. It's rigorously tested on Python 3.11+.
 
 If you'd like to contribute to Clusterium you're most welcome!
 
