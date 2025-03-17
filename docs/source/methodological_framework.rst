@@ -12,11 +12,11 @@ This section documents the design and implementation of the nonparametric Bayesi
 Dirichlet Process Clustering
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Clusterium implements text clustering using the Dirichlet Process (DP), a fundamental nonparametric Bayesian model that allows for a flexible, potentially infinite number of clusters. Unlike traditional clustering algorithms that require pre-specifying the number of clusters (e.g., K-means), the Dirichlet Process automatically determines the appropriate number of clusters based on the data. The theoretical foundations for this approach were established by Ferguson [1]_.
+Clusterium implements text clustering using the Dirichlet Process (DP), a fundamental nonparametric Bayesian model that allows for a flexible, potentially infinite number of clusters. Unlike traditional clustering algorithms that require pre-specifying the number of clusters (e.g., K-means), the DP automatically determines the appropriate number of clusters based on the data. The theoretical foundations for this approach were established by Ferguson [1]_.
 
 **Mathematical Foundation:**
 
-In Clusterium's implementation, the Dirichlet Process is realized through the Chinese Restaurant Process (CRP) formulation. The prior probability of a document joining an existing cluster or creating a new one follows:
+In Clusterium's implementation, the DP is realized through the Chinese Restaurant Process (CRP) formulation. The prior probability of a document joining an existing cluster or creating a new one follows:
 
 .. math::
 
@@ -61,7 +61,7 @@ These properties make vMF particularly suitable for clustering in high-dimension
 
 **Algorithm Overview:**
 
-The Dirichlet Process clustering algorithm in Clusterium follows these key steps:
+The DP clustering algorithm in Clusterium follows these key steps:
 
 1. **Embedding Generation**: Transform documents into normalized vector representations using a pretrained language model.
 
@@ -91,7 +91,7 @@ Clusterium's implementation includes several important design decisions that aff
 
 **Stochastic Properties and Document Order Sensitivity:**
 
-A critical aspect of the Dirichlet Process implementation is its sequential, stochastic nature. Since documents are processed one at a time following the Chinese Restaurant Process, several important properties emerge:
+A critical aspect of the DP implementation is its sequential, stochastic nature. Since documents are processed one at a time following the Chinese Restaurant Process, several important properties emerge:
 
 1. **Order Dependency**: The final clustering outcome is sensitive to the order in which documents are processed. This sensitivity arises because:
 
@@ -116,7 +116,7 @@ To mitigate order dependency in production applications, randomly shuffling docu
 
 **Parameter Tuning:**
 
-The Dirichlet Process clustering model is governed by two key parameters that significantly influence clustering behavior from an academic perspective:
+The DP clustering model is governed by two key parameters that significantly influence clustering behavior from an academic perspective:
 
 1. **Alpha (α)**: The concentration parameter that controls cluster proliferation.
 
@@ -134,6 +134,8 @@ The interaction between these parameters creates distinct clustering profiles. F
 
 Pitman-Yor Process Clustering
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Clustering using the Pitman-Yor Process (PYP) is generally better suited for text data as it can model the power-law distributions common in natural language.
 
 .. note::
 
